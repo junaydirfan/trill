@@ -1,0 +1,30 @@
+[package]
+name = "cachify"
+version = "0.1.0"
+edition = "2024"
+description = "Lean terminal Spotify player for CachyOS"
+
+[dependencies]
+librespot-core = { version = "0.8", default-features = false, features = ["native-tls"] }
+librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "pulseaudio-backend"] }
+librespot-metadata = { version = "0.8", default-features = false, features = ["native-tls"] }
+librespot-oauth = { version = "0.8", default-features = false, features = ["native-tls"] }
+librespot-protocol = "0.8"
+protobuf = "3"
+ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
+crossterm = { version = "0.29", features = ["event-stream"] }
+tokio = { version = "1", features = ["rt", "macros", "sync", "time"] }
+futures-util = { version = "0.3", default-features = false, features = ["std"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+log = "0.4"
+protobuf-json-mapping = "3"
+http = "1"
+bytes = "1"
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = true
