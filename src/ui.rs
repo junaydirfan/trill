@@ -35,16 +35,14 @@ fn fmt_date(ms: u64) -> String {
     format!("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)
 }
 
-/// figlet "Slant": the big logo on the splash screen (and in the README).
-const LOGO_WIDE: [&str; 5] = [
+/// figlet "Slant", the same logo as the README; shown above the library when there's room.
+const LOGO: [&str; 5] = [
     "   __       _ ____",
     "  / /______(_) / /",
     " / __/ ___/ / / / ",
     "/ /_/ /  / / / /  ",
     "\\__/_/  /_/_/_/   ",
 ];
-/// figlet "Pagga": shown above the library when there's room.
-const LOGO: [&str; 3] = ["░▀█▀░█▀▄░▀█▀░█░░░█░░", "░░█░░█▀▄░░█░░█░░░█░░", "░░▀░░▀░▀░▀▀▀░▀▀▀░▀▀▀"];
 
 /// `rows` with the gradient across it, if it fits `width`.
 fn logo(rows: &[&str], width: u16) -> Option<Vec<Line<'static>>> {
@@ -158,13 +156,7 @@ pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
     let fixed = ["♥ Liked Songs", "≡ Queue", "⌕ Search"];
     let items: Vec<ListItem> = fixed.iter().copied().chain(playlists.iter().map(String::as_str)).map(ListItem::new).collect();
     f.render_widget(List::new(items).block(block("Library", false)), side);
-    let frame = Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim());
-    let inner = frame.inner(main);
-    f.render_widget(frame, main);
-    if let Some(l) = logo(&LOGO_WIDE, inner.width).filter(|l| inner.height >= l.len() as u16) {
-        let [_, mid, _] = Layout::vertical([Constraint::Fill(1), Constraint::Length(l.len() as u16), Constraint::Fill(1)]).areas(inner);
-        f.render_widget(Paragraph::new(l), mid);
-    }
+    f.render_widget(Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim()).title(" trill "), main);
     f.render_widget(Paragraph::new(" Connecting…").dim(), bottom);
 }
 
@@ -489,11 +481,10 @@ mod tests {
     }
 
     #[test]
-    fn splash_shows_both_logos() {
+    fn splash_shows_logo() {
         let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 40)).unwrap();
         t.draw(|f| super::draw_splash(f, &["Mix".into()])).unwrap();
         let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
-        assert!(screen.contains(super::LOGO_WIDE[1].trim()));
-        assert!(screen.contains(super::LOGO[0]));
+        assert!(screen.contains(super::LOGO[1].trim()));
     }
 }

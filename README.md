@@ -38,25 +38,6 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **Desktop native.** MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
 
-<table>
-  <tr>
-    <td width="50%"><img src="assets/screenshots/lyrics.png" alt="Synced lyrics view, current line highlighted"></td>
-    <td width="50%"><img src="assets/screenshots/eq.png" alt="10-band EQ panel"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Synced lyrics</sub></td>
-    <td align="center"><sub>10-band EQ</sub></td>
-  </tr>
-  <tr>
-    <td width="50%"><img src="assets/screenshots/cover-theme.png" alt="The cover theme taking its accent colour from the album art"></td>
-    <td width="50%"><img src="assets/screenshots/search.png" alt="Search results for tracks, albums, playlists and artists"></td>
-  </tr>
-  <tr>
-    <td align="center"><sub>Cover theme</sub></td>
-    <td align="center"><sub>Search</sub></td>
-  </tr>
-</table>
-
 ## Numbers
 
 Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 150 ms.
