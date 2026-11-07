@@ -183,6 +183,8 @@ impl App {
         eq: Option<Eq>,
     ) -> Self {
         let user = session.username();
+        let (shuffle, sort) = (audio.shuffle, if audio.sort_original { Sort::Original } else { Sort::Added });
+        let repeat = [Repeat::Off, Repeat::All, Repeat::One][audio.repeat.min(2) as usize];
         let side = vec![
             SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
             SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
@@ -208,7 +210,7 @@ impl App {
             pending: None,
             search_rows: Arc::new(Vec::new()),
             search_title: "Search".into(),
-            sort: Sort::Added,
+            sort,
             audio,
             eq,
             eq_allowed: true,
@@ -236,8 +238,8 @@ impl App {
             vol,
             vol_set_at: Instant::now().checked_sub(std::time::Duration::from_secs(10)).unwrap_or_else(Instant::now),
             skips: 0,
-            shuffle: false,
-            repeat: Repeat::Off,
+            shuffle,
+            repeat,
             rng: seed,
             liked: HashSet::new(),
             lyrics_open: false,
@@ -328,6 +330,7 @@ impl App {
 
     fn toggle_sort(&mut self) {
         self.sort = if self.sort == Sort::Added { Sort::Original } else { Sort::Added };
+        self.save_prefs();
         self.status = match self.sort {
             Sort::Added => "Sort: recently added first".into(),
             Sort::Original => "Sort: playlist order".into(),
@@ -642,9 +645,22 @@ impl App {
         self.vol = if up { (self.vol + VOL_STEP).min(100) } else { self.vol.saturating_sub(VOL_STEP) };
         self.vol_set_at = Instant::now();
         self.engine.set_volume(self.vol);
+        self.save_volume();
+    }
+
+    fn save_volume(&self) {
         if let Some(c) = self.session.cache() {
             c.save_volume((self.vol * u16::MAX as u32 / 100) as u16);
         }
+    }
+
+    /// Write the keyboard toggles (shuffle, repeat, sort, art) next to the EQ settings.
+    pub(crate) fn save_prefs(&mut self) {
+        self.audio.shuffle = self.shuffle;
+        self.audio.repeat = self.repeat as u8;
+        self.audio.sort_original = self.sort == Sort::Original;
+        self.audio.art = self.art_on;
+        self.audio.save();
     }
 
     /// Soloist autoplays a radio track the moment ours ends. To avoid that, we hand it our
@@ -786,10 +802,11 @@ impl App {
             }
             EngineEvent::Volume(v) => {
                 // Soloist echoes volume changes late; don't let an old echo undo a keypress.
-                if self.vol_set_at.elapsed().as_millis() < 1500 {
+                if self.vol_set_at.elapsed().as_millis() < 1500 || v.min(100) == self.vol {
                     return false;
                 }
-                self.vol = v.min(100);
+                self.vol = v.min(100); // changed from the phone / another Connect device
+                self.save_volume();
             }
             EngineEvent::Status(m) | EngineEvent::Exited(m) => {
                 if Instant::now() < self.quiet_until {
@@ -937,6 +954,7 @@ impl App {
                 self.vol = v.min(100);
                 self.vol_set_at = Instant::now();
                 self.engine.set_volume(self.vol);
+                self.save_volume();
             }
             Remote::Shuffle(on) => {
                 if on != self.shuffle {
@@ -945,6 +963,7 @@ impl App {
             }
             Remote::Loop(r) => {
                 self.repeat = r;
+                self.save_prefs();
                 self.engine.set_repeat_track(r == Repeat::One);
             }
         }
@@ -952,6 +971,7 @@ impl App {
 
     fn toggle_shuffle(&mut self) {
         self.shuffle = !self.shuffle;
+        self.save_prefs();
         let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]);
         self.reorder(cur);
         self.status = format!("Shuffle {}", if self.shuffle { "on" } else { "off" });
@@ -1110,6 +1130,7 @@ impl App {
                     Repeat::All => Repeat::One,
                     Repeat::One => Repeat::Off,
                 };
+                self.save_prefs();
                 self.engine.set_repeat_track(self.repeat == Repeat::One);
             }
             KeyCode::Char('c') => {

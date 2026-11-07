@@ -292,6 +292,7 @@ impl App {
             return;
         }
         self.art_on = !self.art_on;
+        self.save_prefs();
         if !self.art_on {
             self.art = None; // free the encoded image
         }

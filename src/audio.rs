@@ -39,17 +39,34 @@ pub const PRESETS: &[(&str, [f32; 10])] = &[
 /// Index meaning "user-tuned bands".
 pub const CUSTOM: usize = PRESETS.len();
 
+/// Everything the user can change from the keyboard, kept across restarts
+/// (`~/.local/share/cachify/audio_settings`). Volume lives in librespot's cache.
 pub struct AudioSettings {
     /// Selected preset index, or [`CUSTOM`].
     pub preset: usize,
     pub custom: [f32; 10],
     pub crossfade_s: u32,
+    pub shuffle: bool,
+    /// 0 off, 1 all, 2 one
+    pub repeat: u8,
+    /// Playlist order instead of newest first.
+    pub sort_original: bool,
+    pub art: bool,
     path: PathBuf,
 }
 
 impl AudioSettings {
     pub fn load(dir: &Path) -> Self {
-        let mut s = AudioSettings { preset: 0, custom: [0.0; 10], crossfade_s: 0, path: dir.join("audio_settings") };
+        let mut s = AudioSettings {
+            preset: 0,
+            custom: [0.0; 10],
+            crossfade_s: 0,
+            shuffle: false,
+            repeat: 0,
+            sort_original: false,
+            art: true,
+            path: dir.join("audio_settings"),
+        };
         let Ok(text) = fs::read_to_string(&s.path) else { return s };
         for line in text.lines() {
             let Some((k, v)) = line.split_once('=') else { continue };
@@ -68,6 +85,10 @@ impl AudioSettings {
                     }
                 }
                 "crossfade" => s.crossfade_s = v.trim().parse::<u32>().unwrap_or(0).min(12),
+                "shuffle" => s.shuffle = v.trim() == "on",
+                "repeat" => s.repeat = ["off", "all", "one"].iter().position(|r| *r == v.trim()).unwrap_or(0) as u8,
+                "sort" => s.sort_original = v.trim() == "playlist",
+                "art" => s.art = v.trim() != "off",
                 _ => {}
             }
         }
@@ -76,7 +97,16 @@ impl AudioSettings {
 
     pub fn save(&self) {
         let custom = self.custom.iter().map(|g| format!("{g:.1}")).collect::<Vec<_>>().join(",");
-        let text = format!("preset={}\ncustom={custom}\ncrossfade={}\n", self.preset_name(), self.crossfade_s);
+        let on = |b: bool| if b { "on" } else { "off" };
+        let text = format!(
+            "preset={}\ncustom={custom}\ncrossfade={}\nshuffle={}\nrepeat={}\nsort={}\nart={}\n",
+            self.preset_name(),
+            self.crossfade_s,
+            on(self.shuffle),
+            ["off", "all", "one"][self.repeat.min(2) as usize],
+            if self.sort_original { "playlist" } else { "added" },
+            on(self.art),
+        );
         if let Some(d) = self.path.parent() {
             let _ = fs::create_dir_all(d);
         }
@@ -326,5 +356,17 @@ mod tests {
         assert!((preamp(&g) - 0.5012).abs() < 1e-3); // -6 dB
         assert!(props(&g).contains("\"b1:Gain\" 6.0"));
         assert!(conf(&g).contains("bq_lowshelf") && conf(&g).contains("inputs = [ \"pre:In\" ]"));
+    }
+
+    #[test]
+    fn settings_survive_restart() {
+        let dir = std::env::temp_dir().join(format!("cachify-test-{}", std::process::id()));
+        let mut a = AudioSettings::load(&dir);
+        assert!(!a.shuffle && a.repeat == 0 && !a.sort_original && a.art);
+        (a.shuffle, a.repeat, a.sort_original, a.art, a.crossfade_s) = (true, 2, true, false, 6);
+        a.save();
+        let b = AudioSettings::load(&dir);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(b.shuffle && b.repeat == 2 && b.sort_original && !b.art && b.crossfade_s == 6);
     }
 }
