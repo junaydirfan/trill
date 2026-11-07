@@ -130,6 +130,27 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     }
 }
 
+/// First frame while logging in (~0.4 s): the same layout with the cached library, so the
+/// real UI replaces it without a jump. Keys typed meanwhile wait in stdin.
+pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
+    let [body, _now, bottom] = Layout::vertical([Constraint::Min(5), Constraint::Length(2), Constraint::Length(1)]).areas(f.area());
+    let side_w = if f.area().width < 70 { 0 } else { (f.area().width / 4).clamp(18, 32) };
+    let [side, main] = Layout::horizontal([Constraint::Length(side_w), Constraint::Min(20)]).areas(body);
+    let side = match logo(side.width).filter(|l| side.height >= l.len() as u16 + 13) {
+        Some(l) => {
+            let [a, s] = Layout::vertical([Constraint::Length(l.len() as u16), Constraint::Min(6)]).areas(side);
+            f.render_widget(Paragraph::new(l), a);
+            s
+        }
+        None => side,
+    };
+    let fixed = ["♥ Liked Songs", "≡ Queue", "⌕ Search"];
+    let items: Vec<ListItem> = fixed.iter().copied().chain(playlists.iter().map(String::as_str)).map(ListItem::new).collect();
+    f.render_widget(List::new(items).block(block("Library", false)), side);
+    f.render_widget(Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim()).title(" cachify "), main);
+    f.render_widget(Paragraph::new(" Connecting…").dim(), bottom);
+}
+
 /// Height (in rows) for a square cover the width of the sidebar, if the sidebar is tall
 /// enough to still show a useful list above it.
 fn art_rows(app: &App, side: Rect) -> Option<u16> {

@@ -38,13 +38,18 @@ fn oauth_login(client_id: &str, redirect: &str, scopes: &[&str]) -> Result<libre
     client.get_access_token().map_err(|e| e.to_string())
 }
 
-/// Connect a session, using cached credentials when available. Runs before the TUI starts,
-/// so it may print to the terminal and open a browser.
+/// Connect a session, using cached credentials when available. May print to the terminal
+/// and open a browser; if the startup frame is up it's put away first (main redraws later).
 pub async fn connect(session: &Session, cache: &Cache) -> Result<(), String> {
     if let Some(creds) = cache.credentials() {
         match session.connect(creds, true).await {
             Ok(()) => return Ok(()),
-            Err(e) => eprintln!("Cached login failed ({e}), logging in again…"),
+            Err(e) => {
+                if crossterm::terminal::is_raw_mode_enabled().unwrap_or(false) {
+                    ratatui::restore();
+                }
+                eprintln!("Cached login failed ({e}), logging in again…")
+            }
         }
     }
     eprintln!("Opening your browser to log in to Spotify (Premium required)…");

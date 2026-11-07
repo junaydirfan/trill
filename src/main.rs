@@ -312,7 +312,7 @@ async fn run(cfg: Config) -> i32 {
     }
     // Ask the terminal which image protocol it speaks (kitty / sixel / iTerm2, else
     // half-block characters) while we log in. Must finish before we read key events.
-    let picker_query = (cfg.art && std::io::IsTerminal::is_terminal(&std::io::stdout())).then(|| {
+    let mut picker_query = (cfg.art && std::io::IsTerminal::is_terminal(&std::io::stdout())).then(|| {
         std::thread::Builder::new()
             .name("term-query".into())
             .spawn(query_terminal_images)
@@ -324,15 +324,30 @@ async fn run(cfg: Config) -> i32 {
         let tx = eng_tx.clone();
         async move { engine::start_soloist(&o, tx).await }
     });
+    // With a saved login nothing prompts, so draw the library at once instead of after the
+    // ~0.4 s login. The image query must finish first: both talk to the terminal.
+    let mut img_picker = None;
+    let mut term = None;
     let (login, early) = match early {
         Some(start) => {
-            eprintln!("Connecting and starting Soloist…");
+            if std::io::IsTerminal::is_terminal(&std::io::stdout()) && !env::args().any(|a| a.starts_with("--debug")) {
+                img_picker = picker_query.take().and_then(|t| t.ok()).and_then(|t| t.join().ok()).flatten();
+                let mut t = ratatui::init();
+                let names: Vec<String> = api::read_playlist_cache(&cfg.cache_dir).unwrap_or_default().into_iter().map(|p| p.1).collect();
+                let _ = t.draw(|f| ui::draw_splash(f, &names));
+                term = Some(t);
+            } else {
+                eprintln!("Connecting and starting Soloist…");
+            }
             let (l, e) = tokio::join!(auth::connect(&session, &cache), start);
             (l, Some(e))
         }
         None => (auth::connect(&session, &cache).await, None),
     };
     if let Err(e) = login {
+        if term.take().is_some() {
+            ratatui::restore();
+        }
         if let Some(Ok(e)) = early {
             e.shutdown();
         }
@@ -344,7 +359,10 @@ async fn run(cfg: Config) -> i32 {
         Some(id) => match WebToken::load(id, &cfg.cache_dir).await {
             Ok(t) => Some(Arc::new(Mutex::new(t))),
             Err(e) => {
-                eprintln!("Own client_id auth failed ({e}); search will use the fallback.");
+                log::warn!("own client_id auth failed: {e}");
+                if term.is_none() {
+                    eprintln!("Own client_id auth failed ({e}); search will use the fallback.");
+                }
                 None
             }
         },
@@ -364,6 +382,9 @@ async fn run(cfg: Config) -> i32 {
         let e = match started {
             Ok(e) => e,
             Err(e) => {
+                if term.take().is_some() {
+                    ratatui::restore();
+                }
                 eprintln!("{e}");
                 return 1;
             }
@@ -538,7 +559,7 @@ async fn run(cfg: Config) -> i32 {
     }
 
     // Terminal input on one blocking thread: sleeps in read() until a key arrives.
-    let img_picker = picker_query.and_then(|t| t.ok()).and_then(|t| t.join().ok()).flatten();
+    let img_picker = img_picker.or_else(|| picker_query.and_then(|t| t.ok()).and_then(|t| t.join().ok()).flatten());
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
     let _ = std::thread::Builder::new().name("input".into()).spawn(move || {
         while let Ok(ev) = crossterm::event::read() {
@@ -548,12 +569,13 @@ async fn run(cfg: Config) -> i32 {
         }
     });
 
-    let mut term = ratatui::init();
+    // reuse the startup frame's terminal unless the login fallback had to put it away
+    let mut term = term.filter(|_| crossterm::terminal::is_raw_mode_enabled().unwrap_or(false)).unwrap_or_else(ratatui::init);
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
     app.eq_allowed = cfg.eq;
     app.cache_dir = Some(cfg.cache_dir.clone());
-    app.art_on = img_picker.is_some();
+    app.art_on = img_picker.is_some() && app.audio.art;
     app.img_picker = img_picker;
     app.load_playlists();
     app.load_liked();
