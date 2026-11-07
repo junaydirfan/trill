@@ -15,7 +15,8 @@
 //! discord_app_id =       # Discord application id: shows "Listening to" on your profile
 //! ```
 //!
-//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`.
+//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`,
+//! and the Discord application id may also sit in `~/.config/cachify/discord_app_id`.
 
 use std::{
     env, fs,
@@ -87,6 +88,10 @@ impl Config {
             config_dir,
         };
 
+        cfg.discord_app_id = fs::read_to_string(cfg.config_dir.join("discord_app_id"))
+            .ok()
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
         let Ok(text) = fs::read_to_string(cfg.config_dir.join("config")) else {
             return cfg;
         };

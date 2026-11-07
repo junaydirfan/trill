@@ -24,7 +24,7 @@ use crate::{
 };
 
 pub enum Msg {
-    Playlists(Result<Vec<(String, String, bool)>, String>),
+    Playlists(Result<Vec<(String, String, bool, bool)>, String>),
     Rows { uri: String, title: String, rows: Result<Vec<Row>, String> },
     Search { query: String, rows: Result<(Vec<Row>, &'static str), String> },
     /// Every liked track uri (for the ♥ markers).
@@ -72,6 +72,8 @@ pub struct SideItem {
     pub kind: SideKind,
     /// Playlist we can add songs to / remove songs from.
     pub editable: bool,
+    /// Pinned to the top of Your Library.
+    pub pinned: bool,
 }
 
 /// What a row in the Queue view refers to, so Enter can act on it.
@@ -182,9 +184,9 @@ impl App {
     ) -> Self {
         let user = session.username();
         let side = vec![
-            SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false },
-            SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false },
-            SideItem { name: "⌕ Search".into(), uri: "cachify:search".into(), kind: SideKind::Search, editable: false },
+            SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
+            SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
+            SideItem { name: "⌕ Search".into(), uri: "cachify:search".into(), kind: SideKind::Search, editable: false, pinned: false },
         ];
         let seed = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -266,10 +268,10 @@ impl App {
     }
 
     /// Replace the playlists in the sidebar, keeping the selected item selected.
-    fn set_playlists(&mut self, list: Vec<(String, String, bool)>) {
+    fn set_playlists(&mut self, list: Vec<(String, String, bool, bool)>) {
         let sel = self.side_state.selected().and_then(|i| self.side.get(i)).map(|s| s.uri.clone());
         self.side.truncate(3);
-        self.side.extend(list.into_iter().map(|(uri, name, editable)| SideItem { name, uri, kind: SideKind::Playlist, editable }));
+        self.side.extend(list.into_iter().map(|(uri, name, editable, pinned)| SideItem { name, uri, kind: SideKind::Playlist, editable, pinned }));
         let i = sel.and_then(|u| self.side.iter().position(|s| s.uri == u)).unwrap_or(0);
         self.side_state.select(Some(i.min(self.side.len() - 1)));
     }

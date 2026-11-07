@@ -85,7 +85,17 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     } else {
         side
     };
-    let items: Vec<ListItem> = app.side.iter().map(|s| ListItem::new(s.name.as_str())).collect();
+    let items: Vec<ListItem> = app
+        .side
+        .iter()
+        .map(|s| {
+            ListItem::new(Line::from(vec![
+                Span::styled(if s.pinned { "⚲ " } else { "" }, Style::new().fg(ACCENT)),
+                Span::styled(if s.uri.starts_with("spotify:folder:") { "▸ " } else { "" }, Style::new().fg(Color::Yellow)),
+                Span::raw(s.name.as_str()),
+            ]))
+        })
+        .collect();
     let hl = if app.focus == Focus::Side { Style::new().fg(Color::Black).bg(ACCENT) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);

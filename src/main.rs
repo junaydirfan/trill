@@ -424,14 +424,15 @@ async fn run(cfg: Config) -> i32 {
                     eprintln!("{} liked; {n} of {} given are liked", t.len(), a.len() - 1);
                 })
             }
+            Some("pins") => library::pins(&session).await.map(|p| p.iter().for_each(|u| eprintln!("{u}"))),
             Some("lyrics") => library::lyrics(&session, &a[1]).await.map(|l| match l {
                 Some(l) => eprintln!("synced={} lines={} provider={}", l.synced, l.lines.len(), l.provider),
                 None => eprintln!("no lyrics"),
             }),
             _ => match api::playlists(&session).await {
                 Ok(p) => {
-                    for (uri, name, editable) in &p {
-                        eprintln!("{} {uri} {name}", if *editable { "EDIT" } else { "    " });
+                    for (uri, name, editable, pinned) in &p {
+                        eprintln!("{} {} {uri} {name}", if *editable { "EDIT" } else { "    " }, if *pinned { "PIN" } else { "   " });
                     }
                     Ok(())
                 }

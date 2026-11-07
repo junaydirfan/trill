@@ -64,28 +64,29 @@ fn e<E: std::fmt::Display>(err: E) -> String {
     err.to_string()
 }
 
-/// The user's playlists (in sidebar order), as `(uri, name)`.
-/// `uri<TAB>name<TAB>editable` per line; a stale list is fine since it's replaced within a second.
-pub fn read_playlist_cache(dir: &std::path::Path) -> Option<Vec<(String, String, bool)>> {
+/// The user's playlists (in sidebar order), as `(uri, name, editable, pinned)`.
+/// `uri<TAB>name<TAB>editable<TAB>pinned` per line; a stale list is fine since it's replaced within a second.
+pub fn read_playlist_cache(dir: &std::path::Path) -> Option<Vec<(String, String, bool, bool)>> {
     let text = std::fs::read_to_string(dir.join("playlists")).ok()?;
     let list: Vec<_> = text
         .lines()
         .filter_map(|l| {
-            let mut f = l.splitn(3, '\t');
-            Some((f.next()?.to_string(), f.next()?.to_string(), f.next() == Some("1")))
+            let mut f = l.splitn(4, '\t');
+            Some((f.next()?.to_string(), f.next()?.to_string(), f.next() == Some("1"), f.next() == Some("1")))
         })
         .collect();
     (!list.is_empty()).then_some(list)
 }
 
-pub fn write_playlist_cache(dir: &std::path::Path, list: &[(String, String, bool)]) {
+pub fn write_playlist_cache(dir: &std::path::Path, list: &[(String, String, bool, bool)]) {
     let mut text = String::with_capacity(list.len() * 50);
-    for (uri, name, editable) in list {
+    for (uri, name, editable, pinned) in list {
         let name = name.replace(['\t', '\n', '\r'], " ");
         text.push_str(uri);
         text.push('\t');
         text.push_str(&name);
-        text.push_str(if *editable { "\t1\n" } else { "\t0\n" });
+        text.push_str(if *editable { "\t1" } else { "\t0" });
+        text.push_str(if *pinned { "\t1\n" } else { "\t0\n" });
     }
     let tmp = dir.join("playlists.tmp");
     if std::fs::write(&tmp, text).is_ok() {
@@ -93,16 +94,73 @@ pub fn write_playlist_cache(dir: &std::path::Path, list: &[(String, String, bool
     }
 }
 
-/// (uri, name, editable): editable = we may add/remove songs (own or collaborative).
-pub async fn playlists(session: &Session) -> Res<Vec<(String, String, bool)>> {
+/// (uri, name, editable, pinned): editable = we may add/remove songs (own or collaborative).
+/// Pinned playlists and folders come first, in the order the official apps show them.
+pub async fn playlists(session: &Session) -> Res<Vec<(String, String, bool, bool)>> {
+    let (list, pins) = tokio::join!(rootlist(session), crate::library::pins(session));
+    let pins = pins.unwrap_or_else(|err| {
+        log::warn!("pins: {err}");
+        Vec::new()
+    });
+    // Folders only as pins; their playlists are listed anyway.
+    // shortcut: pinned albums and artists aren't shown (the sidebar holds playlists only).
+    let mut out: Vec<_> = list?
+        .into_iter()
+        .filter(|p| !p.0.starts_with("spotify:folder:") || pins.contains(&p.0))
+        .map(|(uri, name, editable, _)| (uri, name, editable, false))
+        .collect();
+    let rank = |uri: &str| pins.iter().position(|p| p == uri).unwrap_or(usize::MAX);
+    out.sort_by_cached_key(|p| rank(&p.0)); // stable: the rest keep rootlist order
+    for p in &mut out {
+        p.3 = rank(&p.0) != usize::MAX;
+    }
+    Ok(out)
+}
+
+/// The playlists inside a folder (and its subfolders), for opening a pinned folder.
+pub async fn folder_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
+    let id = uri.trim_start_matches("spotify:folder:");
+    Ok(rootlist(session)
+        .await?
+        .into_iter()
+        .filter(|p| !p.0.starts_with("spotify:folder:") && p.3.iter().any(|f| f == id))
+        .map(|(uri, title, ..)| Row {
+            uri,
+            title,
+            artist: String::new(),
+            album: String::new(),
+            duration_ms: 0,
+            kind: Kind::Playlist,
+            art: None,
+            added_at: 0,
+            members: String::new(),
+        })
+        .collect())
+}
+
+/// Every rootlist entry as (uri, name, editable, ids of the folders it's in). A folder shows
+/// up as `spotify:folder:<id>` where it starts.
+async fn rootlist(session: &Session) -> Res<Vec<(String, String, bool, Vec<String>)>> {
     let bytes = session.spclient().get_rootlist(0, Some(1000)).await.map_err(e)?;
     let list = SelectedListContent::parse_from_bytes(&bytes).map_err(e)?;
     let mut out = Vec::new();
+    let mut folders: Vec<String> = Vec::new();
     if let Some(contents) = list.contents.as_ref() {
         for (i, item) in contents.items.iter().enumerate() {
             let uri = item.uri();
+            // spotify:start-group:<id>:<url-encoded name> … spotify:end-group:<id>
+            if let Some(rest) = uri.strip_prefix("spotify:start-group:") {
+                let (id, name) = rest.split_once(':').unwrap_or((rest, ""));
+                out.push((format!("spotify:folder:{id}"), url_decode(name), false, folders.clone()));
+                folders.push(id.to_string());
+                continue;
+            }
+            if uri.starts_with("spotify:end-group:") {
+                folders.pop();
+                continue;
+            }
             if !uri.starts_with("spotify:playlist:") && !uri.contains(":playlist:") {
-                continue; // folders (start-group/end-group) and anything odd
+                continue; // anything odd
             }
             let meta = contents.meta_items.get(i);
             let name = meta.and_then(|m| m.attributes.as_ref()).map(|a| a.name().to_string()).unwrap_or_default();
@@ -110,7 +168,7 @@ pub async fn playlists(session: &Session) -> Res<Vec<(String, String, bool)>> {
                 .and_then(|m| m.capabilities.as_ref())
                 .map(|c| c.can_edit_items())
                 .unwrap_or_else(|| meta.is_some_and(|m| m.owner_username() == session.username()));
-            out.push((uri.to_string(), name, editable));
+            out.push((uri.to_string(), name, editable, folders.clone()));
         }
     }
 
@@ -137,6 +195,29 @@ pub async fn playlists(session: &Session) -> Res<Vec<(String, String, bool)>> {
         }
     }
     Ok(out)
+}
+
+/// Folder names in the rootlist are form-encoded ("My+Mix%21").
+fn url_decode(s: &str) -> String {
+    let b = s.as_bytes();
+    let mut out = Vec::with_capacity(b.len());
+    let mut i = 0;
+    while i < b.len() {
+        let hex = (b[i] == b'%' && i + 2 < b.len())
+            .then(|| std::str::from_utf8(&b[i + 1..i + 3]).ok().and_then(|h| u8::from_str_radix(h, 16).ok()))
+            .flatten();
+        match (b[i], hex) {
+            (_, Some(c)) => {
+                out.push(c);
+                i += 3;
+                continue;
+            }
+            (b'+', _) => out.push(b' '),
+            (c, _) => out.push(c),
+        }
+        i += 1;
+    }
+    String::from_utf8_lossy(&out).into_owned()
 }
 
 async fn fetch_page(session: &Session, url: &str) -> Res<ContextPage> {
@@ -308,6 +389,9 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
 
 /// Rows in the context's own order (playlist order, album order…), with `added_at` set.
 pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
+    if uri.starts_with("spotify:folder:") {
+        return folder_rows(session, uri).await;
+    }
     let tracks = context_tracks(session, uri).await?;
     let uris = tracks.iter().map(|t| t.uri.clone()).collect();
     let mut extra: HashMap<String, (u64, String)> =
@@ -499,6 +583,14 @@ mod tests {
         assert_eq!(pct("never gonna"), "never+gonna");
         assert_eq!(pct("AC/DC & co"), "AC%2FDC+%26+co");
         assert_eq!(pct("é"), "%C3%A9");
+    }
+
+    #[test]
+    fn decodes_folder_names() {
+        assert_eq!(url_decode("My+Mix%21"), "My Mix!");
+        assert_eq!(url_decode("%C3%A9t%C3%A9"), "été");
+        assert_eq!(url_decode("100%"), "100%");
+        assert_eq!(url_decode(&pct("AC/DC & co")), "AC/DC & co");
     }
 
     #[test]

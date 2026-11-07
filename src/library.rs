@@ -9,7 +9,7 @@ use librespot_core::{Error, Session, SpotifyId, error::ErrorKind};
 use librespot_protocol::playlist4_external::{
     Add, ChangeInfo, Delta, Item, ItemAttributes, ListChanges, Op, Rem, SelectedListContent, op::Kind,
 };
-use protobuf::{CodedOutputStream, EnumOrUnknown, Message, MessageField};
+use protobuf::{CodedInputStream, CodedOutputStream, EnumOrUnknown, Message, MessageField};
 use serde_json::Value;
 
 type Res<T> = Result<T, String>;
@@ -68,6 +68,56 @@ pub async fn set_liked(session: &Session, uri: &str, liked: bool) -> Res<()> {
         .await
         .map_err(e)?;
     Ok(())
+}
+
+/// Items pinned to the top of Your Library (playlists, albums, artists, Liked Songs…),
+/// most recently pinned first (the server lists them by id). collection2v2 set "ylpin",
+/// read-only for us: writes to it are accepted but ignored, so pinning stays in the apps.
+/// PageRequest { 1: username, 2: set, 4: limit }
+/// -> PageResponse { 1: repeated CollectionItem { 1: uri, 2: added_at s, 3: is_removed } }
+pub async fn pins(session: &Session) -> Res<Vec<String>> {
+    let mut body = Vec::new();
+    {
+        let mut os = CodedOutputStream::vec(&mut body);
+        os.write_string(1, &session.username()).map_err(e)?;
+        os.write_string(2, "ylpin").map_err(e)?;
+        os.write_int32(4, 100).map_err(e)?;
+        os.flush().map_err(e)?;
+    }
+    let bytes = session
+        .spclient()
+        .request(
+            &Method::POST,
+            "/collection/v2/paging",
+            Some(proto_headers("application/vnd.collection-v2.spotify.proto")),
+            Some(&body),
+        )
+        .await
+        .map_err(e)?;
+    let mut items: Vec<(i64, String)> = Vec::new();
+    let mut is = CodedInputStream::from_bytes(&bytes);
+    while let Some(tag) = is.read_raw_tag_or_eof().map_err(e)? {
+        if tag != (1 << 3 | 2) {
+            is.skip_field(protobuf::rt::WireType::new(tag & 7).ok_or("bad wire type")?).map_err(e)?;
+            continue;
+        }
+        let raw = is.read_bytes().map_err(e)?;
+        let mut it = CodedInputStream::from_bytes(&raw);
+        let (mut uri, mut at, mut removed) = (String::new(), 0i64, false);
+        while let Some(t) = it.read_raw_tag_or_eof().map_err(e)? {
+            match t {
+                0x0a => uri = it.read_string().map_err(e)?,
+                0x10 => at = it.read_int64().map_err(e)?,
+                0x18 => removed = it.read_bool().map_err(e)?,
+                _ => it.skip_field(protobuf::rt::WireType::new(t & 7).ok_or("bad wire type")?).map_err(e)?,
+            }
+        }
+        if !removed && !uri.is_empty() {
+            items.push((at, uri));
+        }
+    }
+    items.sort_by_key(|i| std::cmp::Reverse(i.0));
+    Ok(items.into_iter().map(|(_, u)| u).collect())
 }
 
 // ---------------------------------------------------------------- playlists
