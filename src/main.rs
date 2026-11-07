@@ -15,6 +15,7 @@ mod auth;
 mod config;
 mod engine;
 mod library;
+mod theme;
 mod mpris;
 mod ui;
 
