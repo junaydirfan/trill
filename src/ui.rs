@@ -5,7 +5,7 @@ use ratatui::{
     layout::{Constraint, Layout},
     style::{Color, Modifier, Style, Stylize},
     text::{Line, Span},
-    widgets::{Block, BorderType, Cell, Clear, LineGauge, List, ListItem, Paragraph, Row as TRow, Table, TableState},
+    widgets::{Block, BorderType, Cell, Clear, List, ListItem, Paragraph, Row as TRow, Table, TableState},
 };
 
 use ratatui::layout::Rect;
@@ -35,6 +35,28 @@ fn fmt_date(ms: u64) -> String {
     format!("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)
 }
 
+/// Shown above the library when there's room ("Calvin S" figlet font).
+const LOGO: [&str; 3] = ["╔═╗╔═╗╔═╗╦ ╦╦╔═╗╦ ╦", "║  ╠═╣║  ╠═╣║╠╣ ╚╦╝", "╚═╝╩ ╩╚═╝╩ ╩╩╚   ╩ "];
+
+/// The logo with a green-to-cyan gradient across it.
+fn logo() -> Vec<Line<'static>> {
+    LOGO.iter()
+        .map(|row| {
+            let n = row.chars().count().max(2) as f32 - 1.0;
+            let spans: Vec<Span> = row
+                .chars()
+                .enumerate()
+                .map(|(i, c)| {
+                    let t = i as f32 / n;
+                    let mix = |a: f32, b: f32| (a + (b - a) * t) as u8;
+                    Span::styled(c.to_string(), Style::new().fg(Color::Rgb(mix(30.0, 0.0), mix(215.0, 175.0), mix(96.0, 235.0))).bold())
+                })
+                .collect();
+            Line::from(spans).centered()
+        })
+        .collect()
+}
+
 fn block(title: &str, focused: bool) -> Block<'_> {
     let b = Block::bordered().border_type(BorderType::Rounded).title(format!(" {title} "));
     if focused { b.border_style(Style::new().fg(ACCENT)) } else { b.border_style(Style::new().dim()) }
@@ -42,7 +64,8 @@ fn block(title: &str, focused: bool) -> Block<'_> {
 
 pub fn draw(f: &mut Frame, app: &mut App) {
     let [body, now, bottom] = Layout::vertical([Constraint::Min(5), Constraint::Length(2), Constraint::Length(1)]).areas(f.area());
-    let side_w = (f.area().width / 4).clamp(18, 32);
+    // Narrow terminals: the sidebar only takes room while it has focus (Tab shows it).
+    let side_w = if f.area().width < 70 && app.focus != Focus::Side { 0 } else { (f.area().width / 4).clamp(18, 32) };
     let [side, main] = Layout::horizontal([Constraint::Length(side_w), Constraint::Min(20)]).areas(body);
 
     // sidebar, with the cover under it when there's room
@@ -54,6 +77,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
             (s, Some(a))
         }
         None => (side, None),
+    };
+    let side = if side.width >= LOGO[0].chars().count() as u16 + 2 && side.height >= 16 {
+        let [l, s] = Layout::vertical([Constraint::Length(LOGO.len() as u16), Constraint::Min(6)]).areas(side);
+        f.render_widget(Paragraph::new(logo()), l);
+        s
+    } else {
+        side
     };
     let items: Vec<ListItem> = app.side.iter().map(|s| ListItem::new(s.name.as_str())).collect();
     let hl = if app.focus == Focus::Side { Style::new().fg(Color::Black).bg(ACCENT) } else { Style::new().add_modifier(Modifier::REVERSED) };
@@ -119,9 +149,13 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     *app.view.state.offset_mut() = off;
     let end = (off + visible).min(rows.len());
     let mut window_state = TableState::default().with_selected((!rows.is_empty()).then_some(sel - off));
+    // Columns drop out as the pane narrows: dates/blend members, then album, then artist
+    // (which then trails the title).
+    let w = main.width;
+    let (show_artist, show_album, show_extra) = (w >= 45, w >= 75, w >= 100);
     // Blends: who each song is for (instead of "Added", which is the same for every song there).
-    let for_w = rows[off..end].iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16;
-    let show_added = for_w == 0 && rows[off..end].iter().any(|r| r.added_at > 0);
+    let for_w = if show_extra { rows[off..end].iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16 } else { 0 };
+    let show_added = show_extra && for_w == 0 && rows[off..end].iter().any(|r| r.added_at > 0);
     let trows = rows[off..end].iter().map(|r| {
         let (tag, tag_color) = match r.kind {
             Kind::Track => ("", Color::Reset),
@@ -134,9 +168,16 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
             Span::styled(heart, Style::new().fg(ACCENT)),
             Span::styled(tag, Style::new().fg(tag_color)),
             Span::raw(r.title.as_str()),
+            Span::styled(if show_artist || r.artist.is_empty() { String::new() } else { format!(" · {}", r.artist) }, Style::new().dim()),
         ]);
         let dur = if r.duration_ms > 0 { fmt_ms(r.duration_ms) } else { String::new() };
-        let mut cells = vec![Cell::from(title), Cell::from(r.artist.as_str()), Cell::from(r.album.as_str())];
+        let mut cells = vec![Cell::from(title)];
+        if show_artist {
+            cells.push(Cell::from(r.artist.as_str()));
+        }
+        if show_album {
+            cells.push(Cell::from(r.album.as_str()));
+        }
         if show_added {
             cells.push(Cell::from(if r.added_at > 0 { fmt_date(r.added_at) } else { String::new() }).style(Style::new().dim()));
         }
@@ -158,22 +199,20 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     if app.loading {
         title.push_str(" (loading…)");
     }
-    let (widths, header): (Vec<Constraint>, Vec<&str>) = if for_w > 0 {
-        (
-            vec![Constraint::Percentage(36), Constraint::Percentage(25), Constraint::Percentage(25), Constraint::Length(for_w.max(3)), Constraint::Length(6)],
-            vec!["Title", "Artist", "Album", "For", "  Time"],
-        )
-    } else if show_added {
-        (
-            vec![Constraint::Percentage(38), Constraint::Percentage(25), Constraint::Percentage(25), Constraint::Length(10), Constraint::Length(6)],
-            vec!["Title", "Artist", "Album", "Added", "  Time"],
-        )
-    } else {
-        (
-            vec![Constraint::Percentage(42), Constraint::Percentage(28), Constraint::Percentage(30), Constraint::Length(6)],
-            vec!["Title", "Artist", "Album", "  Time"],
-        )
-    };
+    let mut widths = vec![Constraint::Fill(4)];
+    let mut header = vec!["Title"];
+    for (on, wd, h) in [
+        (show_artist, Constraint::Fill(3), "Artist"),
+        (show_album, Constraint::Fill(3), "Album"),
+        (show_added, Constraint::Length(10), "Added"),
+        (for_w > 0, Constraint::Length(for_w.max(3)), "For"),
+        (true, Constraint::Length(6), "  Time"),
+    ] {
+        if on {
+            widths.push(wd);
+            header.push(h);
+        }
+    }
     let table = Table::new(trows, widths)
     .header(TRow::new(header).style(Style::new().dim()))
     .block(block(&title, app.focus == Focus::Main))
@@ -206,7 +245,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
         Some(r) => {
             let icon = if app.playing { "▶" } else { "⏸" };
             let heart = if app.liked.contains(&r.uri) { " ♥" } else { "" };
-            let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length(flags.len() as u16 + 1)]).areas(line1);
+            let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length((flags.len() as u16 + 1).min(line1.width / 3))]).areas(line1);
             f.render_widget(
                 Paragraph::new(Line::from(vec![
                     Span::styled(format!(" {icon} "), Style::new().fg(ACCENT).bold()),
@@ -220,13 +259,19 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
             f.render_widget(Paragraph::new(flags.as_str()).dim().right_aligned(), rt);
             let pos = app.position_ms().min(r.duration_ms);
             let ratio = if r.duration_ms > 0 { pos as f64 / r.duration_ms as f64 } else { 0.0 };
-            let label = format!(" {} / {} ", fmt_ms(pos), fmt_ms(r.duration_ms));
+            // " 1:23 ━━━━━━●────────── 3:45 "
+            let (a, b) = (format!(" {} ", fmt_ms(pos)), format!(" {} ", fmt_ms(r.duration_ms)));
+            let bar = (line2.width as usize).saturating_sub(a.len() + b.len()).max(1);
+            let done = ((ratio.clamp(0.0, 1.0) * bar as f64) as usize).min(bar - 1);
+            let knob = if app.playing { Style::new().fg(ACCENT).bold() } else { Style::new() };
             f.render_widget(
-                LineGauge::default()
-                    .ratio(ratio.clamp(0.0, 1.0))
-                    .label(label)
-                    .filled_style(Style::new().fg(ACCENT))
-                    .unfilled_style(Style::new().dim()),
+                Paragraph::new(Line::from(vec![
+                    Span::styled(a, Style::new().dim()),
+                    Span::styled("━".repeat(done), Style::new().fg(ACCENT)),
+                    Span::styled("●", knob),
+                    Span::styled("─".repeat(bar - 1 - done), Style::new().dim()),
+                    Span::styled(b, Style::new().dim()),
+                ])),
                 line2,
             );
         }

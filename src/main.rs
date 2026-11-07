@@ -15,6 +15,7 @@ mod auth;
 mod config;
 mod engine;
 mod library;
+mod discord;
 mod mpris;
 mod ui;
 
@@ -241,6 +242,15 @@ fn query_terminal_images() -> Option<ratatui_image::picker::Picker> {
         && p.protocol_type() == ratatui_image::picker::ProtocolType::Halfblocks
     {
         p.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
+    }
+    // VS Code is guessed to be iTerm2 from TERM_PROGRAM alone, but it only draws images with
+    // `terminal.integrated.enableImages` on, and then it also answers the query with sixel.
+    // A guess that the query didn't back up would draw nothing, so use half-blocks there.
+    if let Some(p) = picker.as_mut()
+        && env::var("TERM_PROGRAM").is_ok_and(|t| t == "vscode")
+        && p.protocol_type() == ratatui_image::picker::ProtocolType::Iterm2
+    {
+        p.set_protocol_type(ratatui_image::picker::ProtocolType::Halfblocks);
     }
     if t0.elapsed() >= TIMEOUT {
         let mut out = std::io::stdout();
@@ -549,6 +559,7 @@ async fn run(cfg: Config) -> i32 {
     app.load_liked();
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
     let mut desktop = mpris::Mpris::new(remote_tx).await;
+    let mut presence = cfg.discord_app_id.clone().map(discord::Discord::new);
 
     let mut tick = interval(Duration::from_secs(1));
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -563,6 +574,9 @@ async fn run(cfg: Config) -> i32 {
             app.refresh_media();
             if let Some(d) = desktop.as_mut() {
                 d.sync(&app).await;
+            }
+            if let Some(p) = presence.as_mut() {
+                p.sync(&app);
             }
             dirty = false;
         }

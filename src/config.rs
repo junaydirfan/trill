@@ -12,6 +12,7 @@
 //! soloist_cache_mb = 200
 //! soloist_path =         # default: ~/.local/share/cachify/soloist/soloist, then $PATH
 //! soloist_ws =           # host:port of an already-running Soloist daemon to use instead
+//! discord_app_id =       # Discord application id: shows "Listening to" on your profile
 //! ```
 //!
 //! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`.
@@ -47,6 +48,8 @@ pub struct Config {
     pub eq: bool,
     /// Album art in the terminal (default on; `art = off` to hide it).
     pub art: bool,
+    /// Discord Rich Presence, when an application id is set.
+    pub discord_app_id: Option<String>,
     pub cache_dir: PathBuf,
     pub config_dir: PathBuf,
 }
@@ -79,6 +82,7 @@ impl Config {
             normalise: false,
             eq: true,
             art: true,
+            discord_app_id: None,
             cache_dir,
             config_dir,
         };
@@ -113,6 +117,7 @@ impl Config {
                 "device_name" if !v.is_empty() => cfg.device_name = v.to_string(),
                 "soloist_cache_mb" => cfg.soloist_cache_mb = v.parse().unwrap_or(200),
                 "soloist_path" if !v.is_empty() => cfg.soloist_path = Some(PathBuf::from(v)),
+                "discord_app_id" if v.bytes().all(|b| b.is_ascii_digit()) && !v.is_empty() => cfg.discord_app_id = Some(v.to_string()),
                 "soloist_ws" if !v.is_empty() => cfg.soloist_ws = Some(v.to_string()),
                 _ => {}
             }
