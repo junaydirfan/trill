@@ -275,6 +275,7 @@ impl App {
     }
 
     fn open(&mut self, uri: String, title: String, push_back: bool, force: bool) {
+        self.lyrics_open = false; // the lyrics view would hide the list being opened
         if push_back && !self.view.uri.is_empty() {
             let prev = std::mem::replace(
                 &mut self.view,
@@ -345,6 +346,7 @@ impl App {
         let item = &self.side[i];
         let (uri, name, kind) = (item.uri.clone(), item.name.clone(), item.kind);
         self.back.clear();
+        self.lyrics_open = false;
         match kind {
             SideKind::Queue => self.show_queue(),
             SideKind::Search => {
@@ -353,7 +355,8 @@ impl App {
             }
             SideKind::Liked | SideKind::Playlist => self.open(uri, name, false, false),
         }
-        self.focus = Focus::Main;
+        // Picking "Search" means "I want to search": open the search box right away.
+        self.focus = if kind == SideKind::Search { Focus::Input } else { Focus::Main };
     }
 
     fn show_queue(&mut self) {
@@ -424,6 +427,7 @@ impl App {
                 self.loading = false;
                 match rows {
                     Ok((rows, via)) => {
+                        self.lyrics_open = false; // results replace whatever covers the list
                         self.status = format!("{} results for “{query}” ({via})", rows.len());
                         self.search_title = format!("Search: {query}");
                         self.search_rows = Arc::new(rows);
@@ -1108,6 +1112,7 @@ impl App {
             }
             KeyCode::Char('c') => {
                 // jump to the queue / now playing
+                self.lyrics_open = false;
                 if let Some(i) = self.side.iter().position(|s| s.kind == SideKind::Queue) {
                     self.side_state.select(Some(i));
                     self.back.clear();

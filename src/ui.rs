@@ -81,7 +81,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // bottom line: search input or status
     if app.focus == Focus::Input {
-        let text = format!(" / {}", app.input);
+        let text = format!(" Search: {}", app.input);
         let x = bottom.x + text.chars().count() as u16;
         f.render_widget(Paragraph::new(text).fg(ACCENT), bottom);
         f.set_cursor_position((x.min(bottom.right().saturating_sub(1)), bottom.y));
