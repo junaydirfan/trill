@@ -32,6 +32,8 @@ pub enum Msg {
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
     Art { url: String, size: (u16, u16), res: Result<ratatui_image::protocol::Protocol, String> },
+    /// Accent colour picked from a cover (`None`: black-and-white cover).
+    Tint { url: String, tint: Option<[u8; 3]> },
     PlaylistEdit { playlist: String, name: String, row: Row, add: bool, res: Result<(), String> },
 }
 
@@ -160,6 +162,9 @@ pub struct App {
     /// Terminal image support (None = art disabled).
     pub img_picker: Option<ratatui_image::picker::Picker>,
     pub art_on: bool,
+    pub theme: usize,
+    /// (cover url, its colour) for the `cover` theme.
+    pub tint: Option<(String, Option<[u8; 3]>)>,
     pub art: Option<Art>,
     /// Cell size the UI has room for (set while drawing).
     pub art_want: Option<(u16, u16)>,
@@ -185,6 +190,7 @@ impl App {
         let user = session.username();
         let (shuffle, sort) = (audio.shuffle, if audio.sort_original { Sort::Original } else { Sort::Added });
         let repeat = [Repeat::Off, Repeat::All, Repeat::One][audio.repeat.min(2) as usize];
+        let (theme, tint) = (audio.theme, audio.tint.map(|c| (String::new(), Some(c))));
         let side = vec![
             SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
             SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
@@ -246,6 +252,8 @@ impl App {
             lyrics: None,
             img_picker: None,
             art_on: true,
+            theme,
+            tint,
             art: None,
             art_want: None,
             chooser: None,
@@ -660,6 +668,8 @@ impl App {
         self.audio.repeat = self.repeat as u8;
         self.audio.sort_original = self.sort == Sort::Original;
         self.audio.art = self.art_on;
+        self.audio.theme = self.theme;
+        self.audio.tint = self.tint.as_ref().and_then(|t| t.1).or(self.audio.tint);
         self.audio.save();
     }
 
@@ -1118,6 +1128,14 @@ impl App {
             KeyCode::Char('a') => self.enqueue(),
             KeyCode::Char('s') => self.toggle_shuffle(),
             KeyCode::Char('o') => self.toggle_sort(),
+            KeyCode::Char('t') => {
+                self.theme = (self.theme + 1) % (crate::theme::COVER + 1);
+                self.save_prefs();
+                self.status = match self.theme {
+                    crate::theme::COVER => "Theme: from the album art".into(),
+                    i => format!("Theme: {}", crate::theme::name(i)),
+                };
+            }
             KeyCode::Char('e') => {
                 self.audio.cycle_preset(false);
                 self.apply_eq();
@@ -1158,7 +1176,7 @@ impl App {
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),
             KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
+                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
             }
             _ => {}
         }

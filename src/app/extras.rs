@@ -17,6 +17,7 @@ use super::{App, Focus, Msg, SideKind};
 use crate::{
     api::{self, Kind, Row},
     library::{self, Lyrics},
+    theme,
 };
 
 pub enum LyricsState {
@@ -66,14 +67,17 @@ fn now_ms() -> u64 {
 }
 
 /// Decode a cover and encode it for the terminal at `size` cells. Runs on a blocking thread.
-fn encode_art(picker: &Picker, bytes: &[u8], size: (u16, u16)) -> Result<Protocol, String> {
+/// Decode a cover once for both the picture and its accent colour.
+fn encode_art(picker: &Picker, bytes: &[u8], size: (u16, u16)) -> Result<(Protocol, Option<[u8; 3]>), String> {
     let img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
+    let tint = Some(theme::cover_tint(&img));
     // Shrink with a cheap filter first: the cover is 640 px, the target is ~a few hundred.
     let fs = picker.font_size();
     let (w, h) = (size.0 as u32 * fs.width as u32, size.1 as u32 * fs.height as u32);
     let img = if img.width() > w * 2 || img.height() > h * 2 { img.thumbnail(w * 2, h * 2) } else { img };
     picker
         .new_protocol(img, Size::new(size.0, size.1), Resize::Fit(Some(FilterType::Triangle)))
+        .map(|p| (p, tint))
         .map_err(|e| e.to_string())
 }
 
@@ -313,12 +317,27 @@ impl App {
                 let _ = tx.send(Msg::Lyrics { uri, res });
             });
         }
-        let (Some(picker), Some(size), Some(url)) = (self.img_picker.as_ref(), self.art_want, now.art.as_ref()) else {
+        let Some(url) = now.art.clone() else { return };
+        let art_needed = self.art_on
+            && self.img_picker.is_some()
+            && self.art_want.is_some_and(|size| self.art.as_ref().is_none_or(|a| a.url != url || a.size != size));
+        // The cover theme needs the cover's colour even when the picture isn't shown; when it
+        // is, the picture's decode works it out too, so the image is fetched once.
+        let art_has_url = art_needed || self.art.as_ref().is_some_and(|a| a.url == url);
+        if self.theme == theme::COVER && self.tint.as_ref().is_none_or(|t| t.0 != url) {
+            self.tint = Some((url.clone(), self.tint.take().and_then(|t| t.1))); // keep old colour meanwhile
+            if !art_has_url {
+                let (s, tx, url) = (self.session.clone(), self.tx.clone(), url.clone());
+                tokio::spawn(async move {
+                    let Ok(bytes) = s.spclient().request_url(&url).await else { return };
+                    let tint = tokio::task::spawn_blocking(move || image::load_from_memory(&bytes).ok().map(|i| theme::cover_tint(&i)));
+                    let _ = tx.send(Msg::Tint { url, tint: tint.await.ok().flatten() });
+                });
+            }
+        }
+        let (Some(picker), Some(size), true) = (self.img_picker.as_ref(), self.art_want, art_needed) else {
             return;
         };
-        if !self.art_on || self.art.as_ref().is_some_and(|a| a.url == *url && a.size == size) {
-            return;
-        }
         // Keep showing the old cover until the new one is ready (no flicker); the url
         // check in on_extra_msg drops results that arrive after another change.
         let keep = self.art.take().and_then(|a| a.proto);
@@ -331,6 +350,10 @@ impl App {
                     .unwrap_or_else(|e| Err(e.to_string())),
                 Err(e) => Err(e.to_string()),
             };
+            let res = res.map(|(proto, tint)| {
+                let _ = tx.send(Msg::Tint { url: url.clone(), tint });
+                proto
+            });
             let _ = tx.send(Msg::Art { url, size, res });
         });
     }
@@ -362,6 +385,13 @@ impl App {
                         Ok(None) => LyricsState::Missing,
                         Err(e) => LyricsState::Failed(e),
                     };
+                }
+            }
+            Msg::Tint { url, tint } => {
+                // kept for any theme (switching to `cover` later needs no refetch), but only
+                // for the song that's still playing
+                if self.now.as_ref().and_then(|n| n.art.as_ref()) == Some(&url) {
+                    self.tint = Some((url, tint));
                 }
             }
             Msg::Art { url, size, res } => {
