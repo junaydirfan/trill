@@ -15,7 +15,6 @@ mod auth;
 mod config;
 mod engine;
 mod library;
-mod discord;
 mod mpris;
 mod ui;
 
@@ -560,7 +559,6 @@ async fn run(cfg: Config) -> i32 {
     app.load_liked();
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
     let mut desktop = mpris::Mpris::new(remote_tx).await;
-    let mut presence = cfg.discord_app_id.clone().map(discord::Discord::new);
 
     let mut tick = interval(Duration::from_secs(1));
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -575,9 +573,6 @@ async fn run(cfg: Config) -> i32 {
             app.refresh_media();
             if let Some(d) = desktop.as_mut() {
                 d.sync(&app).await;
-            }
-            if let Some(p) = presence.as_mut() {
-                p.sync(&app);
             }
             dirty = false;
         }

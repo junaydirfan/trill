@@ -12,11 +12,9 @@
 //! soloist_cache_mb = 200
 //! soloist_path =         # default: ~/.local/share/cachify/soloist/soloist, then $PATH
 //! soloist_ws =           # host:port of an already-running Soloist daemon to use instead
-//! discord_app_id =       # Discord application id: shows "Listening to" on your profile
 //! ```
 //!
-//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`,
-//! and the Discord application id may also sit in `~/.config/cachify/discord_app_id`.
+//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`.
 
 use std::{
     env, fs,
@@ -49,8 +47,6 @@ pub struct Config {
     pub eq: bool,
     /// Album art in the terminal (default on; `art = off` to hide it).
     pub art: bool,
-    /// Discord Rich Presence, when an application id is set.
-    pub discord_app_id: Option<String>,
     pub cache_dir: PathBuf,
     pub config_dir: PathBuf,
 }
@@ -83,15 +79,10 @@ impl Config {
             normalise: false,
             eq: true,
             art: true,
-            discord_app_id: None,
             cache_dir,
             config_dir,
         };
 
-        cfg.discord_app_id = fs::read_to_string(cfg.config_dir.join("discord_app_id"))
-            .ok()
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty() && s.bytes().all(|b| b.is_ascii_digit()));
         let Ok(text) = fs::read_to_string(cfg.config_dir.join("config")) else {
             return cfg;
         };
@@ -122,7 +113,6 @@ impl Config {
                 "device_name" if !v.is_empty() => cfg.device_name = v.to_string(),
                 "soloist_cache_mb" => cfg.soloist_cache_mb = v.parse().unwrap_or(200),
                 "soloist_path" if !v.is_empty() => cfg.soloist_path = Some(PathBuf::from(v)),
-                "discord_app_id" if v.bytes().all(|b| b.is_ascii_digit()) && !v.is_empty() => cfg.discord_app_id = Some(v.to_string()),
                 "soloist_ws" if !v.is_empty() => cfg.soloist_ws = Some(v.to_string()),
                 _ => {}
             }
