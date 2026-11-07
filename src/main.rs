@@ -14,6 +14,7 @@ mod audio;
 mod auth;
 mod config;
 mod engine;
+mod library;
 mod mpris;
 mod ui;
 
@@ -83,9 +84,26 @@ fn main() {
     if has("--pair") {
         std::process::exit(pair_soloist(&cfg));
     }
+    // Hidden diagnostics: which image protocol / font size this terminal reports.
+    if has("--debug-term") {
+        let t0 = std::time::Instant::now();
+        match query_terminal_images() {
+            Some(p) => eprintln!("{:?} font {:?} in {} ms", p.protocol_type(), p.font_size(), t0.elapsed().as_millis()),
+            None => eprintln!("no picker in {} ms", t0.elapsed().as_millis()),
+        }
+        return;
+    }
 
+    // Every helper thread gets its own malloc arena that is never handed back; with a few
+    // short-lived DNS/file threads that's megabytes of RSS for nothing. Two arenas is plenty.
+    // SAFETY: called before any other threads exist.
+    unsafe {
+        libc::mallopt(libc::M_ARENA_MAX, 2);
+    }
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
+        // DNS lookups and file I/O run here; parallel requests shouldn't mean a thread each.
+        .max_blocking_threads(4)
         .build()
         .expect("tokio runtime");
     // LocalSet: the MPRIS server is single-threaded (!Send), like the rest of the app.
@@ -204,6 +222,35 @@ fn pair_soloist(cfg: &Config) -> i32 {
     }
 }
 
+/// Which image protocol the terminal supports. Terminals answer in a few ms; if one doesn't,
+/// ratatui-image gives up but leaves a thread blocked reading stdin, which would eat the
+/// first keypresses. A Device Status Report query (which every terminal, and tmux itself,
+/// answers) completes that read so the thread exits before we start reading keys.
+fn query_terminal_images() -> Option<ratatui_image::picker::Picker> {
+    use ratatui_image::picker::{Picker, cap_parser::QueryStdioOptions};
+    use std::io::Write;
+    const TIMEOUT: Duration = Duration::from_millis(400);
+    let t0 = std::time::Instant::now();
+    let mut picker = Picker::from_query_stdio_with_options(QueryStdioOptions { timeout: TIMEOUT, ..Default::default() }).ok();
+    // Konsole draws iTerm2 inline images (its sixel/kitty support is buggy, so ratatui-image
+    // rules those out) but has no env var announcing it, so ratatui-image falls back to
+    // half-blocks. Use iTerm2 there (not through tmux, which would need passthrough).
+    if let Some(p) = picker.as_mut()
+        && env::var_os("KONSOLE_VERSION").is_some()
+        && !p.tmux_detected()
+        && p.protocol_type() == ratatui_image::picker::ProtocolType::Halfblocks
+    {
+        p.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
+    }
+    if t0.elapsed() >= TIMEOUT {
+        let mut out = std::io::stdout();
+        let _ = out.write_all(b"\x1b[5n");
+        let _ = out.flush();
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    picker
+}
+
 async fn run(cfg: Config) -> i32 {
     let audio_dir = (cfg.audio_cache_mb > 0).then(|| cfg.cache_dir.join("audio"));
     let limit = (cfg.audio_cache_mb > 0).then(|| cfg.audio_cache_mb * 1024 * 1024);
@@ -220,23 +267,6 @@ async fn run(cfg: Config) -> i32 {
     let _ = fs::remove_dir_all(&tmp_dir);
     let _ = fs::create_dir_all(&tmp_dir);
     let session_cfg = SessionConfig { tmp_dir, ..SessionConfig::default() };
-
-    let session = Session::new(session_cfg.clone(), Some(cache.clone()));
-    if let Err(e) = auth::connect(&session, &cache).await {
-        eprintln!("Login failed: {e}");
-        return 1;
-    }
-
-    let web = match &cfg.client_id {
-        Some(id) => match WebToken::load(id, &cfg.cache_dir).await {
-            Ok(t) => Some(Arc::new(Mutex::new(t))),
-            Err(e) => {
-                eprintln!("Own client_id auth failed ({e}); search will use the fallback.");
-                None
-            }
-        },
-        None => None,
-    };
 
     let (eng_tx, mut eng_rx) = mpsc::unbounded_channel::<EngineEvent>();
     let saved_vol = cache.volume().map(|v| (v as u32 * 100 + 32767) / 65535).unwrap_or(50);
@@ -256,20 +286,73 @@ async fn run(cfg: Config) -> i32 {
     };
     let eq_sink = eq.as_ref().map(|_| audio::EQ_NODE.to_string());
 
-    let mut soloist = None;
-    let engine = if cfg.use_soloist() {
-        let mut opts = match soloist_opts(&cfg) {
-            Ok(o) => o,
+    // Soloist doesn't need our librespot session, so start it while we log in (~0.4 s saved).
+    let mut soloist_cfg = None;
+    if cfg.use_soloist() {
+        match soloist_opts(&cfg) {
+            Ok(mut o) => {
+                o.pipewire_device = eq_sink.clone();
+                o.initial_volume = Some(saved_vol);
+                soloist_cfg = Some(o);
+            }
             Err(e) => {
                 eprintln!("{e}");
                 return 1;
             }
+        }
+    }
+    // Ask the terminal which image protocol it speaks (kitty / sixel / iTerm2, else
+    // half-block characters) while we log in. Must finish before we read key events.
+    let picker_query = (cfg.art && std::io::IsTerminal::is_terminal(&std::io::stdout())).then(|| {
+        std::thread::Builder::new()
+            .name("term-query".into())
+            .spawn(query_terminal_images)
+    });
+    let session = Session::new(session_cfg.clone(), Some(cache.clone()));
+    let cached_user = cache.credentials().and_then(|c| c.username);
+    let early = soloist_cfg.clone().zip(cached_user).map(|(o, user)| {
+        audio::write_soloist_prefs(&o.data_dir, &user, audio_settings.crossfade_s, cfg.bitrate);
+        let tx = eng_tx.clone();
+        async move { engine::start_soloist(&o, tx).await }
+    });
+    let (login, early) = match early {
+        Some(start) => {
+            eprintln!("Connecting and starting Soloist…");
+            let (l, e) = tokio::join!(auth::connect(&session, &cache), start);
+            (l, Some(e))
+        }
+        None => (auth::connect(&session, &cache).await, None),
+    };
+    if let Err(e) = login {
+        if let Some(Ok(e)) = early {
+            e.shutdown();
+        }
+        eprintln!("Login failed: {e}");
+        return 1;
+    }
+
+    let web = match &cfg.client_id {
+        Some(id) => match WebToken::load(id, &cfg.cache_dir).await {
+            Ok(t) => Some(Arc::new(Mutex::new(t))),
+            Err(e) => {
+                eprintln!("Own client_id auth failed ({e}); search will use the fallback.");
+                None
+            }
+        },
+        None => None,
+    };
+
+    let mut soloist = None;
+    let engine = if let Some(opts) = soloist_cfg {
+        let started = match early {
+            Some(r) => r,
+            None => {
+                audio::write_soloist_prefs(&opts.data_dir, &session.username(), audio_settings.crossfade_s, cfg.bitrate);
+                eprintln!("Starting Soloist…");
+                engine::start_soloist(&opts, eng_tx.clone()).await
+            }
         };
-        opts.pipewire_device = eq_sink.clone();
-        opts.initial_volume = Some(saved_vol);
-        audio::write_soloist_prefs(&opts.data_dir, &session.username(), audio_settings.crossfade_s, cfg.bitrate);
-        eprintln!("Starting Soloist…");
-        let e = match engine::start_soloist(&opts, eng_tx.clone()).await {
+        let e = match started {
             Ok(e) => e,
             Err(e) => {
                 eprintln!("{e}");
@@ -314,6 +397,61 @@ async fn run(cfg: Config) -> i32 {
         });
         Engine::Librespot { player, mixer }
     };
+
+    // Hidden diagnostics: `cachify --debug-lib <action> <args…>` exercises library writes.
+    if let Some(i) = env::args().position(|a| a == "--debug-lib") {
+        let a: Vec<String> = env::args().skip(i + 1).collect();
+        let t0 = std::time::Instant::now();
+        let res = match a.first().map(String::as_str) {
+            Some("like") => library::set_liked(&session, &a[1], true).await,
+            Some("unlike") => library::set_liked(&session, &a[1], false).await,
+            Some("add") => library::playlist_add(&session, &a[1], &a[2]).await,
+            Some("rm") => library::playlist_remove(&session, &a[1], &a[2]).await,
+            Some("isliked") => {
+                let liked = format!("spotify:user:{}:collection", session.username());
+                api::context_tracks(&session, &liked).await.map(|t| {
+                    let n = t.iter().filter(|(u, _)| a[1..].contains(u)).count();
+                    eprintln!("{} liked; {n} of {} given are liked", t.len(), a.len() - 1);
+                })
+            }
+            Some("lyrics") => library::lyrics(&session, &a[1]).await.map(|l| match l {
+                Some(l) => eprintln!("synced={} lines={} provider={}", l.synced, l.lines.len(), l.provider),
+                None => eprintln!("no lyrics"),
+            }),
+            _ => match api::playlists(&session).await {
+                Ok(p) => {
+                    for (uri, name, editable) in &p {
+                        eprintln!("{} {uri} {name}", if *editable { "EDIT" } else { "    " });
+                    }
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            },
+        };
+        eprintln!("{res:?} in {} ms", t0.elapsed().as_millis());
+        engine.shutdown();
+        return 0;
+    }
+
+    // Hidden diagnostics: `cachify --debug-get <spclient endpoint | url>` prints a raw response.
+    if let Some(i) = env::args().position(|a| a == "--debug-get") {
+        let target = env::args().nth(i + 1).unwrap_or_default();
+        let t0 = std::time::Instant::now();
+        let res = if target.starts_with("http") {
+            session.spclient().request_url(&target).await
+        } else {
+            session.spclient().request_as_json(&http::Method::GET, &target, None, None).await
+        };
+        match res {
+            Ok(b) => {
+                eprintln!("ok in {} ms, {} bytes", t0.elapsed().as_millis(), b.len());
+                println!("{}", String::from_utf8_lossy(&b));
+            }
+            Err(e) => eprintln!("error in {} ms: {e}", t0.elapsed().as_millis()),
+        }
+        engine.shutdown();
+        return 0;
+    }
 
     // Hidden diagnostics: `cachify --debug-context <uri>` prints raw context-resolve track metadata.
     if let Some(i) = env::args().position(|a| a == "--debug-context") {
@@ -390,6 +528,7 @@ async fn run(cfg: Config) -> i32 {
     }
 
     // Terminal input on one blocking thread: sleeps in read() until a key arrives.
+    let img_picker = picker_query.and_then(|t| t.ok()).and_then(|t| t.join().ok()).flatten();
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
     let _ = std::thread::Builder::new().name("input".into()).spawn(move || {
         while let Ok(ev) = crossterm::event::read() {
@@ -403,6 +542,11 @@ async fn run(cfg: Config) -> i32 {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
     app.eq_allowed = cfg.eq;
+    app.cache_dir = Some(cfg.cache_dir.clone());
+    app.art_on = img_picker.is_some();
+    app.img_picker = img_picker;
+    app.load_playlists();
+    app.load_liked();
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
     let mut desktop = mpris::Mpris::new(remote_tx).await;
 
@@ -415,6 +559,8 @@ async fn run(cfg: Config) -> i32 {
     loop {
         if dirty {
             let _ = term.draw(|f| ui::draw(f, &mut app));
+            // after drawing: the UI has said how much room the cover gets
+            app.refresh_media();
             if let Some(d) = desktop.as_mut() {
                 d.sync(&app).await;
             }
@@ -439,7 +585,7 @@ async fn run(cfg: Config) -> i32 {
             }
             dirty = true;
         }
-        let deadline = [app.end_deadline(), app.restart_at].into_iter().flatten().min();
+        let deadline = [app.end_deadline(), app.restart_at, app.lyrics_deadline()].into_iter().flatten().min();
         tokio::select! {
             _ = async {
                 match deadline {

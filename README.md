@@ -42,7 +42,7 @@ be heard for a split second (about 0.15 s).
 
 | process | CPU (one core) | memory (PSS) |
 |---|---|---|
-| cachify (TUI + library) | ~0.2% | ~17 MB |
+| cachify (TUI + library) | ~0.2% | ~16 MB |
 | Soloist | ~2.2% | ~48 MB |
 | Soloist crash reporter | 0% | ~11 MB |
 
@@ -108,6 +108,28 @@ install -Dm644 assets/cachify.desktop ~/.local/share/applications/cachify.deskto
 
 For Spotify's icon, change `Icon=` to `spotify-launcher`, if that package is installed.
 
+## Library, lyrics and album art
+
+- **Liking:** `f` likes or unlikes a song. Liked songs show a ♥ everywhere, including the
+  now-playing line. The ♥ flips straight away and is undone if Spotify refuses.
+- **Playlists:** `A` opens a picker of the playlists you can edit (yours and collaborative
+  ones; type to filter). It warns before adding a song that's already there. In one of your
+  playlists, `D` twice removes the highlighted song. cachify re-reads the playlist from
+  Spotify first, so an edit made on your phone in the meantime can't make it remove the
+  wrong song.
+- **Lyrics:** `L` swaps the track list for the current song's lyrics. When Spotify has
+  timed lyrics, the current line is highlighted and kept in view; otherwise `j`/`k` scroll.
+  Lyrics are only fetched while this view is open. The screen redraws exactly when the
+  next line starts, not on a timer.
+- **Album art:** the cover sits under the playlist list when the window is tall enough. In
+  terminals with an image protocol it's a real image: kitty, Ghostty, WezTerm, foot and
+  iTerm2 are detected automatically, and Konsole uses the iTerm2 protocol. Elsewhere,
+  including Alacritty and tmux, it's drawn with coloured half-block characters. The cover
+  is decoded and resized once per song, off the UI thread.
+
+These go through the same private Spotify API as the rest of cachify (not the Web API), so
+no rate limits apply. Each action takes about 0.4–0.5 s to reach Spotify.
+
 ## Keys
 
 | key | action |
@@ -122,6 +144,11 @@ For Spotify's icon, change `Icon=` to `spotify-launcher`, if that package is ins
 | `+` / `-` | volume ±5% |
 | `a` | add to queue |
 | `c` | show the queue |
+| `f` | like / unlike (the highlighted song, or what's playing) |
+| `A` | add to one of your playlists (type to filter) |
+| `D` `D` | remove the highlighted song from the open playlist |
+| `L` | lyrics (synced ones follow the song) |
+| `i` | show / hide album art |
 | `s` / `r` | shuffle / repeat (off → all → one) |
 | `o` | sort: recently added ↔ playlist order |
 | `e` / `E` | next EQ preset / EQ panel |
@@ -145,14 +172,17 @@ device_name = cachify  # how Soloist shows up in Spotify Connect
 soloist_cache_mb = 200
 soloist_ws =           # host:port of a Soloist you already run, instead of spawning one
 eq = on                # off = never run the EQ process
+art = on               # off = no album art (and no terminal capability query)
 ```
 
 ### Better search (recommended)
 
 Playlists, liked songs, albums and artists use librespot's own connection, so the public
 Web API's limits don't apply to them. Search does use the Web API. Without your own app,
-search borrows librespot's shared token, and Spotify sometimes rate-limits that token. If
-it does, cachify falls back to a tracks-only search.
+search borrows librespot's shared token, which every librespot app uses, so Spotify
+rate-limits it most of the time. cachify always runs a tracks-only search alongside it
+(about 0.3 s), and after one rate-limit error it stops asking the Web API for 2 minutes.
+That keeps search fast either way.
 
 To get reliable full search (tracks, albums, playlists and artists):
 
@@ -175,7 +205,29 @@ The status line shows which search path answered: `web api` (your app), `web api
   rodio/cpal layer.
 - Stream buffers go to `~/.cache/cachify/tmp`, not `/tmp`. On CachyOS `/tmp` is tmpfs,
   which means RAM.
-- Track info is fetched in batches of 300 per request, not one request per song.
+- Track info is fetched in batches of 300 per request, not one request per song, with
+  up to 16 batches in parallel.
+- Only the table rows that fit on screen are built each frame.
+- The playlist list is cached in `~/.cache/cachify/playlists`, so the sidebar fills on the
+  first frame. It's refreshed in the background.
+- Spotify login and Soloist startup run at the same time.
+- Freed heap is handed back to the OS after big lists load (`malloc_trim`), and glibc is
+  limited to 2 malloc arenas.
+
+Measured on an i9-14900HX laptop (network round trip to Spotify ~150 ms):
+
+| | |
+|---|---|
+| Launch to library on screen | ~0.44 s |
+| Open Liked Songs (3,852 tracks), first time | ~0.55 s; afterwards ~25 ms |
+| Search | ~0.35 s |
+| Key press to redraw | ~2 ms |
+| Press play to playing | ~0.2 s |
+| cachify RAM at start (♥ set + cover loaded) | ~14 MB PSS |
+| cachify RAM, Liked Songs open | ~16.5 MB PSS |
+| cachify CPU while idle | 0 |
+| cachify CPU while playing | ~0.1–0.3% of one core (also with lyrics open) |
+| Soloist while playing | ~2.5% of one core, ~48 MB |
 
 ## Debugging
 

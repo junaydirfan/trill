@@ -45,6 +45,8 @@ pub struct Config {
     pub normalise: bool,
     /// Run the PipeWire equalizer (default on; `eq = off` to skip it entirely).
     pub eq: bool,
+    /// Album art in the terminal (default on; `art = off` to hide it).
+    pub art: bool,
     pub cache_dir: PathBuf,
     pub config_dir: PathBuf,
 }
@@ -76,6 +78,7 @@ impl Config {
             audio_cache_mb: 0,
             normalise: false,
             eq: true,
+            art: true,
             cache_dir,
             config_dir,
         };
@@ -99,6 +102,7 @@ impl Config {
                 "audio_cache_mb" => cfg.audio_cache_mb = v.parse().unwrap_or(0),
                 "normalise" | "normalize" => cfg.normalise = v == "true",
                 "eq" => cfg.eq = !matches!(v, "off" | "false" | "no" | "0"),
+                "art" => cfg.art = !matches!(v, "off" | "false" | "no" | "0"),
                 "backend" => {
                     cfg.backend = match v {
                         "soloist" => Backend::Soloist,

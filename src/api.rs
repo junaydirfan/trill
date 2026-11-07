@@ -9,7 +9,7 @@
 //! Only search prefers the Web API (better results, albums/artists/playlists too), with a
 //! fallback to context-resolve search that needs no token at all.
 
-use std::{collections::HashMap, collections::VecDeque, sync::Arc, time::Duration};
+use std::{collections::HashMap, collections::VecDeque, sync::Arc, time::{Duration, Instant}};
 
 use bytes::Bytes;
 use futures_util::{StreamExt, stream};
@@ -63,7 +63,36 @@ fn e<E: std::fmt::Display>(err: E) -> String {
 }
 
 /// The user's playlists (in sidebar order), as `(uri, name)`.
-pub async fn playlists(session: &Session) -> Res<Vec<(String, String)>> {
+/// `uri<TAB>name<TAB>editable` per line; a stale list is fine since it's replaced within a second.
+pub fn read_playlist_cache(dir: &std::path::Path) -> Option<Vec<(String, String, bool)>> {
+    let text = std::fs::read_to_string(dir.join("playlists")).ok()?;
+    let list: Vec<_> = text
+        .lines()
+        .filter_map(|l| {
+            let mut f = l.splitn(3, '\t');
+            Some((f.next()?.to_string(), f.next()?.to_string(), f.next() == Some("1")))
+        })
+        .collect();
+    (!list.is_empty()).then_some(list)
+}
+
+pub fn write_playlist_cache(dir: &std::path::Path, list: &[(String, String, bool)]) {
+    let mut text = String::with_capacity(list.len() * 50);
+    for (uri, name, editable) in list {
+        let name = name.replace(['\t', '\n', '\r'], " ");
+        text.push_str(uri);
+        text.push('\t');
+        text.push_str(&name);
+        text.push_str(if *editable { "\t1\n" } else { "\t0\n" });
+    }
+    let tmp = dir.join("playlists.tmp");
+    if std::fs::write(&tmp, text).is_ok() {
+        let _ = std::fs::rename(&tmp, dir.join("playlists"));
+    }
+}
+
+/// (uri, name, editable): editable = we may add/remove songs (own or collaborative).
+pub async fn playlists(session: &Session) -> Res<Vec<(String, String, bool)>> {
     let bytes = session.spclient().get_rootlist(0, Some(1000)).await.map_err(e)?;
     let list = SelectedListContent::parse_from_bytes(&bytes).map_err(e)?;
     let mut out = Vec::new();
@@ -73,13 +102,13 @@ pub async fn playlists(session: &Session) -> Res<Vec<(String, String)>> {
             if !uri.starts_with("spotify:playlist:") && !uri.contains(":playlist:") {
                 continue; // folders (start-group/end-group) and anything odd
             }
-            let name = contents
-                .meta_items
-                .get(i)
-                .and_then(|m| m.attributes.as_ref())
-                .map(|a| a.name().to_string())
-                .unwrap_or_default();
-            out.push((uri.to_string(), name));
+            let meta = contents.meta_items.get(i);
+            let name = meta.and_then(|m| m.attributes.as_ref()).map(|a| a.name().to_string()).unwrap_or_default();
+            let editable = meta
+                .and_then(|m| m.capabilities.as_ref())
+                .map(|c| c.can_edit_items())
+                .unwrap_or_else(|| meta.is_some_and(|m| m.owner_username() == session.username()));
+            out.push((uri.to_string(), name, editable));
         }
     }
 
@@ -235,7 +264,7 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
     let chunks: Vec<Vec<String>> = uris.chunks(META_CHUNK).map(<[String]>::to_vec).collect();
     let maps: Vec<HashMap<String, Row>> = stream::iter(chunks)
         .map(|c| metadata_chunk(session.clone(), c))
-        .buffered(4)
+        .buffered(16)
         .collect()
         .await;
     let mut rows = Vec::with_capacity(uris.len());
@@ -355,32 +384,78 @@ async fn web_search(session: &Session, token: &str, q: &str) -> Res<Vec<Row>> {
     Ok(parse_search(&v))
 }
 
-/// Search: own Web API app (if configured) -> session token -> context-resolve.
-pub async fn search(
-    session: &Session,
-    own: Option<Arc<Mutex<WebToken>>>,
-    q: &str,
-) -> Res<(Vec<Row>, &'static str)> {
+/// The session-token Web API search shares librespot's client id with every other
+/// librespot app, so it is rate limited (429) most of the time. After a failure we stop
+/// asking for a while instead of paying for it on every search.
+static SESSION_WEB_BLOCKED: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
+const WEB_BACKOFF: Duration = Duration::from_secs(120);
+/// How long a Web API search may take before we settle for the basic results.
+const WEB_BUDGET: Duration = Duration::from_millis(1500);
+
+async fn rich_search(session: &Session, own: Option<Arc<Mutex<WebToken>>>, q: &str) -> Option<(Vec<Row>, &'static str)> {
     if let Some(own) = own {
         let tok = own.lock().await.get().await;
         match tok {
             Ok(t) => match web_search(session, &t, q).await {
-                Ok(r) => return Ok((r, "web api")),
+                Ok(r) => return Some((r, "web api")),
                 Err(err) => log::warn!("own-client search failed: {err}"),
             },
             Err(err) => log::warn!("own-client token failed: {err}"),
         }
     }
-    if let Ok(Ok(t)) = tokio::time::timeout(Duration::from_secs(4), session.login5().auth_token()).await {
-        match web_search(session, &t.access_token, q).await {
-            Ok(r) => return Ok((r, "web api*")),
-            Err(err) => log::warn!("session-token search failed: {err}"),
+    let blocked = SESSION_WEB_BLOCKED.lock().ok()?.is_some_and(|t| t > Instant::now());
+    if blocked {
+        return None;
+    }
+    let res = match session.login5().auth_token().await {
+        Ok(t) => web_search(session, &t.access_token, q).await,
+        Err(err) => Err(err.to_string()),
+    };
+    match res {
+        Ok(r) => Some((r, "web api*")),
+        Err(err) => {
+            log::warn!("session-token search failed: {err}");
+            if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
+                *b = Some(Instant::now() + WEB_BACKOFF);
+            }
+            None
         }
     }
-    let uri = format!("spotify:search:{}", pct(q));
-    let mut uris = context_track_uris(session, &uri).await?;
-    uris.truncate(50);
-    Ok((track_rows(session, uris).await, "basic"))
+}
+
+/// Search: the Web API (own app if configured, else the session token) gives tracks,
+/// albums, artists and playlists; context-resolve search gives tracks only but needs no
+/// token and isn't rate limited. Both run at once; the richer one wins if it's quick.
+pub async fn search(
+    session: &Session,
+    own: Option<Arc<Mutex<WebToken>>>,
+    q: &str,
+) -> Res<(Vec<Row>, &'static str)> {
+    // Once basic results are in, the Web API only gets this much longer.
+    const GRACE: Duration = Duration::from_millis(250);
+    let rich = tokio::time::timeout(WEB_BUDGET, rich_search(session, own, q));
+    let basic = async {
+        let uri = format!("spotify:search:{}", pct(q));
+        let mut uris = context_track_uris(session, &uri).await?;
+        uris.truncate(50);
+        Ok::<_, String>((track_rows(session, uris).await, "basic"))
+    };
+    tokio::pin!(rich, basic);
+    let (rich, basic) = tokio::select! {
+        r = &mut rich => (r, basic.await),
+        b = &mut basic => (tokio::time::timeout(GRACE, &mut rich).await.unwrap_or_else(Err), b),
+    };
+    match rich {
+        Ok(Some(r)) if !r.0.is_empty() => Ok(r),
+        Ok(_) => basic,
+        Err(_) => {
+            log::warn!("web search too slow, using basic results");
+            if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
+                *b = Some(Instant::now() + WEB_BACKOFF);
+            }
+            basic
+        }
+    }
 }
 
 #[cfg(test)]

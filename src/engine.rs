@@ -210,6 +210,7 @@ impl LibrespotEvents {
     }
 }
 
+#[derive(Clone)]
 pub struct SoloistOpts {
     pub bin: PathBuf,
     pub api_key: String,

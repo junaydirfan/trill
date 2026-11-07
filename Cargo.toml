@@ -24,6 +24,8 @@ bytes = "1"
 tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect"] }
 libc = "0.2"
 mpris-server = { version = "0.11", default-features = false, features = ["tokio"] }
+ratatui-image = { version = "11.1", default-features = false, features = ["crossterm"] }
+image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 [profile.release]
 opt-level = 3

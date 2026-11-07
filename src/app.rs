@@ -1,7 +1,11 @@
 //! Application state, key handling and playback queue logic.
 
+mod extras;
+
+pub use extras::{Art, Chooser, LyricsSlot, LyricsState};
+
 use std::{
-    collections::{HashMap, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
     time::{Instant, SystemTime},
 };
@@ -20,9 +24,15 @@ use crate::{
 };
 
 pub enum Msg {
-    Playlists(Result<Vec<(String, String)>, String>),
+    Playlists(Result<Vec<(String, String, bool)>, String>),
     Rows { uri: String, title: String, rows: Result<Vec<Row>, String> },
     Search { query: String, rows: Result<(Vec<Row>, &'static str), String> },
+    /// Every liked track uri (for the ♥ markers).
+    Liked(Result<HashSet<String>, String>),
+    LikeDone { row: Row, liked: bool, res: Result<(), String> },
+    Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
+    Art { url: String, size: (u16, u16), res: Result<ratatui_image::protocol::Protocol, String> },
+    PlaylistEdit { playlist: String, name: String, row: Row, add: bool, res: Result<(), String> },
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -60,6 +70,8 @@ pub struct SideItem {
     pub name: String,
     pub uri: String,
     pub kind: SideKind,
+    /// Playlist we can add songs to / remove songs from.
+    pub editable: bool,
 }
 
 /// What a row in the Queue view refers to, so Enter can act on it.
@@ -100,6 +112,8 @@ pub struct App {
     pub eq: Option<Eq>,
     /// `eq = off` in config disables the EQ entirely.
     pub eq_allowed: bool,
+    /// Where the playlist list is cached so the sidebar fills instantly on start.
+    pub cache_dir: Option<std::path::PathBuf>,
     /// EQ panel open, with this band selected.
     pub eq_panel: Option<usize>,
     /// When to restart Soloist to apply a crossfade change (debounced).
@@ -136,6 +150,21 @@ pub struct App {
     pub shuffle: bool,
     pub repeat: Repeat,
     rng: u64,
+
+    // library, lyrics, art
+    pub liked: HashSet<String>,
+    pub lyrics_open: bool,
+    pub lyrics: Option<LyricsSlot>,
+    /// Terminal image support (None = art disabled).
+    pub img_picker: Option<ratatui_image::picker::Picker>,
+    pub art_on: bool,
+    pub art: Option<Art>,
+    /// Cell size the UI has room for (set while drawing).
+    pub art_want: Option<(u16, u16)>,
+    /// "Add to playlist" popup.
+    pub chooser: Option<Chooser>,
+    /// First `D` press: (track uri, when) — the second press within a few seconds removes.
+    confirm_remove: Option<(String, Instant)>,
 }
 
 const SEEK_MS: u32 = 10_000;
@@ -153,16 +182,17 @@ impl App {
     ) -> Self {
         let user = session.username();
         let side = vec![
-            SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked },
-            SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue },
-            SideItem { name: "⌕ Search".into(), uri: "cachify:search".into(), kind: SideKind::Search },
+            SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false },
+            SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false },
+            SideItem { name: "⌕ Search".into(), uri: "cachify:search".into(), kind: SideKind::Search, editable: false },
         ];
         let seed = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
             .map(|d| d.as_nanos() as u64)
             .unwrap_or(0x9E37_79B9_7F4A_7C15)
             | 1;
-        let app = App {
+        
+        App {
             session,
             engine,
             web,
@@ -180,6 +210,7 @@ impl App {
             audio,
             eq,
             eq_allowed: true,
+            cache_dir: None,
             eq_panel: None,
             restart_at: None,
             pending_seek: None,
@@ -206,18 +237,41 @@ impl App {
             shuffle: false,
             repeat: Repeat::Off,
             rng: seed,
-        };
-        app.load_playlists();
-        app
+            liked: HashSet::new(),
+            lyrics_open: false,
+            lyrics: None,
+            img_picker: None,
+            art_on: true,
+            art: None,
+            art_want: None,
+            chooser: None,
+            confirm_remove: None,
+        }
     }
 
     // ---------------------------------------------------------------- data loading
 
-    pub fn load_playlists(&self) {
+    /// Shows the cached playlist list right away (if any), then refreshes it.
+    pub fn load_playlists(&mut self) {
+        if self.side.len() <= 3
+            && let Some(list) = self.cache_dir.as_deref().and_then(api::read_playlist_cache)
+        {
+            self.set_playlists(list);
+            self.status = format!("{} playlists. Tab to switch panes, / to search, ? for keys.", self.side.len() - 3);
+        }
         let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
             let _ = tx.send(Msg::Playlists(api::playlists(&s).await));
         });
+    }
+
+    /// Replace the playlists in the sidebar, keeping the selected item selected.
+    fn set_playlists(&mut self, list: Vec<(String, String, bool)>) {
+        let sel = self.side_state.selected().and_then(|i| self.side.get(i)).map(|s| s.uri.clone());
+        self.side.truncate(3);
+        self.side.extend(list.into_iter().map(|(uri, name, editable)| SideItem { name, uri, kind: SideKind::Playlist, editable }));
+        let i = sel.and_then(|u| self.side.iter().position(|s| s.uri == u)).unwrap_or(0);
+        self.side_state.select(Some(i.min(self.side.len() - 1)));
     }
 
     fn open(&mut self, uri: String, title: String, push_back: bool, force: bool) {
@@ -324,18 +378,35 @@ impl App {
     pub fn on_msg(&mut self, msg: Msg) {
         match msg {
             Msg::Playlists(Ok(list)) => {
-                self.side.truncate(3);
+                if let Some(d) = &self.cache_dir {
+                    api::write_playlist_cache(d, &list);
+                }
+                let had_cached = self.side.len() > 3;
                 let n = list.len();
-                self.side.extend(list.into_iter().map(|(uri, name)| SideItem { name, uri, kind: SideKind::Playlist }));
-                self.status = format!("{n} playlists. Tab to switch panes, / to search, ? for keys.");
+                self.set_playlists(list);
+                if !had_cached {
+                    self.status = format!("{n} playlists. Tab to switch panes, / to search, ? for keys.");
+                }
             }
             Msg::Playlists(Err(e)) => self.status = format!("Couldn't load playlists: {e}  (R to retry)"),
             Msg::Rows { uri, title, rows } => {
                 let is_current = self.pending.as_deref() == Some(uri.as_str());
                 match rows {
                     Ok(rows) => {
+                        let big = rows.len() > 500;
                         let rows: Rows = Arc::new(rows);
+                        if uri == self.liked_uri() {
+                            self.liked = rows.iter().map(|r| r.uri.clone()).collect();
+                        }
                         self.cache.insert(uri.clone(), rows.clone());
+                        if big {
+                            // Loading a big list decodes megabytes of protobuf that is freed
+                            // right away; hand those pages back to the OS instead of keeping them.
+                            // SAFETY: malloc_trim only releases free heap memory.
+                            unsafe {
+                                libc::malloc_trim(0);
+                            }
+                        }
                         if is_current {
                             self.status = format!("{title}: {} tracks", rows.len());
                             self.show(uri, title, rows);
@@ -366,6 +437,7 @@ impl App {
                     Err(e) => self.status = format!("Search failed: {e}"),
                 }
             }
+            other => self.on_extra_msg(other),
         }
     }
 
@@ -803,7 +875,6 @@ impl App {
         match k.code {
             KeyCode::Esc | KeyCode::Char('E') | KeyCode::Char('q') => {
                 self.eq_panel = None;
-                return;
             }
             KeyCode::Up | KeyCode::Char('k') => self.eq_panel = Some((band + n - 1) % n),
             KeyCode::Down | KeyCode::Char('j') => self.eq_panel = Some((band + 1) % n),
@@ -952,6 +1023,13 @@ impl App {
             self.on_eq_key(band, k);
             return;
         }
+        if self.chooser.is_some() {
+            self.on_chooser_key(k);
+            return;
+        }
+        if self.lyrics_open && self.focus != Focus::Input && self.on_lyrics_key(k) {
+            return;
+        }
         if self.focus == Focus::Input {
             match k.code {
                 KeyCode::Esc => {
@@ -1046,8 +1124,13 @@ impl App {
                     self.open(u, t, false, true);
                 }
             }
+            KeyCode::Char('f') => self.toggle_like(),
+            KeyCode::Char('A') => self.open_chooser(),
+            KeyCode::Char('D') => self.remove_from_playlist(),
+            KeyCode::Char('L') => self.toggle_lyrics(),
+            KeyCode::Char('i') => self.toggle_art(),
             KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
+                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
             }
             _ => {}
         }

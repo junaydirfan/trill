@@ -1,0 +1,405 @@
+//! Liking songs, playlist edits, lyrics and album art.
+//!
+//! Everything here is lazy: lyrics are only fetched while the lyrics view is open, art only
+//! when there's room for it, and each is fetched once per track. Network and image decoding
+//! never run on the UI path; results come back as `Msg`s.
+
+use std::{
+    sync::Arc,
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
+};
+
+use crossterm::event::{KeyCode, KeyEvent};
+use ratatui::layout::Size;
+use ratatui_image::{FilterType, Resize, picker::Picker, protocol::Protocol};
+
+use super::{App, Focus, Msg, SideKind};
+use crate::{
+    api::{self, Kind, Row},
+    library::{self, Lyrics},
+};
+
+pub enum LyricsState {
+    Loading,
+    Missing,
+    Failed(String),
+    Ready(Lyrics),
+}
+
+pub struct LyricsSlot {
+    pub uri: String,
+    pub state: LyricsState,
+    /// First line shown, for lyrics without timing (scrolled by hand).
+    pub scroll: usize,
+}
+
+pub struct Art {
+    pub url: String,
+    pub size: (u16, u16),
+    /// None while it's being fetched / decoded.
+    pub proto: Option<Protocol>,
+}
+
+pub struct Chooser {
+    pub track: Row,
+    pub filter: String,
+    pub sel: usize,
+    /// Track is already in the highlighted playlist; Enter again adds a duplicate.
+    pub confirm: Option<String>,
+}
+
+impl Chooser {
+    /// Editable playlists matching the filter: (uri, name).
+    pub fn matches<'a>(&self, app: &'a App) -> Vec<(&'a str, &'a str)> {
+        let f = self.filter.to_lowercase();
+        app.side
+            .iter()
+            .filter(|s| s.kind == SideKind::Playlist && s.editable)
+            .filter(|s| f.is_empty() || s.name.to_lowercase().contains(&f))
+            .map(|s| (s.uri.as_str(), s.name.as_str()))
+            .collect()
+    }
+}
+
+fn now_ms() -> u64 {
+    SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0)
+}
+
+/// Decode a cover and encode it for the terminal at `size` cells. Runs on a blocking thread.
+fn encode_art(picker: &Picker, bytes: &[u8], size: (u16, u16)) -> Result<Protocol, String> {
+    let img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
+    // Shrink with a cheap filter first: the cover is 640 px, the target is ~a few hundred.
+    let fs = picker.font_size();
+    let (w, h) = (size.0 as u32 * fs.width as u32, size.1 as u32 * fs.height as u32);
+    let img = if img.width() > w * 2 || img.height() > h * 2 { img.thumbnail(w * 2, h * 2) } else { img };
+    picker
+        .new_protocol(img, Size::new(size.0, size.1), Resize::Fit(Some(FilterType::Triangle)))
+        .map_err(|e| e.to_string())
+}
+
+impl App {
+    pub(super) fn liked_uri(&self) -> String {
+        format!("spotify:user:{}:collection", self.session.username())
+    }
+
+    /// Load the liked-songs set in the background (uris only, no metadata).
+    pub fn load_liked(&self) {
+        let (s, tx, uri) = (self.session.clone(), self.tx.clone(), self.liked_uri());
+        tokio::spawn(async move {
+            let res = api::context_tracks(&s, &uri).await.map(|t| t.into_iter().map(|(u, _)| u).collect());
+            let _ = tx.send(Msg::Liked(res));
+        });
+    }
+
+    /// The track a library action applies to: the highlighted row in the main list, else
+    /// whatever is playing.
+    fn target_track(&self) -> Option<Row> {
+        if self.focus == Focus::Main && !self.lyrics_open
+            && let Some(r) = self.view.state.selected().and_then(|i| self.view.rows.get(i))
+                && r.kind == Kind::Track
+            {
+                return Some(r.clone());
+            }
+        self.now.clone()
+    }
+
+    /// Change a cached list (and the visible one, if it's showing) in place.
+    fn edit_cached(&mut self, uri: &str, f: impl FnOnce(&mut Vec<Row>)) {
+        let Some(rows) = self.cache.get_mut(uri) else { return };
+        f(Arc::make_mut(rows));
+        if self.view.uri == uri {
+            let sel = self.view.state.selected();
+            let (u, t, rows) = (self.view.uri.clone(), self.view.title.clone(), rows.clone());
+            let offset = self.view.state.offset();
+            self.show(u, t, rows);
+            let len = self.view.rows.len();
+            self.view.state.select(sel.map(|i| i.min(len.saturating_sub(1))).filter(|_| len > 0));
+            *self.view.state.offset_mut() = offset;
+        }
+    }
+
+    // ---------------------------------------------------------------- liking
+
+    pub(super) fn toggle_like(&mut self) {
+        let Some(row) = self.target_track() else {
+            self.status = "Nothing to like.".into();
+            return;
+        };
+        let liked = !self.liked.contains(&row.uri);
+        // Optimistic: the ♥ flips immediately; undone if Spotify says no.
+        self.apply_like(&row, liked);
+        self.status = if liked { format!("♥ Liked “{}”", row.title) } else { format!("Removed “{}” from Liked Songs", row.title) };
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            let res = library::set_liked(&s, &row.uri, liked).await;
+            let _ = tx.send(Msg::LikeDone { row, liked, res });
+        });
+    }
+
+    fn apply_like(&mut self, row: &Row, liked: bool) {
+        let liked_uri = self.liked_uri();
+        if liked {
+            self.liked.insert(row.uri.clone());
+            let mut r = row.clone();
+            r.added_at = now_ms();
+            self.edit_cached(&liked_uri, |v| {
+                if !v.iter().any(|x| x.uri == r.uri) {
+                    v.insert(0, r);
+                }
+            });
+        } else {
+            self.liked.remove(&row.uri);
+            self.edit_cached(&liked_uri, |v| v.retain(|x| x.uri != row.uri));
+        }
+    }
+
+    // ---------------------------------------------------------------- playlists
+
+    pub(super) fn open_chooser(&mut self) {
+        let Some(track) = self.target_track() else {
+            self.status = "Pick a song first.".into();
+            return;
+        };
+        if !self.side.iter().any(|s| s.kind == SideKind::Playlist && s.editable) {
+            self.status = "None of your playlists can be edited.".into();
+            return;
+        }
+        self.chooser = Some(Chooser { track, filter: String::new(), sel: 0, confirm: None });
+    }
+
+    pub(super) fn on_chooser_key(&mut self, k: KeyEvent) {
+        let Some(mut c) = self.chooser.take() else { return };
+        let n = c.matches(self).len();
+        match k.code {
+            KeyCode::Esc => return,
+            KeyCode::Up => c.sel = c.sel.saturating_sub(1),
+            KeyCode::Down => c.sel = (c.sel + 1).min(n.saturating_sub(1)),
+            KeyCode::PageUp => c.sel = c.sel.saturating_sub(10),
+            KeyCode::PageDown => c.sel = (c.sel + 10).min(n.saturating_sub(1)),
+            KeyCode::Backspace => {
+                c.filter.pop();
+                c.sel = 0;
+            }
+            KeyCode::Char(ch) => {
+                c.filter.push(ch);
+                c.sel = 0;
+            }
+            KeyCode::Enter => {
+                let Some((uri, name)) = c.matches(self).get(c.sel).map(|(u, n)| (u.to_string(), n.to_string())) else {
+                    self.chooser = Some(c);
+                    return;
+                };
+                let dupe = self.cache.get(&uri).is_some_and(|rows| rows.iter().any(|r| r.uri == c.track.uri));
+                if dupe && c.confirm.as_deref() != Some(uri.as_str()) {
+                    self.status = format!("“{}” is already in {name}. Enter again to add it anyway.", c.track.title);
+                    c.confirm = Some(uri);
+                    self.chooser = Some(c);
+                    return;
+                }
+                self.status = format!("Adding “{}” to {name}…", c.track.title);
+                let (s, tx, row) = (self.session.clone(), self.tx.clone(), c.track);
+                tokio::spawn(async move {
+                    let res = library::playlist_add(&s, &uri, &row.uri).await;
+                    let _ = tx.send(Msg::PlaylistEdit { playlist: uri, name, row, add: true, res });
+                });
+                return;
+            }
+            _ => {}
+        }
+        c.confirm = None;
+        self.chooser = Some(c);
+    }
+
+    pub(super) fn remove_from_playlist(&mut self) {
+        let Some(side) = self.side.iter().find(|s| s.uri == self.view.uri && s.kind == SideKind::Playlist) else {
+            self.status = "Open one of your playlists to remove songs from it.".into();
+            return;
+        };
+        if !side.editable {
+            self.status = format!("{} isn't yours to edit.", side.name);
+            return;
+        }
+        let (playlist, name) = (side.uri.clone(), side.name.clone());
+        let Some(row) = self.view.state.selected().and_then(|i| self.view.rows.get(i)).cloned() else { return };
+        let confirmed = self
+            .confirm_remove
+            .take()
+            .is_some_and(|(u, at)| u == row.uri && at.elapsed() < Duration::from_secs(4));
+        if !confirmed {
+            self.status = format!("Remove “{}” from {name}? Press D again.", row.title);
+            self.confirm_remove = Some((row.uri, Instant::now()));
+            return;
+        }
+        self.status = format!("Removing “{}”…", row.title);
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            let res = library::playlist_remove(&s, &playlist, &row.uri).await;
+            let _ = tx.send(Msg::PlaylistEdit { playlist, name, row, add: false, res });
+        });
+    }
+
+    // ---------------------------------------------------------------- lyrics
+
+    pub(super) fn toggle_lyrics(&mut self) {
+        self.lyrics_open = !self.lyrics_open;
+        if self.lyrics_open && self.now.is_none() {
+            self.status = "Play something to see its lyrics.".into();
+        }
+    }
+
+    /// Keys while the lyrics view is open. Returns true if handled.
+    pub(super) fn on_lyrics_key(&mut self, k: KeyEvent) -> bool {
+        let step: isize = match k.code {
+            KeyCode::Esc | KeyCode::Char('L') => {
+                self.lyrics_open = false;
+                return true;
+            }
+            KeyCode::Down | KeyCode::Char('j') => 1,
+            KeyCode::Up | KeyCode::Char('k') => -1,
+            KeyCode::PageDown => 10,
+            KeyCode::PageUp => -10,
+            KeyCode::Enter | KeyCode::Tab | KeyCode::Char('h') | KeyCode::Char('l') => return true,
+            _ => return false,
+        };
+        if let Some(slot) = self.lyrics.as_mut()
+            && let LyricsState::Ready(l) = &slot.state
+        {
+            slot.scroll = (slot.scroll as isize + step).clamp(0, l.lines.len().saturating_sub(1) as isize) as usize;
+        }
+        true
+    }
+
+    /// When the highlighted lyric line next changes (so we redraw exactly then).
+    pub fn lyrics_deadline(&self) -> Option<Instant> {
+        if !self.lyrics_open || !self.playing {
+            return None;
+        }
+        let slot = self.lyrics.as_ref()?;
+        let LyricsState::Ready(l) = &slot.state else { return None };
+        if self.now.as_ref()?.uri != slot.uri {
+            return None;
+        }
+        let pos = self.position_ms();
+        let next = l.next_change(pos)?;
+        Some(Instant::now() + Duration::from_millis((next - pos) as u64))
+    }
+
+    // ---------------------------------------------------------------- art
+
+    pub(super) fn toggle_art(&mut self) {
+        if self.img_picker.is_none() {
+            self.status = "Album art is off (art = off in config).".into();
+            return;
+        }
+        self.art_on = !self.art_on;
+        if !self.art_on {
+            self.art = None; // free the encoded image
+        }
+    }
+
+    /// Start whatever lyrics / art fetches the current state needs. Cheap when nothing changed.
+    pub fn refresh_media(&mut self) {
+        let Some(now) = self.now.as_ref() else {
+            self.art = None;
+            return;
+        };
+        if self.lyrics_open && self.lyrics.as_ref().is_none_or(|l| l.uri != now.uri) {
+            let uri = now.uri.clone();
+            self.lyrics = Some(LyricsSlot { uri: uri.clone(), state: LyricsState::Loading, scroll: 0 });
+            let (s, tx) = (self.session.clone(), self.tx.clone());
+            tokio::spawn(async move {
+                let res = library::lyrics(&s, &uri).await;
+                let _ = tx.send(Msg::Lyrics { uri, res });
+            });
+        }
+        let (Some(picker), Some(size), Some(url)) = (self.img_picker.as_ref(), self.art_want, now.art.as_ref()) else {
+            return;
+        };
+        if !self.art_on || self.art.as_ref().is_some_and(|a| a.url == *url && a.size == size) {
+            return;
+        }
+        // Keep showing the old cover until the new one is ready (no flicker); the url
+        // check in on_extra_msg drops results that arrive after another change.
+        let keep = self.art.take().and_then(|a| a.proto);
+        self.art = Some(Art { url: url.clone(), size, proto: keep });
+        let (s, tx, picker, url) = (self.session.clone(), self.tx.clone(), picker.clone(), url.clone());
+        tokio::spawn(async move {
+            let res = match s.spclient().request_url(&url).await {
+                Ok(bytes) => tokio::task::spawn_blocking(move || encode_art(&picker, &bytes, size))
+                    .await
+                    .unwrap_or_else(|e| Err(e.to_string())),
+                Err(e) => Err(e.to_string()),
+            };
+            let _ = tx.send(Msg::Art { url, size, res });
+        });
+    }
+
+    // ---------------------------------------------------------------- results
+
+    pub(super) fn on_extra_msg(&mut self, msg: Msg) {
+        match msg {
+            Msg::Liked(Ok(set)) => {
+                self.liked = set;
+                // The liked-songs context is a few MB of protobuf, freed by now.
+                // SAFETY: malloc_trim only releases free heap memory.
+                unsafe {
+                    libc::malloc_trim(0);
+                }
+            }
+            Msg::Liked(Err(e)) => log::warn!("liked songs: {e}"),
+            Msg::LikeDone { row, liked, res: Err(e) } => {
+                self.apply_like(&row, !liked);
+                self.status = format!("Couldn't update Liked Songs: {e}");
+            }
+            Msg::LikeDone { .. } => {}
+            Msg::Lyrics { uri, res } => {
+                if let Some(slot) = self.lyrics.as_mut()
+                    && slot.uri == uri
+                {
+                    slot.state = match res {
+                        Ok(Some(l)) => LyricsState::Ready(l),
+                        Ok(None) => LyricsState::Missing,
+                        Err(e) => LyricsState::Failed(e),
+                    };
+                }
+            }
+            Msg::Art { url, size, res } => {
+                if let Some(a) = self.art.as_mut()
+                    && a.url == url
+                    && a.size == size
+                {
+                    // Decoding a 640 px cover allocates a few MB that's freed right away.
+                    // SAFETY: malloc_trim only releases free heap memory.
+                    unsafe {
+                        libc::malloc_trim(0);
+                    }
+                    match res {
+                        Ok(p) => a.proto = Some(p),
+                        Err(e) => {
+                            log::warn!("album art: {e}");
+                            a.proto = None;
+                        }
+                    }
+                }
+            }
+            Msg::PlaylistEdit { playlist, name, row, add, res } => match res {
+                Ok(()) if add => {
+                    self.status = format!("Added “{}” to {name}", row.title);
+                    let mut r = row;
+                    r.added_at = now_ms();
+                    self.edit_cached(&playlist, |v| v.push(r));
+                }
+                Ok(()) => {
+                    self.status = format!("Removed “{}” from {name}", row.title);
+                    self.edit_cached(&playlist, |v| {
+                        if let Some(i) = v.iter().position(|x| x.uri == row.uri) {
+                            v.remove(i);
+                        }
+                    });
+                }
+                Err(e) => self.status = format!("Couldn't change {name}: {e}"),
+            },
+            _ => {}
+        }
+    }
+}
