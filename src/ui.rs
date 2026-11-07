@@ -35,26 +35,38 @@ fn fmt_date(ms: u64) -> String {
     format!("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)
 }
 
-/// Shown above the library when there's room ("Calvin S" figlet font).
+/// Shown above the library when there's room: figlet "Small Slant", or "Calvin S" when narrow.
+const LOGO_WIDE: [&str; 5] = [
+    "               __   _  ___     ",
+    " _______ _____/ /  (_)/ _/__ __",
+    "/ __/ _ `/ __/ _ \\/ // _// // /",
+    "\\__/\\_,_/\\__/_//_/_//_/  \\_, / ",
+    "                         /___/ ",
+];
 const LOGO: [&str; 3] = ["╔═╗╔═╗╔═╗╦ ╦╦╔═╗╦ ╦", "║  ╠═╣║  ╠═╣║╠╣ ╚╦╝", "╚═╝╩ ╩╚═╝╩ ╩╩╚   ╩ "];
 
-/// The logo with a green-to-cyan gradient across it.
-fn logo() -> Vec<Line<'static>> {
-    LOGO.iter()
-        .map(|row| {
-            let n = row.chars().count().max(2) as f32 - 1.0;
-            let spans: Vec<Span> = row
-                .chars()
-                .enumerate()
-                .map(|(i, c)| {
-                    let t = i as f32 / n;
-                    let mix = |a: f32, b: f32| (a + (b - a) * t) as u8;
-                    Span::styled(c.to_string(), Style::new().fg(Color::Rgb(mix(30.0, 0.0), mix(215.0, 175.0), mix(96.0, 235.0))).bold())
-                })
-                .collect();
-            Line::from(spans).centered()
-        })
-        .collect()
+/// Green-to-cyan, `t` in 0..=1 (logo and progress bar).
+fn grad(t: f32) -> Color {
+    let mix = |a: f32, b: f32| (a + (b - a) * t.clamp(0.0, 1.0)) as u8;
+    Color::Rgb(mix(30.0, 0.0), mix(215.0, 175.0), mix(96.0, 235.0))
+}
+
+/// The widest logo that fits `width`, with the gradient across it.
+fn logo(width: u16) -> Option<Vec<Line<'static>>> {
+    let rows: &[&str] = [&LOGO_WIDE[..], &LOGO[..]].into_iter().find(|l| l[0].chars().count() as u16 <= width)?;
+    Some(
+        rows.iter()
+            .map(|row| {
+                let n = row.chars().count().max(2) as f32 - 1.0;
+                let spans: Vec<Span> = row
+                    .chars()
+                    .enumerate()
+                    .map(|(i, c)| Span::styled(c.to_string(), Style::new().fg(grad(i as f32 / n)).bold()))
+                    .collect();
+                Line::from(spans).centered()
+            })
+            .collect(),
+    )
 }
 
 fn block(title: &str, focused: bool) -> Block<'_> {
@@ -78,12 +90,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
         None => (side, None),
     };
-    let side = if side.width >= LOGO[0].chars().count() as u16 + 2 && side.height >= 16 {
-        let [l, s] = Layout::vertical([Constraint::Length(LOGO.len() as u16), Constraint::Min(6)]).areas(side);
-        f.render_widget(Paragraph::new(logo()), l);
-        s
-    } else {
-        side
+    let side = match logo(side.width).filter(|l| side.height >= l.len() as u16 + 13) {
+        Some(l) => {
+            let [a, s] = Layout::vertical([Constraint::Length(l.len() as u16), Constraint::Min(6)]).areas(side);
+            f.render_widget(Paragraph::new(l), a);
+            s
+        }
+        None => side,
     };
     let items: Vec<ListItem> = app
         .side
@@ -290,21 +303,23 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
             f.render_widget(Paragraph::new(flags.as_str()).dim().right_aligned(), rt);
             let pos = app.position_ms().min(r.duration_ms);
             let ratio = if r.duration_ms > 0 { pos as f64 / r.duration_ms as f64 } else { 0.0 };
-            // " 1:23 ━━━━━━●────────── 3:45 "
-            let (a, b) = (format!(" {} ", fmt_ms(pos)), format!(" {} ", fmt_ms(r.duration_ms)));
-            let bar = (line2.width as usize).saturating_sub(a.len() + b.len()).max(1);
-            let done = ((ratio.clamp(0.0, 1.0) * bar as f64) as usize).min(bar - 1);
-            let knob = if app.playing { Style::new().fg(ACCENT).bold() } else { Style::new() };
-            f.render_widget(
-                Paragraph::new(Line::from(vec![
-                    Span::styled(a, Style::new().dim()),
-                    Span::styled("━".repeat(done), Style::new().fg(ACCENT)),
-                    Span::styled("●", knob),
-                    Span::styled("─".repeat(bar - 1 - done), Style::new().dim()),
-                    Span::styled(b, Style::new().dim()),
-                ])),
-                line2,
-            );
+            // " 1:23 ██████████▌░░░░░░░ 3:45 ": solid bar, 1/8-cell precision, gradient fill
+            let (ta, tb) = (format!(" {} ", fmt_ms(pos)), format!(" {} ", fmt_ms(r.duration_ms)));
+            let bar = (line2.width as usize).saturating_sub(ta.len() + tb.len());
+            let eighths = (ratio.clamp(0.0, 1.0) * (bar * 8) as f64) as usize;
+            let track = Color::Rgb(55, 55, 60);
+            let n = bar.max(2) as f32 - 1.0;
+            let fill = |i: usize| if app.playing { grad(i as f32 / n) } else { Color::Rgb(120, 120, 120) };
+            let mut spans = vec![Span::styled(ta, Style::new().dim())];
+            spans.extend((0..bar).map(|i| match (eighths / 8).cmp(&i) {
+                std::cmp::Ordering::Greater => Span::styled("█", Style::new().fg(fill(i))),
+                std::cmp::Ordering::Equal if !eighths.is_multiple_of(8) => {
+                    Span::styled(["", "▏", "▎", "▍", "▌", "▋", "▊", "▉"][eighths % 8], Style::new().fg(fill(i)).bg(track))
+                }
+                _ => Span::styled(" ", Style::new().bg(track)),
+            }));
+            spans.push(Span::styled(tb, Style::new().dim()));
+            f.render_widget(Paragraph::new(Line::from(spans)), line2);
         }
         None => {
             f.render_widget(Paragraph::new(Line::from(vec![Span::raw(" ■ Nothing playing").dim()])), line1);

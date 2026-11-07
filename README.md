@@ -91,7 +91,9 @@ to switch to the playlist's own order. Albums and artists always keep their trac
   Soloist. Applying it restarts Soloist (~3 s, resumes where you were).
 - **Quality:** cachify sets Soloist to 320 kbps. Out of the box it streamed at 160 kbps.
 
-Settings are saved in `~/.local/share/cachify/audio_settings`.
+These settings, plus shuffle, repeat, sort order and album art on/off, are saved in
+`~/.local/share/cachify/audio_settings` and come back the next time you start cachify.
+Volume is saved too, including changes made from KDE's media controls or your phone.
 
 ## Desktop integration
 
@@ -210,7 +212,8 @@ The status line shows which search path answered: `web api` (your app), `web api
 - Only the table rows that fit on screen are built each frame.
 - The playlist list is cached in `~/.cache/cachify/playlists`, so the sidebar fills on the
   first frame. It's refreshed in the background.
-- Spotify login and Soloist startup run at the same time.
+- Spotify login and Soloist startup run at the same time. When the login is saved, the
+  library is drawn from that cache before the login finishes, and keys typed meanwhile wait.
 - Freed heap is handed back to the OS after big lists load (`malloc_trim`), and glibc is
   limited to 2 malloc arenas.
 
@@ -218,13 +221,13 @@ Measured on an i9-14900HX laptop (network round trip to Spotify ~150 ms):
 
 | | |
 |---|---|
-| Launch to library on screen | ~0.44 s |
+| Launch to library on screen | ~30 ms (usable after login, ~0.35–0.6 s) |
 | Open Liked Songs (3,852 tracks), first time | ~0.55 s; afterwards ~25 ms |
 | Search | ~0.35 s |
 | Key press to redraw | ~2 ms |
 | Press play to playing | ~0.2 s |
 | cachify RAM at start (♥ set + cover loaded) | ~14 MB PSS |
-| cachify RAM, Liked Songs open | ~16.5 MB PSS |
+| cachify RAM, Liked Songs open | ~17 MB PSS |
 | cachify CPU while idle | 0 |
 | cachify CPU while playing | ~0.1–0.3% of one core (also with lyrics open) |
 | Soloist while playing | ~2.5% of one core, ~48 MB |
