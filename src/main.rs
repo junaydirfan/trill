@@ -333,6 +333,7 @@ async fn run(cfg: Config) -> i32 {
         Some(start) => {
             if std::io::IsTerminal::is_terminal(&std::io::stdout()) && !env::args().any(|a| a.starts_with("--debug")) {
                 img_picker = picker_query.take().and_then(|t| t.ok()).and_then(|t| t.join().ok()).flatten();
+                theme::set(theme::colors(audio_settings.theme, audio_settings.tint));
                 let mut t = ratatui::init();
                 let names: Vec<String> = api::read_playlist_cache(&cfg.cache_dir).unwrap_or_default().into_iter().map(|p| p.1).collect();
                 let _ = t.draw(|f| ui::draw_splash(f, &names));
@@ -461,6 +462,29 @@ async fn run(cfg: Config) -> i32 {
             },
         };
         eprintln!("{res:?} in {} ms", t0.elapsed().as_millis());
+        engine.shutdown();
+        return 0;
+    }
+
+    // Hidden diagnostics: `cachify --debug-tint <search>` prints the cover-theme colour per result.
+    if let Some(i) = env::args().position(|a| a == "--debug-tint") {
+        let q = env::args().skip(i + 1).collect::<Vec<_>>().join(" ");
+        let rows = api::search(&session, None, &q).await.map(|r| r.0).unwrap_or_default();
+        let mut seen = std::collections::HashSet::new();
+        for r in rows.iter().filter(|r| r.art.as_ref().is_some_and(|u| seen.insert(u.clone()))).take(6) {
+            let url = r.art.clone().unwrap_or_default();
+            let Ok(bytes) = session.spclient().request_url(&url).await else { continue };
+            let t0 = std::time::Instant::now();
+            let Ok(img) = image::load_from_memory(&bytes) else { continue };
+            let t1 = t0.elapsed();
+            let c = theme::cover_tint(&img);
+            let t2 = t0.elapsed() - t1;
+            let (a, b) = theme::colors(theme::COVER, Some(c));
+            println!(
+                "\x1b[48;2;{};{};{}m      \x1b[48;2;{};{};{}m   \x1b[0m {:?} decode {:?} tint {:?}  {} — {}  {url}",
+                a[0], a[1], a[2], b[0], b[1], b[2], c, t1, t2, r.title, r.artist
+            );
+        }
         engine.shutdown();
         return 0;
     }
@@ -600,6 +624,7 @@ async fn run(cfg: Config) -> i32 {
             dirty = false;
         }
         if app.quit {
+            app.save_prefs(); // keeps the last cover colour for the next start
             break;
         }
         if app.restart_due() {

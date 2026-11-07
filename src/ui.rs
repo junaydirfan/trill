@@ -14,10 +14,10 @@ use ratatui_image::Image;
 use crate::{
     api::Kind,
     app::{App, Focus, LyricsState, Repeat},
+    theme::{self, accent, grad, on_accent},
     audio::{BANDS, MAX_DB},
 };
 
-const ACCENT: Color = Color::Green;
 
 fn fmt_ms(ms: u32) -> String {
     let s = ms / 1000;
@@ -45,12 +45,6 @@ const LOGO_WIDE: [&str; 5] = [
 ];
 const LOGO: [&str; 3] = ["╔═╗╔═╗╔═╗╦ ╦╦╔═╗╦ ╦", "║  ╠═╣║  ╠═╣║╠╣ ╚╦╝", "╚═╝╩ ╩╚═╝╩ ╩╩╚   ╩ "];
 
-/// Green-to-cyan, `t` in 0..=1 (logo and progress bar).
-fn grad(t: f32) -> Color {
-    let mix = |a: f32, b: f32| (a + (b - a) * t.clamp(0.0, 1.0)) as u8;
-    Color::Rgb(mix(30.0, 0.0), mix(215.0, 175.0), mix(96.0, 235.0))
-}
-
 /// The widest logo that fits `width`, with the gradient across it.
 fn logo(width: u16) -> Option<Vec<Line<'static>>> {
     let rows: &[&str] = [&LOGO_WIDE[..], &LOGO[..]].into_iter().find(|l| l[0].chars().count() as u16 <= width)?;
@@ -71,10 +65,11 @@ fn logo(width: u16) -> Option<Vec<Line<'static>>> {
 
 fn block(title: &str, focused: bool) -> Block<'_> {
     let b = Block::bordered().border_type(BorderType::Rounded).title(format!(" {title} "));
-    if focused { b.border_style(Style::new().fg(ACCENT)) } else { b.border_style(Style::new().dim()) }
+    if focused { b.border_style(Style::new().fg(accent())) } else { b.border_style(Style::new().dim()) }
 }
 
 pub fn draw(f: &mut Frame, app: &mut App) {
+    theme::set(theme::colors(app.theme, app.tint.as_ref().and_then(|t| t.1)));
     let [body, now, bottom] = Layout::vertical([Constraint::Min(5), Constraint::Length(2), Constraint::Length(1)]).areas(f.area());
     // Narrow terminals: the sidebar only takes room while it has focus (Tab shows it).
     let side_w = if f.area().width < 70 && app.focus != Focus::Side { 0 } else { (f.area().width / 4).clamp(18, 32) };
@@ -103,13 +98,13 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         .iter()
         .map(|s| {
             ListItem::new(Line::from(vec![
-                Span::styled(if s.pinned { "⚲ " } else { "" }, Style::new().fg(ACCENT)),
+                Span::styled(if s.pinned { "⚲ " } else { "" }, Style::new().fg(accent())),
                 Span::styled(if s.uri.starts_with("spotify:folder:") { "▸ " } else { "" }, Style::new().fg(Color::Yellow)),
                 Span::raw(s.name.as_str()),
             ]))
         })
         .collect();
-    let hl = if app.focus == Focus::Side { Style::new().fg(Color::Black).bg(ACCENT) } else { Style::new().add_modifier(Modifier::REVERSED) };
+    let hl = if app.focus == Focus::Side { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);
     if let (Some(area), Some(proto)) = (art_area, app.art.as_ref().and_then(|a| a.proto.as_ref())) {
@@ -136,7 +131,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     if app.focus == Focus::Input {
         let text = format!(" Search: {}", app.input);
         let x = bottom.x + text.chars().count() as u16;
-        f.render_widget(Paragraph::new(text).fg(ACCENT), bottom);
+        f.render_widget(Paragraph::new(text).fg(accent()), bottom);
         f.set_cursor_position((x.min(bottom.right().saturating_sub(1)), bottom.y));
     } else {
         f.render_widget(Paragraph::new(format!(" {}", app.status)).dim(), bottom);
@@ -209,7 +204,7 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         };
         let heart = if r.kind == Kind::Track && app.liked.contains(&r.uri) { "♥ " } else { "" };
         let title = Line::from(vec![
-            Span::styled(heart, Style::new().fg(ACCENT)),
+            Span::styled(heart, Style::new().fg(accent())),
             Span::styled(tag, Style::new().fg(tag_color)),
             Span::raw(r.title.as_str()),
             Span::styled(if show_artist || r.artist.is_empty() { String::new() } else { format!(" · {}", r.artist) }, Style::new().dim()),
@@ -231,11 +226,11 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         cells.push(Cell::from(Line::from(dur).right_aligned()));
         let mut row = TRow::new(cells);
         if Some(r.uri.as_str()) == now_uri {
-            row = row.style(Style::new().fg(ACCENT).bold());
+            row = row.style(Style::new().fg(accent()).bold());
         }
         row
     });
-    let hl = if app.focus == Focus::Main { Style::new().fg(Color::Black).bg(ACCENT) } else { Style::new().add_modifier(Modifier::REVERSED) };
+    let hl = if app.focus == Focus::Main { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let mut title = app.view.title.clone();
     if app.view.by_added {
         title.push_str(" · newest first");
@@ -292,9 +287,9 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
             let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length((flags.len() as u16 + 1).min(line1.width / 3))]).areas(line1);
             f.render_widget(
                 Paragraph::new(Line::from(vec![
-                    Span::styled(format!(" {icon} "), Style::new().fg(ACCENT).bold()),
-                    Span::styled(r.title.as_str(), Style::new().bold()),
-                    Span::styled(heart, Style::new().fg(ACCENT)),
+                    Span::styled(format!(" {icon} "), Style::new().fg(accent()).bold()),
+                    Span::styled(r.title.as_str(), Style::new().fg(accent()).bold()),
+                    Span::styled(heart, Style::new().fg(accent())),
                     Span::raw("  "),
                     Span::styled(r.artist.as_str(), Style::new().dim()),
                 ])),
@@ -369,7 +364,7 @@ fn draw_lyrics(f: &mut Frame, app: &App, area: Rect) {
         .take(h)
         .map(|(i, (_, text))| {
             let style = match cur {
-                Some(c) if i == c => Style::new().fg(ACCENT).bold(),
+                Some(c) if i == c => Style::new().fg(accent()).bold(),
                 Some(c) if i < c => Style::new().dim(),
                 _ => Style::new(),
             };
@@ -391,15 +386,15 @@ fn draw_chooser(f: &mut Frame, app: &App) {
     f.render_widget(blk, rect);
     let [song, filter, list, help] =
         Layout::vertical([Constraint::Length(1), Constraint::Length(1), Constraint::Min(1), Constraint::Length(1)]).areas(inner);
-    f.render_widget(Paragraph::new(format!(" “{}” — {}", c.track.title, c.track.artist)).bold(), song);
-    f.render_widget(Paragraph::new(format!(" filter: {}▏", c.filter)).fg(ACCENT), filter);
+    f.render_widget(Paragraph::new(format!(" “{}” — {}", c.track.title, c.track.artist)).fg(accent()).bold(), song);
+    f.render_widget(Paragraph::new(format!(" filter: {}▏", c.filter)).fg(accent()), filter);
     let matches = c.matches(app);
     let visible = list.height as usize;
     let off = c.sel.saturating_sub(visible.saturating_sub(1));
     let items: Vec<ListItem> = matches.iter().skip(off).take(visible).map(|(_, n)| ListItem::new(format!(" {n}"))).collect();
     let mut st = ratatui::widgets::ListState::default().with_selected((!matches.is_empty()).then_some(c.sel - off));
     let l = if matches.is_empty() { List::new(vec![ListItem::new(" no matching playlists").dim()]) } else { List::new(items) };
-    f.render_stateful_widget(l.highlight_style(Style::new().fg(Color::Black).bg(ACCENT)), list, &mut st);
+    f.render_stateful_widget(l.highlight_style(Style::new().fg(on_accent()).bg(accent())), list, &mut st);
     f.render_widget(Paragraph::new(" type to filter · ↑↓ pick · ⏎ add · Esc cancel").dim(), help);
 }
 
@@ -447,10 +442,10 @@ fn draw_eq(f: &mut Frame, app: &App, sel: usize) {
                 '·'
             });
         }
-        let style = if i == sel { Style::new().fg(Color::Black).bg(ACCENT) } else { Style::new() };
+        let style = if i == sel { Style::new().fg(on_accent()).bg(accent()) } else { Style::new() };
         lines.push(Line::from(vec![
             Span::styled(format!(" {label:>4} Hz "), style),
-            Span::styled(bar, if i == sel { Style::new().fg(ACCENT) } else { Style::new().dim() }),
+            Span::styled(bar, if i == sel { Style::new().fg(accent()) } else { Style::new().dim() }),
             Span::styled(format!(" {g:+3.0} dB"), style),
         ]));
     }
