@@ -35,19 +35,22 @@ fn fmt_date(ms: u64) -> String {
     format!("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)
 }
 
-/// Shown above the library when there's room: figlet "Small Slant", or "Calvin S" when narrow.
+/// figlet "Slant": the big logo on the splash screen (and in the README).
 const LOGO_WIDE: [&str; 5] = [
-    "               __   _  ___     ",
-    " _______ _____/ /  (_)/ _/__ __",
-    "/ __/ _ `/ __/ _ \\/ // _// // /",
-    "\\__/\\_,_/\\__/_//_/_//_/  \\_, / ",
-    "                         /___/ ",
+    "   __       _ ____",
+    "  / /______(_) / /",
+    " / __/ ___/ / / / ",
+    "/ /_/ /  / / / /  ",
+    "\\__/_/  /_/_/_/   ",
 ];
-const LOGO: [&str; 3] = ["╔═╗╔═╗╔═╗╦ ╦╦╔═╗╦ ╦", "║  ╠═╣║  ╠═╣║╠╣ ╚╦╝", "╚═╝╩ ╩╚═╝╩ ╩╩╚   ╩ "];
+/// figlet "Pagga": shown above the library when there's room.
+const LOGO: [&str; 3] = ["░▀█▀░█▀▄░▀█▀░█░░░█░░", "░░█░░█▀▄░░█░░█░░░█░░", "░░▀░░▀░▀░▀▀▀░▀▀▀░▀▀▀"];
 
-/// The widest logo that fits `width`, with the gradient across it.
-fn logo(width: u16) -> Option<Vec<Line<'static>>> {
-    let rows: &[&str] = [&LOGO_WIDE[..], &LOGO[..]].into_iter().find(|l| l[0].chars().count() as u16 <= width)?;
+/// `rows` with the gradient across it, if it fits `width`.
+fn logo(rows: &[&str], width: u16) -> Option<Vec<Line<'static>>> {
+    if rows[0].chars().count() as u16 > width {
+        return None;
+    }
     Some(
         rows.iter()
             .map(|row| {
@@ -85,7 +88,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         }
         None => (side, None),
     };
-    let side = match logo(side.width).filter(|l| side.height >= l.len() as u16 + 13) {
+    let side = match logo(&LOGO, side.width).filter(|l| side.height >= l.len() as u16 + 13) {
         Some(l) => {
             let [a, s] = Layout::vertical([Constraint::Length(l.len() as u16), Constraint::Min(6)]).areas(side);
             f.render_widget(Paragraph::new(l), a);
@@ -144,7 +147,7 @@ pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
     let [body, _now, bottom] = Layout::vertical([Constraint::Min(5), Constraint::Length(2), Constraint::Length(1)]).areas(f.area());
     let side_w = if f.area().width < 70 { 0 } else { (f.area().width / 4).clamp(18, 32) };
     let [side, main] = Layout::horizontal([Constraint::Length(side_w), Constraint::Min(20)]).areas(body);
-    let side = match logo(side.width).filter(|l| side.height >= l.len() as u16 + 13) {
+    let side = match logo(&LOGO, side.width).filter(|l| side.height >= l.len() as u16 + 13) {
         Some(l) => {
             let [a, s] = Layout::vertical([Constraint::Length(l.len() as u16), Constraint::Min(6)]).areas(side);
             f.render_widget(Paragraph::new(l), a);
@@ -155,7 +158,13 @@ pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
     let fixed = ["♥ Liked Songs", "≡ Queue", "⌕ Search"];
     let items: Vec<ListItem> = fixed.iter().copied().chain(playlists.iter().map(String::as_str)).map(ListItem::new).collect();
     f.render_widget(List::new(items).block(block("Library", false)), side);
-    f.render_widget(Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim()).title(" cachify "), main);
+    let frame = Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim());
+    let inner = frame.inner(main);
+    f.render_widget(frame, main);
+    if let Some(l) = logo(&LOGO_WIDE, inner.width).filter(|l| inner.height >= l.len() as u16) {
+        let [_, mid, _] = Layout::vertical([Constraint::Fill(1), Constraint::Length(l.len() as u16), Constraint::Fill(1)]).areas(inner);
+        f.render_widget(Paragraph::new(l), mid);
+    }
     f.render_widget(Paragraph::new(" Connecting…").dim(), bottom);
 }
 
@@ -477,5 +486,14 @@ mod tests {
         }
         // 04:09 UTC on Nov 6 is still the evening of Nov 5 in Toronto
         assert_eq!(super::fmt_date(1_793_933_395_000), "2026-11-05");
+    }
+
+    #[test]
+    fn splash_shows_both_logos() {
+        let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(120, 40)).unwrap();
+        t.draw(|f| super::draw_splash(f, &["Mix".into()])).unwrap();
+        let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
+        assert!(screen.contains(super::LOGO_WIDE[1].trim()));
+        assert!(screen.contains(super::LOGO[0]));
     }
 }

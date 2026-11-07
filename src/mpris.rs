@@ -48,12 +48,12 @@ pub struct Mpris {
 }
 
 fn track_id(uri: &str) -> TrackId {
-    // spotify:track:<base62>  ->  /org/cachify/track/<base62>
+    // spotify:track:<base62>  ->  /org/trill/track/<base62>
     let id = uri.rsplit(':').next().unwrap_or("");
     if id.is_empty() || !id.chars().all(|c| c.is_ascii_alphanumeric()) {
         return TrackId::NO_TRACK;
     }
-    TrackId::try_from(format!("/org/cachify/track/{id}")).unwrap_or(TrackId::NO_TRACK)
+    TrackId::try_from(format!("/org/trill/track/{id}")).unwrap_or(TrackId::NO_TRACK)
 }
 
 fn loop_status(r: Repeat) -> LoopStatus {
@@ -65,12 +65,12 @@ fn loop_status(r: Repeat) -> LoopStatus {
 }
 
 impl Mpris {
-    /// Registers `org.mpris.MediaPlayer2.cachify`. Returns None (and the app carries on
+    /// Registers `org.mpris.MediaPlayer2.trill`. Returns None (and the app carries on
     /// without desktop integration) if there's no session bus.
     pub async fn new(tx: UnboundedSender<Remote>) -> Option<Self> {
-        let player = Player::builder("cachify")
-            .identity("cachify")
-            .desktop_entry("cachify")
+        let player = Player::builder("trill")
+            .identity("trill")
+            .desktop_entry("trill")
             .can_play(true)
             .can_pause(true)
             .can_go_next(true)

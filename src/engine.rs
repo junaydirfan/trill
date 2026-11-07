@@ -6,7 +6,7 @@
 //! - **Librespot**: in-process decoding. Lighter, but only works while Spotify still hands
 //!   librespot audio keys for your account.
 //!
-//! Track ordering, shuffle and the play queue stay in cachify for both engines.
+//! Track ordering, shuffle and the play queue stay in trill for both engines.
 
 use std::{
     fs,
@@ -242,7 +242,7 @@ impl SoloistOpts {
         if let Some(v) = self.initial_volume {
             c.args(["-i", &v.min(100).to_string()]);
         }
-        if std::env::var_os("CACHIFY_SOLOIST_VERBOSE").is_some() {
+        if std::env::var_os("TRILL_SOLOIST_VERBOSE").is_some() {
             c.arg("-v");
         }
         c
@@ -252,10 +252,10 @@ impl SoloistOpts {
 fn exit_message(status: std::io::Result<std::process::ExitStatus>) -> String {
     match status {
         Ok(s) if s.code() == Some(10) => {
-            "Soloist build expired (Spotify builds last 90 days). Quit and run: cachify --update-soloist".into()
+            "Soloist build expired (Spotify builds last 90 days). Quit and run: trill --update-soloist".into()
         }
         Ok(s) if s.signal() == Some(libc::SIGTERM) => "Soloist stopped.".into(),
-        Ok(s) => format!("Soloist exited ({s}); see ~/.cache/cachify/soloist.log"),
+        Ok(s) => format!("Soloist exited ({s}); see ~/.cache/trill/soloist.log"),
         Err(e) => format!("Soloist: {e}"),
     }
 }
@@ -278,7 +278,7 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
                 .stdin(Stdio::null())
                 .stdout(log.try_clone().map_err(|e| e.to_string())?)
                 .stderr(log);
-            // SAFETY: prctl is async-signal-safe; makes Soloist exit if cachify dies.
+            // SAFETY: prctl is async-signal-safe; makes Soloist exit if trill dies.
             unsafe {
                 c.pre_exec(|| {
                     libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
@@ -300,7 +300,7 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
                     break p;
                 }
                 if Instant::now() > deadline {
-                    return Err("Soloist didn't open its WebSocket in 20s; see ~/.cache/cachify/soloist.log".into());
+                    return Err("Soloist didn't open its WebSocket in 20s; see ~/.cache/trill/soloist.log".into());
                 }
                 tokio::time::sleep(Duration::from_millis(100)).await;
             };
@@ -350,7 +350,7 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
             tokio::time::sleep(Duration::from_secs(8)).await;
             if !logged_in.load(std::sync::atomic::Ordering::Relaxed) {
                 let _ = ev_tx.send(EngineEvent::Status(
-                    "Soloist isn't signed in. Quit (q) and run: cachify --pair".into(),
+                    "Soloist isn't signed in. Quit (q) and run: trill --pair".into(),
                 ));
             }
         });

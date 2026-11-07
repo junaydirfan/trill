@@ -193,8 +193,8 @@ impl App {
         let (theme, tint) = (audio.theme, audio.tint.map(|c| (String::new(), Some(c))));
         let side = vec![
             SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
-            SideItem { name: "≡ Queue".into(), uri: "cachify:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
-            SideItem { name: "⌕ Search".into(), uri: "cachify:search".into(), kind: SideKind::Search, editable: false, pinned: false },
+            SideItem { name: "≡ Queue".into(), uri: "trill:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
+            SideItem { name: "⌕ Search".into(), uri: "trill:search".into(), kind: SideKind::Search, editable: false, pinned: false },
         ];
         let seed = SystemTime::now()
             .duration_since(SystemTime::UNIX_EPOCH)
@@ -209,7 +209,7 @@ impl App {
             tx,
             side,
             side_state: ListState::default().with_selected(Some(0)),
-            view: View { uri: String::new(), title: "cachify".into(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
+            view: View { uri: String::new(), title: "trill".into(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
             back: Vec::new(),
             queue_src: Vec::new(),
             cache: HashMap::new(),
@@ -364,7 +364,7 @@ impl App {
             SideKind::Queue => self.show_queue(),
             SideKind::Search => {
                 let rows = self.search_rows.clone();
-                self.show("cachify:search".into(), self.search_title.clone(), rows);
+                self.show("trill:search".into(), self.search_title.clone(), rows);
             }
             SideKind::Liked | SideKind::Playlist => self.open(uri, name, false, false),
         }
@@ -388,7 +388,7 @@ impl App {
             rows.push(self.ctx[self.order[p]].clone());
             self.queue_src.push(QSrc::Upcoming(p));
         }
-        self.show("cachify:queue".into(), format!("Queue — {} manual, {} upcoming", self.queue.len(), rows.len().saturating_sub(self.queue.len() + self.now.is_some() as usize)), Arc::new(rows));
+        self.show("trill:queue".into(), format!("Queue — {} manual, {} upcoming", self.queue.len(), rows.len().saturating_sub(self.queue.len() + self.now.is_some() as usize)), Arc::new(rows));
     }
 
     pub fn on_msg(&mut self, msg: Msg) {
@@ -445,7 +445,7 @@ impl App {
                         self.search_title = format!("Search: {query}");
                         self.search_rows = Arc::new(rows);
                         self.back.clear();
-                        self.show("cachify:search".into(), self.search_title.clone(), self.search_rows.clone());
+                        self.show("trill:search".into(), self.search_title.clone(), self.search_rows.clone());
                         self.focus = Focus::Main;
                         if let Some(i) = self.side.iter().position(|s| s.kind == SideKind::Search) {
                             self.side_state.select(Some(i));
@@ -801,7 +801,7 @@ impl App {
                 self.skips += 1;
                 if self.skips > 15 {
                     self.stop();
-                    self.status = "Too many unavailable tracks in a row; stopped. (CACHIFY_LOG=debug to see why)".into();
+                    self.status = "Too many unavailable tracks in a row; stopped. (TRILL_LOG=debug to see why)".into();
                 } else {
                     self.status = format!(
                         "Unavailable: {}, skipping",
@@ -844,7 +844,7 @@ impl App {
                 self.restart_at = Some(Instant::now() + std::time::Duration::from_millis(900));
                 self.status = format!("EQ: {} (starting EQ…)", self.audio.preset_name());
             }
-            None => self.status = format!("EQ: {} — restart cachify to apply", self.audio.preset_name()),
+            None => self.status = format!("EQ: {} — restart trill to apply", self.audio.preset_name()),
         }
     }
 
@@ -993,7 +993,7 @@ impl App {
         let Some(i) = self.view.state.selected() else { return };
         let rows = self.view.rows.clone();
         let Some(row) = rows.get(i) else { return };
-        if self.view.uri == "cachify:queue" {
+        if self.view.uri == "trill:queue" {
             match self.queue_src.get(i).copied() {
                 Some(QSrc::Now) => self.seek_to(0),
                 Some(QSrc::Manual(q)) => {
@@ -1165,7 +1165,7 @@ impl App {
                 if self.focus == Focus::Side || self.view.uri.is_empty() {
                     self.status = "Reloading playlists…".into();
                     self.load_playlists();
-                } else if !self.view.uri.starts_with("cachify:") {
+                } else if !self.view.uri.starts_with("trill:") {
                     let (u, t) = (self.view.uri.clone(), self.view.title.clone());
                     self.open(u, t, false, true);
                 }

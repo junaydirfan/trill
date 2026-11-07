@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=cachify
+Name=trill
 GenericName=Music Player
 Comment=Lean terminal Spotify player
-Exec=cachify
+Exec=trill
 Terminal=true
 Icon=multimedia-audio-player
 Categories=AudioVideo;Audio;Player;Music;

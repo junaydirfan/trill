@@ -1,4 +1,4 @@
-//! cachify — a lean terminal Spotify player.
+//! trill — a lean terminal Spotify player.
 //!
 //! Design notes (why it's light):
 //! - single-threaded tokio runtime for UI + network
@@ -48,7 +48,7 @@ fn main() {
     unsafe {
         for (k, v) in [
             ("TOKIO_WORKER_THREADS", "1"),
-            ("PULSE_PROP_application.name", "cachify"),
+            ("PULSE_PROP_application.name", "trill"),
             ("PULSE_PROP_stream.description", "Music"),
             ("PULSE_PROP_media.role", "music"),
             ("PULSE_PROP_application.icon_name", "audio-x-generic"),
@@ -61,12 +61,12 @@ fn main() {
 
     let has = |flag: &str| env::args().any(|a| a == flag);
     if has("-h") || has("--help") {
-        println!("cachify — lean terminal Spotify player (Premium required)\n");
-        println!("  cachify                   start (first run opens a browser to log in)");
-        println!("  cachify --update-soloist  download/refresh Spotify's Soloist player (every <90 days)");
-        println!("  cachify --pair            pair Soloist once via the Spotify app on your phone");
-        println!("  cachify --logout          forget saved logins\n");
-        println!("Config: ~/.config/cachify/config   Logs: CACHIFY_LOG=debug cachify");
+        println!("trill — lean terminal Spotify player (Premium required)\n");
+        println!("  trill                   start (first run opens a browser to log in)");
+        println!("  trill --update-soloist  download/refresh Spotify's Soloist player (every <90 days)");
+        println!("  trill --pair            pair Soloist once via the Spotify app on your phone");
+        println!("  trill --logout          forget saved logins\n");
+        println!("Config: ~/.config/trill/config   Logs: TRILL_LOG=debug trill");
         return;
     }
 
@@ -76,7 +76,7 @@ fn main() {
     if has("--logout") {
         let _ = fs::remove_file(cfg.cache_dir.join("credentials.json"));
         let _ = fs::remove_file(cfg.cache_dir.join("webapi_refresh_token"));
-        println!("Logged out of cachify. (Soloist pairing kept; re-pair with --pair.)");
+        println!("Logged out of trill. (Soloist pairing kept; re-pair with --pair.)");
         return;
     }
     if has("--update-soloist") {
@@ -123,7 +123,7 @@ fn soloist_opts(cfg: &Config) -> Result<SoloistOpts, String> {
     })?;
     let bin = cfg
         .soloist_bin()
-        .ok_or("Soloist isn't installed. Run: cachify --update-soloist")?;
+        .ok_or("Soloist isn't installed. Run: trill --update-soloist")?;
     Ok(SoloistOpts {
         bin,
         api_key,
@@ -209,7 +209,7 @@ fn pair_soloist(cfg: &Config) -> i32 {
     println!("and pick “{}”. This window finishes by itself once paired.\n", opts.device_name);
     match opts.base_command().arg("-p").status() {
         Ok(s) if s.success() => {
-            println!("\nPaired. Run `cachify`.");
+            println!("\nPaired. Run `trill`.");
             0
         }
         Ok(s) => {
@@ -430,7 +430,7 @@ async fn run(cfg: Config) -> i32 {
         Engine::Librespot { player, mixer }
     };
 
-    // Hidden diagnostics: `cachify --debug-lib <action> <args…>` exercises library writes.
+    // Hidden diagnostics: `trill --debug-lib <action> <args…>` exercises library writes.
     if let Some(i) = env::args().position(|a| a == "--debug-lib") {
         let a: Vec<String> = env::args().skip(i + 1).collect();
         let t0 = std::time::Instant::now();
@@ -466,7 +466,7 @@ async fn run(cfg: Config) -> i32 {
         return 0;
     }
 
-    // Hidden diagnostics: `cachify --debug-tint <search>` prints the cover-theme colour per result.
+    // Hidden diagnostics: `trill --debug-tint <search>` prints the cover-theme colour per result.
     if let Some(i) = env::args().position(|a| a == "--debug-tint") {
         let q = env::args().skip(i + 1).collect::<Vec<_>>().join(" ");
         let rows = api::search(&session, None, &q).await.map(|r| r.0).unwrap_or_default();
@@ -489,7 +489,7 @@ async fn run(cfg: Config) -> i32 {
         return 0;
     }
 
-    // Hidden diagnostics: `cachify --debug-get <spclient endpoint | url>` prints a raw response.
+    // Hidden diagnostics: `trill --debug-get <spclient endpoint | url>` prints a raw response.
     if let Some(i) = env::args().position(|a| a == "--debug-get") {
         let target = env::args().nth(i + 1).unwrap_or_default();
         let t0 = std::time::Instant::now();
@@ -509,7 +509,7 @@ async fn run(cfg: Config) -> i32 {
         return 0;
     }
 
-    // Hidden diagnostics: `cachify --debug-context <uri>` prints raw context-resolve track metadata.
+    // Hidden diagnostics: `trill --debug-context <uri>` prints raw context-resolve track metadata.
     if let Some(i) = env::args().position(|a| a == "--debug-context") {
         let mut uri = env::args()
             .nth(i + 1)
@@ -538,7 +538,7 @@ async fn run(cfg: Config) -> i32 {
         return 0;
     }
 
-    // Hidden diagnostics: `cachify --debug-play [uri]` plays one track headless and prints events.
+    // Hidden diagnostics: `trill --debug-play [uri]` plays one track headless and prints events.
     if let Some(i) = env::args().position(|a| a == "--debug-play") {
         let uri = match env::args().nth(i + 1) {
             Some(u) => u,
@@ -553,11 +553,11 @@ async fn run(cfg: Config) -> i32 {
                 }
             }
         };
-        let secs: u64 = env::var("CACHIFY_DEBUG_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(12);
+        let secs: u64 = env::var("TRILL_DEBUG_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(12);
         eprintln!("loading {uri}");
         engine.load(&uri);
-        // CACHIFY_DEBUG_SEEK_END=1: jump to 6 s before the end to observe end-of-track events.
-        let seek_lead: Option<u32> = env::var("CACHIFY_DEBUG_SEEK_END").ok().map(|v| v.parse().unwrap_or(6000));
+        // TRILL_DEBUG_SEEK_END=1: jump to 6 s before the end to observe end-of-track events.
+        let seek_lead: Option<u32> = env::var("TRILL_DEBUG_SEEK_END").ok().map(|v| v.parse().unwrap_or(6000));
         let mut seek_end = seek_lead.is_some();
         let end = tokio::time::Instant::now() + Duration::from_secs(secs);
         let t0 = std::time::Instant::now();

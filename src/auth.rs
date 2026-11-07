@@ -32,7 +32,7 @@ const SESSION_SCOPES: &[&str] = &[
 fn oauth_login(client_id: &str, redirect: &str, scopes: &[&str]) -> Result<librespot_oauth::OAuthToken, String> {
     let client = OAuthClientBuilder::new(client_id, redirect, scopes.to_vec())
         .open_in_browser()
-        .with_custom_message("Logged in to cachify. You can close this tab.")
+        .with_custom_message("Logged in to trill. You can close this tab.")
         .build()
         .map_err(|e| e.to_string())?;
     client.get_access_token().map_err(|e| e.to_string())
@@ -81,7 +81,7 @@ impl WebToken {
     fn client(client_id: &str) -> Result<OAuthClient, String> {
         OAuthClientBuilder::new(client_id, WEBAPI_REDIRECT, vec!["user-read-private"])
             .open_in_browser()
-            .with_custom_message("cachify search is authorised. You can close this tab.")
+            .with_custom_message("trill search is authorised. You can close this tab.")
             .build()
             .map_err(|e| e.to_string())
     }

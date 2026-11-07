@@ -1,5 +1,5 @@
 //! Changes to the user's library (liking songs, adding to / removing from playlists) and
-//! lyrics. Like the rest of cachify this goes through librespot's spclient session, the
+//! lyrics. Like the rest of trill this goes through librespot's spclient session, the
 //! same private API the official apps use, so no Web API quota or rate limit applies.
 
 use std::time::{SystemTime, UNIX_EPOCH};

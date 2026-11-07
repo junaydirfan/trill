@@ -1,6 +1,6 @@
 //! Paths, user config and an opt-in file logger.
 //!
-//! Config lives in `$XDG_CONFIG_HOME/cachify/config` as plain `key = value` lines:
+//! Config lives in `$XDG_CONFIG_HOME/trill/config` as plain `key = value` lines:
 //!
 //! ```text
 //! bitrate = 320          # 96 | 160 | 320
@@ -8,13 +8,13 @@
 //! audio_cache_mb = 0     # 0 disables the on-disk audio cache
 //! normalise = false
 //! backend = auto         # auto | soloist | librespot
-//! device_name = cachify  # name shown in Spotify Connect device lists (Soloist)
+//! device_name = trill  # name shown in Spotify Connect device lists (Soloist)
 //! soloist_cache_mb = 200
-//! soloist_path =         # default: ~/.local/share/cachify/soloist/soloist, then $PATH
+//! soloist_path =         # default: ~/.local/share/trill/soloist/soloist, then $PATH
 //! soloist_ws =           # host:port of an already-running Soloist daemon to use instead
 //! ```
 //!
-//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/cachify/soloist_api_key`.
+//! The Soloist API key is read from `$SOLOIST_API_KEY` or `~/.config/trill/soloist_api_key`.
 
 use std::{
     env, fs,
@@ -52,13 +52,18 @@ pub struct Config {
 }
 
 fn xdg(var: &str, fallback: &str) -> PathBuf {
-    env::var_os(var)
+    let base = env::var_os(var)
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| {
-            PathBuf::from(env::var_os("HOME").unwrap_or_else(|| "/tmp".into())).join(fallback)
-        })
-        .join("cachify")
+        .unwrap_or_else(|| PathBuf::from(env::var_os("HOME").unwrap_or_else(|| "/tmp".into())).join(fallback));
+    let dir = base.join("trill");
+    // trill was called cachify: carry its login, Soloist pairing and settings over once.
+    // shortcut: drop this migration once old installs are gone.
+    let old = base.join("cachify");
+    if !dir.exists() && old.is_dir() {
+        let _ = fs::rename(&old, &dir);
+    }
+    dir
 }
 
 impl Config {
@@ -68,7 +73,7 @@ impl Config {
         let data_dir = xdg("XDG_DATA_HOME", ".local/share");
         let mut cfg = Config {
             backend: Backend::Auto,
-            device_name: "cachify".into(),
+            device_name: "trill".into(),
             soloist_cache_mb: 200,
             soloist_path: None,
             soloist_ws: None,
@@ -159,8 +164,8 @@ impl Config {
     }
 }
 
-/// Minimal logger: only active when `CACHIFY_LOG` is set (e.g. `CACHIFY_LOG=debug`).
-/// Writes to `$XDG_CACHE_HOME/cachify/cachify.log` so it never disturbs the TUI.
+/// Minimal logger: only active when `TRILL_LOG` is set (e.g. `TRILL_LOG=debug`).
+/// Writes to `$XDG_CACHE_HOME/trill/trill.log` so it never disturbs the TUI.
 struct FileLogger {
     file: Mutex<fs::File>,
     level: log::LevelFilter,
@@ -181,10 +186,10 @@ impl log::Log for FileLogger {
 }
 
 pub fn init_logger(cache_dir: &std::path::Path) {
-    let Ok(level) = env::var("CACHIFY_LOG") else { return };
+    let Ok(level) = env::var("TRILL_LOG") else { return };
     let level = level.parse().unwrap_or(log::LevelFilter::Info);
     let _ = fs::create_dir_all(cache_dir);
-    let Ok(file) = fs::File::create(cache_dir.join("cachify.log")) else { return };
+    let Ok(file) = fs::File::create(cache_dir.join("trill.log")) else { return };
     let logger = Box::leak(Box::new(FileLogger { file: Mutex::new(file), level }));
     if log::set_logger(logger).is_ok() {
         log::set_max_level(level);

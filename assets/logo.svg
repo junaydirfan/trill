@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 156" width="300" height="156" role="img" aria-label="trill">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#1ed760"/>
+      <stop offset="1" stop-color="#00afeb"/>
+    </linearGradient>
+  </defs>
+  <text fill="url(#g)" font-family="ui-monospace, 'DejaVu Sans Mono', Menlo, Consolas, monospace" font-size="26" font-weight="700" xml:space="preserve">
+    <tspan x="10" y="30">   __       _ ____</tspan>
+    <tspan x="10" y="60">  / /______(_) / /</tspan>
+    <tspan x="10" y="90"> / __/ ___/ / / / </tspan>
+    <tspan x="10" y="120">/ /_/ /  / / / /  </tspan>
+    <tspan x="10" y="150">\__/_/  /_/_/_/   </tspan>
+  </text>
+</svg>
