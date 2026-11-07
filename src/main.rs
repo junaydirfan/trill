@@ -1,20 +1,23 @@
 //! cachify — a lean terminal Spotify player.
 //!
 //! Design notes (why it's light):
-//! - single-threaded tokio runtime for UI + network; librespot's player thread gets
-//!   a 1-worker runtime (TOKIO_WORKER_THREADS) instead of one per CPU core
+//! - single-threaded tokio runtime for UI + network
 //! - one blocking thread for terminal input (zero CPU while idle)
 //! - redraws only on input / player events / 1 Hz while playing; nothing polls Spotify
-//! - audio goes straight to PipeWire via the PulseAudio protocol, decoded in-process
-//! - streamed audio is buffered on disk (cache dir), not in /tmp (tmpfs = RAM on CachyOS)
+//! - browsing uses librespot's session (batched metadata), not the rate-limited Web API
+//! - playback: Spotify's official Soloist daemon (works where librespot keys are refused),
+//!   or in-process librespot (1-worker runtime, PulseAudio protocol straight to PipeWire)
 
 mod api;
 mod app;
+mod audio;
 mod auth;
 mod config;
+mod engine;
+mod mpris;
 mod ui;
 
-use std::{env, fs, sync::Arc, time::Duration};
+use std::{env, fs, process::Command, sync::Arc, time::Duration};
 
 use crossterm::event::Event;
 use librespot_core::{Session, SessionConfig, cache::Cache};
@@ -29,7 +32,14 @@ use tokio::{
     time::{MissedTickBehavior, interval, timeout},
 };
 
-use crate::{app::App, auth::WebToken, config::Config};
+use crate::{
+    app::App,
+    auth::WebToken,
+    config::Config,
+    engine::{Engine, EngineEvent, LibrespotEvents, SoloistOpts},
+};
+
+const SOLOIST_URL: &str = "https://soloist-builds.spotifycdn.com/soloist_release_x86_64.tar.gz";
 
 fn main() {
     // SAFETY: no other threads exist yet.
@@ -47,10 +57,13 @@ fn main() {
         }
     }
 
-    if env::args().any(|a| a == "-h" || a == "--help") {
+    let has = |flag: &str| env::args().any(|a| a == flag);
+    if has("-h") || has("--help") {
         println!("cachify — lean terminal Spotify player (Premium required)\n");
-        println!("  cachify            start (first run opens a browser to log in)");
-        println!("  cachify --logout   forget saved login\n");
+        println!("  cachify                   start (first run opens a browser to log in)");
+        println!("  cachify --update-soloist  download/refresh Spotify's Soloist player (every <90 days)");
+        println!("  cachify --pair            pair Soloist once via the Spotify app on your phone");
+        println!("  cachify --logout          forget saved logins\n");
         println!("Config: ~/.config/cachify/config   Logs: CACHIFY_LOG=debug cachify");
         return;
     }
@@ -58,19 +71,137 @@ fn main() {
     let cfg = Config::load();
     config::init_logger(&cfg.cache_dir);
 
-    if env::args().any(|a| a == "--logout") {
+    if has("--logout") {
         let _ = fs::remove_file(cfg.cache_dir.join("credentials.json"));
         let _ = fs::remove_file(cfg.cache_dir.join("webapi_refresh_token"));
-        println!("Logged out.");
+        println!("Logged out of cachify. (Soloist pairing kept; re-pair with --pair.)");
         return;
+    }
+    if has("--update-soloist") {
+        std::process::exit(update_soloist(&cfg));
+    }
+    if has("--pair") {
+        std::process::exit(pair_soloist(&cfg));
     }
 
     let rt = tokio::runtime::Builder::new_current_thread()
         .enable_all()
         .build()
         .expect("tokio runtime");
-    let code = rt.block_on(run(cfg));
+    // LocalSet: the MPRIS server is single-threaded (!Send), like the rest of the app.
+    let local = tokio::task::LocalSet::new();
+    let code = local.block_on(&rt, run(cfg));
     std::process::exit(code);
+}
+
+fn soloist_opts(cfg: &Config) -> Result<SoloistOpts, String> {
+    let api_key = cfg.soloist_api_key().ok_or_else(|| {
+        format!(
+            "No Soloist API key. Create one at https://developer.spotify.com/dashboard (Soloist API Key page)\n\
+             and save it to {}  (chmod 600)",
+            cfg.config_dir.join("soloist_api_key").display()
+        )
+    })?;
+    let bin = cfg
+        .soloist_bin()
+        .ok_or("Soloist isn't installed. Run: cachify --update-soloist")?;
+    Ok(SoloistOpts {
+        bin,
+        api_key,
+        device_name: cfg.device_name.clone(),
+        data_dir: cfg.data_dir.join("soloist-data"),
+        cache_dir: cfg.cache_dir.join("soloist"),
+        cache_mb: cfg.soloist_cache_mb,
+        ws: cfg.soloist_ws.clone(),
+        pipewire_device: None,
+        initial_volume: None,
+    })
+}
+
+fn update_soloist(cfg: &Config) -> i32 {
+    let dir = cfg.soloist_install_dir();
+    let staging = dir.join("staging");
+    let _ = fs::remove_dir_all(&staging);
+    if let Err(e) = fs::create_dir_all(&staging) {
+        eprintln!("{}: {e}", staging.display());
+        return 1;
+    }
+    let archive = staging.join("soloist.tar.gz");
+    println!("Downloading Soloist from Spotify ({SOLOIST_URL})…");
+    let ok = Command::new("curl")
+        .args(["-fL", "--progress-bar", "-o"])
+        .arg(&archive)
+        .arg(SOLOIST_URL)
+        .status()
+        .is_ok_and(|s| s.success())
+        && Command::new("tar")
+            .arg("-xzf")
+            .arg(&archive)
+            .arg("-C")
+            .arg(&staging)
+            .status()
+            .is_ok_and(|s| s.success());
+    if !ok {
+        eprintln!("Download or extract failed.");
+        return 1;
+    }
+    let found = walk_find(&staging, "soloist");
+    let Some(bin) = found else {
+        eprintln!("No `soloist` executable in the archive; contents left in {}", staging.display());
+        return 1;
+    };
+    let target = dir.join("soloist");
+    if let Err(e) = fs::rename(&bin, &target) {
+        eprintln!("install to {}: {e}", target.display());
+        return 1;
+    }
+    // keep bundled licence notices next to the binary, drop the rest
+    let _ = fs::remove_dir_all(&staging);
+    let _ = Command::new(&target).arg("--version").status();
+    println!("Installed {}", target.display());
+    0
+}
+
+fn walk_find(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+    for e in fs::read_dir(dir).ok()?.flatten() {
+        let p = e.path();
+        if p.is_dir() {
+            if let Some(f) = walk_find(&p, name) {
+                return Some(f);
+            }
+        } else if p.file_name().is_some_and(|n| n == name) {
+            return Some(p);
+        }
+    }
+    None
+}
+
+fn pair_soloist(cfg: &Config) -> i32 {
+    let opts = match soloist_opts(cfg) {
+        Ok(o) => o,
+        Err(e) => {
+            eprintln!("{e}");
+            return 1;
+        }
+    };
+    let _ = fs::create_dir_all(&opts.data_dir);
+    let _ = fs::create_dir_all(&opts.cache_dir);
+    println!("Pairing: open Spotify on your phone (same Wi-Fi), tap the devices icon,");
+    println!("and pick “{}”. This window finishes by itself once paired.\n", opts.device_name);
+    match opts.base_command().arg("-p").status() {
+        Ok(s) if s.success() => {
+            println!("\nPaired. Run `cachify`.");
+            0
+        }
+        Ok(s) => {
+            eprintln!("Soloist exited with {s}");
+            s.code().unwrap_or(1)
+        }
+        Err(e) => {
+            eprintln!("can't run {}: {e}", opts.bin.display());
+            1
+        }
+    }
 }
 
 async fn run(cfg: Config) -> i32 {
@@ -107,28 +238,156 @@ async fn run(cfg: Config) -> i32 {
         None => None,
     };
 
-    let mixer = match mixer::find(None).map(|m| m(MixerConfig::default())) {
-        Some(Ok(m)) => m,
-        _ => {
-            eprintln!("couldn't create volume mixer");
-            return 1;
-        }
-    };
-    mixer.set_volume(cache.volume().unwrap_or(u16::MAX / 2));
+    let (eng_tx, mut eng_rx) = mpsc::unbounded_channel::<EngineEvent>();
+    let saved_vol = cache.volume().map(|v| (v as u32 * 100 + 32767) / 65535).unwrap_or(50);
 
-    let Some(backend) = audio_backend::find(Some("pulseaudio".into())) else {
-        eprintln!("pulseaudio backend missing from build");
-        return 1;
+    let audio_settings = audio::AudioSettings::load(&cfg.data_dir);
+    // The EQ only runs when it would change the sound (Flat = no extra process at all).
+    let eq = if cfg.eq && !audio_settings.is_flat() {
+        match audio::Eq::start(&cfg.cache_dir, &audio_settings.gains()) {
+            Ok(eq) => Some(eq),
+            Err(e) => {
+                log::warn!("EQ disabled: {e}");
+                None
+            }
+        }
+    } else {
+        None
     };
-    let player_cfg = PlayerConfig {
-        bitrate: cfg.bitrate,
-        normalisation: cfg.normalise,
-        ..PlayerConfig::default()
+    let eq_sink = eq.as_ref().map(|_| audio::EQ_NODE.to_string());
+
+    let mut soloist = None;
+    let engine = if cfg.use_soloist() {
+        let mut opts = match soloist_opts(&cfg) {
+            Ok(o) => o,
+            Err(e) => {
+                eprintln!("{e}");
+                return 1;
+            }
+        };
+        opts.pipewire_device = eq_sink.clone();
+        opts.initial_volume = Some(saved_vol);
+        audio::write_soloist_prefs(&opts.data_dir, &session.username(), audio_settings.crossfade_s, cfg.bitrate);
+        eprintln!("Starting Soloist…");
+        let e = match engine::start_soloist(&opts, eng_tx.clone()).await {
+            Ok(e) => e,
+            Err(e) => {
+                eprintln!("{e}");
+                return 1;
+            }
+        };
+        soloist = Some(opts);
+        e
+    } else {
+        let mixer = match mixer::find(None).map(|m| m(MixerConfig::default())) {
+            Some(Ok(m)) => m,
+            _ => {
+                eprintln!("couldn't create volume mixer");
+                return 1;
+            }
+        };
+        mixer.set_volume((saved_vol * u16::MAX as u32 / 100) as u16);
+        let Some(backend) = audio_backend::find(Some("pulseaudio".into())) else {
+            eprintln!("pulseaudio backend missing from build");
+            return 1;
+        };
+        let player_cfg = PlayerConfig {
+            bitrate: cfg.bitrate,
+            normalisation: cfg.normalise,
+            ..PlayerConfig::default()
+        };
+        let sink = eq_sink.clone();
+        let player = Player::new(player_cfg, session.clone(), mixer.get_soft_volume(), move || {
+            backend(sink, AudioFormat::default())
+        });
+        let mut rx = player.get_player_event_channel();
+        let tx = eng_tx.clone();
+        tokio::spawn(async move {
+            let mut map = LibrespotEvents::default();
+            while let Some(ev) = rx.recv().await {
+                if let Some(ev) = map.map(ev)
+                    && tx.send(ev).is_err()
+                {
+                    break;
+                }
+            }
+        });
+        Engine::Librespot { player, mixer }
     };
-    let player = Player::new(player_cfg, session.clone(), mixer.get_soft_volume(), move || {
-        backend(None, AudioFormat::default())
-    });
-    let mut player_events = player.get_player_event_channel();
+
+    // Hidden diagnostics: `cachify --debug-context <uri>` prints raw context-resolve track metadata.
+    if let Some(i) = env::args().position(|a| a == "--debug-context") {
+        let mut uri = env::args()
+            .nth(i + 1)
+            .unwrap_or_else(|| format!("spotify:user:{}:collection", session.username()));
+        if uri == "playlist" {
+            let lists = api::playlists(&session).await.unwrap_or_default();
+            eprintln!("first playlists: {:?}", lists.iter().take(3).collect::<Vec<_>>());
+            uri = lists.first().map(|l| l.0.clone()).unwrap_or_default();
+        }
+        match session.spclient().get_context(&uri).await {
+            Ok(ctx) => {
+                eprintln!("context metadata: {:?}", ctx.metadata);
+                for (pi, page) in ctx.pages.iter().enumerate().take(3) {
+                    eprintln!("page {pi}: {} tracks, page_url={:?} next={:?} meta={:?}", page.tracks.len(), page.page_url(), page.next_page_url(), page.metadata);
+                    for t in page.tracks.iter().take(3) {
+                        eprintln!("  {} uid={} meta={:?}", t.uri(), t.uid(), t.metadata);
+                    }
+                    if let Some(t) = page.tracks.last() {
+                        eprintln!("  … last: {} meta={:?}", t.uri(), t.metadata);
+                    }
+                }
+            }
+            Err(e) => eprintln!("error: {e}"),
+        }
+        engine.shutdown();
+        return 0;
+    }
+
+    // Hidden diagnostics: `cachify --debug-play [uri]` plays one track headless and prints events.
+    if let Some(i) = env::args().position(|a| a == "--debug-play") {
+        let uri = match env::args().nth(i + 1) {
+            Some(u) => u,
+            None => {
+                let liked = format!("spotify:user:{}:collection", session.username());
+                match api::context_track_uris(&session, &liked).await {
+                    Ok(u) if !u.is_empty() => u[0].clone(),
+                    other => {
+                        eprintln!("couldn't resolve liked songs: {other:?}");
+                        return 1;
+                    }
+                }
+            }
+        };
+        let secs: u64 = env::var("CACHIFY_DEBUG_SECS").ok().and_then(|s| s.parse().ok()).unwrap_or(12);
+        eprintln!("loading {uri}");
+        engine.load(&uri);
+        // CACHIFY_DEBUG_SEEK_END=1: jump to 6 s before the end to observe end-of-track events.
+        let seek_lead: Option<u32> = env::var("CACHIFY_DEBUG_SEEK_END").ok().map(|v| v.parse().unwrap_or(6000));
+        let mut seek_end = seek_lead.is_some();
+        let end = tokio::time::Instant::now() + Duration::from_secs(secs);
+        let t0 = std::time::Instant::now();
+        while let Ok(Some(ev)) = tokio::time::timeout_at(end, eng_rx.recv()).await {
+            eprintln!("[{:>6} ms] event: {ev:?}", t0.elapsed().as_millis());
+            if seek_end
+                && let EngineEvent::Position { playing: Some(true), .. } = ev
+            {
+                seek_end = false;
+                // duration comes from our own metadata so it works on both engines
+                let rows = api::track_rows(&session, vec![uri.clone()]).await;
+                if let Some(r) = rows.first() {
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    let lead = seek_lead.unwrap_or(6000);
+                    eprintln!("debug: seeking to {} of {}", r.duration_ms.saturating_sub(lead), r.duration_ms);
+                    engine.seek(r.duration_ms.saturating_sub(lead));
+                }
+            }
+        }
+        engine.stop();
+        tokio::time::sleep(Duration::from_millis(300)).await;
+        engine.shutdown();
+        return 0;
+    }
 
     // Terminal input on one blocking thread: sleeps in read() until a key arrives.
     let (key_tx, mut key_rx) = mpsc::unbounded_channel();
@@ -142,7 +401,10 @@ async fn run(cfg: Config) -> i32 {
 
     let mut term = ratatui::init();
     let (tx, mut rx) = mpsc::unbounded_channel();
-    let mut app = App::new(session, player.clone(), mixer, web, tx);
+    let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
+    app.eq_allowed = cfg.eq;
+    let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
+    let mut desktop = mpris::Mpris::new(remote_tx).await;
 
     let mut tick = interval(Duration::from_secs(1));
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
@@ -153,19 +415,46 @@ async fn run(cfg: Config) -> i32 {
     loop {
         if dirty {
             let _ = term.draw(|f| ui::draw(f, &mut app));
+            if let Some(d) = desktop.as_mut() {
+                d.sync(&app).await;
+            }
             dirty = false;
         }
         if app.quit {
             break;
         }
+        if app.restart_due() {
+            if let Some(opts) = soloist.as_mut() {
+                if app.eq_wanted() {
+                    match audio::Eq::start(&cfg.cache_dir, &app.audio.gains()) {
+                        Ok(eq) => {
+                            app.eq = Some(eq);
+                            opts.pipewire_device = Some(audio::EQ_NODE.into());
+                        }
+                        Err(e) => app.status = format!("EQ failed to start: {e}"),
+                    }
+                }
+                let _ = term.draw(|f| ui::draw(f, &mut app));
+                restart_soloist(&mut app, opts, &cfg, &eng_tx).await;
+            }
+            dirty = true;
+        }
+        let deadline = [app.end_deadline(), app.restart_at].into_iter().flatten().min();
         tokio::select! {
+            _ = async {
+                match deadline {
+                    Some(d) => tokio::time::sleep_until(d.into()).await,
+                    None => std::future::pending().await,
+                }
+            }, if deadline.is_some() => { app.on_end_deadline(); dirty = true; }
             Some(ev) = key_rx.recv() => match ev {
                 Event::Key(k) => { app.on_key(k); dirty = true; }
                 Event::Resize(..) => dirty = true,
                 _ => {}
             },
-            Some(ev) = player_events.recv() => dirty |= app.on_player(ev),
+            Some(ev) = eng_rx.recv() => dirty |= app.on_engine(ev),
             Some(msg) = rx.recv() => { app.on_msg(msg); dirty = true; }
+            Some(cmd) = remote_rx.recv() => { app.on_remote(cmd); dirty = true; }
             _ = tick.tick(), if app.playing => dirty = true,
             _ = health.tick() => {
                 if app.session.is_invalid() {
@@ -174,7 +463,9 @@ async fn run(cfg: Config) -> i32 {
                     let s = Session::new(session_cfg.clone(), Some(cache.clone()));
                     match timeout(Duration::from_secs(10), auth::reconnect(&s, &cache)).await {
                         Ok(Ok(())) => {
-                            player.set_session(s.clone());
+                            if let Engine::Librespot { player, .. } = &app.engine {
+                                player.set_session(s.clone());
+                            }
                             app.session = s;
                             app.status = "Reconnected.".into();
                         }
@@ -187,8 +478,32 @@ async fn run(cfg: Config) -> i32 {
         }
     }
 
-    player.stop();
+    app.engine.stop();
+    app.engine.shutdown();
+    if let Some(eq) = &app.eq {
+        eq.stop();
+    }
     app.session.shutdown();
     ratatui::restore();
     0
+}
+
+/// Crossfade lives in Soloist's prefs, read at startup: stop it, rewrite prefs, start it
+/// again and resume the current track where it was.
+async fn restart_soloist(app: &mut App, opts: &mut SoloistOpts, cfg: &Config, eng_tx: &mpsc::UnboundedSender<EngineEvent>) {
+    let resume = app.begin_restart();
+    if let Some(pid) = app.engine.pid() {
+        app.engine.shutdown();
+        let deadline = std::time::Instant::now() + Duration::from_secs(5);
+        // SAFETY: signal 0 only checks whether the process still exists.
+        while unsafe { libc::kill(pid as i32, 0) } == 0 && std::time::Instant::now() < deadline {
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+    }
+    opts.initial_volume = Some(app.volume_pct());
+    audio::write_soloist_prefs(&opts.data_dir, &app.session.username(), app.audio.crossfade_s, cfg.bitrate);
+    match engine::start_soloist(opts, eng_tx.clone()).await {
+        Ok(e) => app.finish_restart(e, resume),
+        Err(e) => app.status = format!("Couldn't restart Soloist: {e}"),
+    }
 }

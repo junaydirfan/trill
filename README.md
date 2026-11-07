@@ -1,8 +1,54 @@
 # cachify
 
 A lean terminal Spotify player for CachyOS (or any Linux running PipeWire or PulseAudio).
-It plays audio itself through [librespot](https://github.com/librespot-org/librespot),
-so it doesn't need the official client or a browser running. **Requires Spotify Premium.**
+Browsing and search go through [librespot](https://github.com/librespot-org/librespot).
+Audio plays through Spotify's official headless player, **Soloist**, or optionally through
+librespot itself. **Requires Spotify Premium.**
+
+## Why Soloist?
+
+Since late 2025, Spotify has been refusing audio keys to librespot on more and more
+accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)).
+On those accounts, login and browsing work, but every track fails with
+`error audio key 0 1` and gets skipped. Soloist is Spotify's own player, so it isn't
+affected. cachify starts it in the background, controls it over its local WebSocket,
+and keeps shuffle, repeat and the queue itself.
+
+### One-time Soloist setup
+
+1. Get an API key: https://developer.spotify.com/dashboard → **Spotify Soloist API Key**.
+   Save it, readable only by you:
+   ```bash
+   install -Dm600 /dev/null ~/.config/cachify/soloist_api_key && $EDITOR ~/.config/cachify/soloist_api_key
+   ```
+2. Install Soloist (downloaded from Spotify's CDN). Re-run this at least every 90 days,
+   because Spotify's builds expire:
+   ```bash
+   cachify --update-soloist
+   ```
+3. Pair once: run `cachify --pair`, then pick **cachify** in the device list of the Spotify
+   app on your phone (same Wi-Fi).
+
+cachify uses Soloist automatically once the key and binary are present. To force an
+engine, set `backend = soloist` or `backend = librespot` in the config.
+
+**Song transitions:** when a song ends, Soloist would normally play its own autoplay
+"radio" pick. To stop that, cachify puts your next song into Soloist's queue about 8 s
+before the end, so the switch is native and gapless. Soloist's queue can't be edited, so if
+you pick a different song during those last 8 s, the queued song is skipped first and can
+be heard for a split second (about 0.15 s).
+
+**Measured on this machine** (during playback, 3,852-song Liked Songs open):
+
+| process | CPU (one core) | memory (PSS) |
+|---|---|---|
+| cachify (TUI + library) | ~0.2% | ~17 MB |
+| Soloist | ~2.2% | ~48 MB |
+| Soloist crash reporter | 0% | ~11 MB |
+
+Note: Soloist only accepts the API key as a command-line argument, so anything that can
+list processes on this machine (`/proc/<pid>/cmdline`) can see it while Soloist runs. On a
+single-user desktop that's fine; on a shared machine, keep that in mind.
 
 ## Install
 
@@ -19,9 +65,48 @@ Build deps (already on CachyOS): `rust`, `libpulse`, `openssl`, `pkgconf`.
 cachify
 ```
 
-Your browser opens for Spotify login, once. librespot then stores reusable credentials
-in `~/.cache/cachify/credentials.json`, so later starts skip the browser.
-`cachify --logout` deletes them.
+Your browser opens for Spotify login, once. This login is for browsing your library.
+librespot then stores reusable credentials in `~/.cache/cachify/credentials.json`, so
+later starts skip the browser. `cachify --logout` deletes them.
+
+## Sorting
+
+Playlists and Liked Songs are shown **most recently added first**, with an **Added**
+date column. Playing from the top therefore plays your newest additions first. Press `o`
+to switch to the playlist's own order. Albums and artists always keep their track order.
+
+## EQ, crossfade and quality
+
+- **EQ:** `e` cycles presets (Flat, Bass Boost, Bass Reducer, Treble Boost, Vocal, Rock,
+  Pop, Hip-Hop, Electronic, Acoustic, Loudness, Custom). `E` opens the 10-band panel
+  (32 Hz to 16 kHz, ±12 dB). In the panel, `↑↓` picks a band, `←→` adjusts it and `0`
+  resets it. A preamp is set automatically so boosts don't clip.
+  - It's a small PipeWire filter that only cachify's audio passes through; other apps
+    aren't affected.
+  - **On Flat it doesn't run at all.** The first non-flat setting starts it and briefly
+    restarts the player (~3 s, resumes where you were). After that, changes are live.
+  - Cost while running: ~1.7% of one core and ~4 MB. Set `eq = off` in the config to
+    disable it completely.
+- **Crossfade:** `x` cycles off / 3 / 5 / 8 / 12 s. This is Spotify's own crossfade inside
+  Soloist. Applying it restarts Soloist (~3 s, resumes where you were).
+- **Quality:** cachify sets Soloist to 320 kbps. Out of the box it streamed at 160 kbps.
+
+Settings are saved in `~/.local/share/cachify/audio_settings`.
+
+## Desktop integration
+
+cachify registers as an MPRIS player (`org.mpris.MediaPlayer2.cachify`). That gives you:
+- the KDE media widget and lock screen, with title, artist and album art
+- media keys (play/pause, next, previous)
+- `playerctl`, KDE Connect, and anything else that speaks MPRIS
+
+Install the launcher so KDE can show its name and icon (it also adds a menu entry):
+
+```bash
+install -Dm644 assets/cachify.desktop ~/.local/share/applications/cachify.desktop
+```
+
+For Spotify's icon, change `Icon=` to `spotify-launcher`, if that package is installed.
 
 ## Keys
 
@@ -38,6 +123,9 @@ in `~/.cache/cachify/credentials.json`, so later starts skip the browser.
 | `a` | add to queue |
 | `c` | show the queue |
 | `s` / `r` | shuffle / repeat (off → all → one) |
+| `o` | sort: recently added ↔ playlist order |
+| `e` / `E` | next EQ preset / EQ panel |
+| `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search |
 | `R` | reload the current list (or playlists) |
 | `?` | key help in the status line |
@@ -52,6 +140,11 @@ bitrate = 320          # 96 | 160 | 320
 audio_cache_mb = 0     # >0 keeps played tracks on disk (saves bandwidth on repeats)
 normalise = false
 client_id =            # your own Spotify app, used ONLY for search (see below)
+backend = auto         # auto | soloist | librespot
+device_name = cachify  # how Soloist shows up in Spotify Connect
+soloist_cache_mb = 200
+soloist_ws =           # host:port of a Soloist you already run, instead of spawning one
+eq = on                # off = never run the EQ process
 ```
 
 ### Better search (recommended)
@@ -87,5 +180,8 @@ The status line shows which search path answered: `web api` (your app), `web api
 ## Debugging
 
 ```bash
-CACHIFY_LOG=debug cachify     # writes ~/.cache/cachify/cachify.log
+CACHIFY_LOG=debug cachify            # writes ~/.cache/cachify/cachify.log
+cachify --debug-play [spotify:track:…] # play one track headless, print engine events
 ```
+
+Soloist's own output goes to `~/.cache/cachify/soloist.log`.

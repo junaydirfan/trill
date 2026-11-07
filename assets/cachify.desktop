@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=cachify
+GenericName=Music Player
+Comment=Lean terminal Spotify player
+Exec=cachify
+Terminal=true
+Icon=multimedia-audio-player
+Categories=AudioVideo;Audio;Player;Music;
+Keywords=spotify;music;player;

@@ -7,17 +7,16 @@ use std::{
 };
 
 use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
-use librespot_core::{Session, SpotifyUri};
-use librespot_playback::{
-    mixer::Mixer,
-    player::{Player, PlayerEvent},
-};
+use librespot_core::Session;
 use ratatui::widgets::{ListState, TableState};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
 use crate::{
     api::{self, Kind, Row, Rows},
+    audio::{AudioSettings, BANDS, Eq},
     auth::WebToken,
+    engine::{Engine, EngineEvent},
+    mpris::Remote,
 };
 
 pub enum Msg {
@@ -38,6 +37,15 @@ pub enum Repeat {
     Off,
     All,
     One,
+}
+
+/// How playlists / liked songs are ordered on screen (and therefore played).
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum Sort {
+    /// Most recently added first (default).
+    Added,
+    /// The playlist's own order.
+    Original,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -67,12 +75,13 @@ pub struct View {
     pub title: String,
     pub rows: Rows,
     pub state: TableState,
+    /// Rows are shown newest-added first.
+    pub by_added: bool,
 }
 
 pub struct App {
     pub session: Session,
-    pub player: Arc<Player>,
-    pub mixer: Arc<dyn Mixer>,
+    pub engine: Engine,
     pub web: Option<Arc<Mutex<WebToken>>>,
     tx: UnboundedSender<Msg>,
 
@@ -86,6 +95,21 @@ pub struct App {
     search_rows: Rows,
     pub search_title: String,
 
+    pub sort: Sort,
+    pub audio: AudioSettings,
+    pub eq: Option<Eq>,
+    /// `eq = off` in config disables the EQ entirely.
+    pub eq_allowed: bool,
+    /// EQ panel open, with this band selected.
+    pub eq_panel: Option<usize>,
+    /// When to restart Soloist to apply a crossfade change (debounced).
+    pub restart_at: Option<Instant>,
+    /// After a restart: position to seek to once the track is back.
+    pending_seek: Option<u32>,
+    /// After a restart while paused: reload this position on the next play.
+    reload_at: Option<u32>,
+    /// Ignore stale "Soloist stopped" messages from the old process.
+    quiet_until: Instant,
     pub focus: Focus,
     pub input: String,
     pub status: String,
@@ -101,7 +125,13 @@ pub struct App {
     pub playing: bool,
     pos_ms: u32,
     pos_at: Instant,
-    req_id: Option<u64>,
+    /// Soloist: the uri we asked for and when; transitional events are ignored until it starts.
+    awaiting: Option<(String, Instant)>,
+    /// Soloist: the next track we already put in Soloist's own queue (so it switches
+    /// gaplessly instead of autoplaying). Soloist can't un-queue, so we track it to consume it.
+    ahead: Option<String>,
+    vol: u32,
+    vol_set_at: Instant,
     skips: u32,
     pub shuffle: bool,
     pub repeat: Repeat,
@@ -109,15 +139,17 @@ pub struct App {
 }
 
 const SEEK_MS: u32 = 10_000;
-const VOL_STEP: u16 = u16::MAX / 20; // 5%
+const VOL_STEP: u32 = 5; // percent
 
 impl App {
     pub fn new(
         session: Session,
-        player: Arc<Player>,
-        mixer: Arc<dyn Mixer>,
+        engine: Engine,
+        vol: u32,
         web: Option<Arc<Mutex<WebToken>>>,
         tx: UnboundedSender<Msg>,
+        audio: AudioSettings,
+        eq: Option<Eq>,
     ) -> Self {
         let user = session.username();
         let side = vec![
@@ -132,19 +164,27 @@ impl App {
             | 1;
         let app = App {
             session,
-            player,
-            mixer,
+            engine,
             web,
             tx,
             side,
             side_state: ListState::default().with_selected(Some(0)),
-            view: View { uri: String::new(), title: "cachify".into(), rows: Arc::new(Vec::new()), state: TableState::default() },
+            view: View { uri: String::new(), title: "cachify".into(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
             back: Vec::new(),
             queue_src: Vec::new(),
             cache: HashMap::new(),
             pending: None,
             search_rows: Arc::new(Vec::new()),
             search_title: "Search".into(),
+            sort: Sort::Added,
+            audio,
+            eq,
+            eq_allowed: true,
+            eq_panel: None,
+            restart_at: None,
+            pending_seek: None,
+            reload_at: None,
+            quiet_until: Instant::now(),
             focus: Focus::Side,
             input: String::new(),
             status: "Loading playlists…".into(),
@@ -158,7 +198,10 @@ impl App {
             playing: false,
             pos_ms: 0,
             pos_at: Instant::now(),
-            req_id: None,
+            awaiting: None,
+            ahead: None,
+            vol,
+            vol_set_at: Instant::now().checked_sub(std::time::Duration::from_secs(10)).unwrap_or_else(Instant::now),
             skips: 0,
             shuffle: false,
             repeat: Repeat::Off,
@@ -181,7 +224,7 @@ impl App {
         if push_back && !self.view.uri.is_empty() {
             let prev = std::mem::replace(
                 &mut self.view,
-                View { uri: String::new(), title: String::new(), rows: Arc::new(Vec::new()), state: TableState::default() },
+                View { uri: String::new(), title: String::new(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
             );
             self.back.push(prev);
             if self.back.len() > 20 {
@@ -207,8 +250,40 @@ impl App {
     }
 
     fn show(&mut self, uri: String, title: String, rows: Rows) {
+        let (rows, by_added) = self.sorted(&uri, rows);
         let sel = if rows.is_empty() { None } else { Some(0) };
-        self.view = View { uri, title, rows, state: TableState::default().with_selected(sel) };
+        self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), by_added };
+    }
+
+    /// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
+    fn sorted(&self, uri: &str, rows: Rows) -> (Rows, bool) {
+        let sortable = uri.starts_with("spotify:playlist:") || uri.contains(":collection");
+        if self.sort != Sort::Added || !sortable || !rows.iter().any(|r| r.added_at > 0) {
+            return (rows, false);
+        }
+        if rows.windows(2).all(|w| w[0].added_at >= w[1].added_at) {
+            return (rows, true); // already newest-first (liked songs): no copy
+        }
+        let mut v = (*rows).clone();
+        v.sort_by(|a, b| b.added_at.cmp(&a.added_at)); // stable: ties keep playlist order
+        (Arc::new(v), true)
+    }
+
+    fn toggle_sort(&mut self) {
+        self.sort = if self.sort == Sort::Added { Sort::Original } else { Sort::Added };
+        self.status = match self.sort {
+            Sort::Added => "Sort: recently added first".into(),
+            Sort::Original => "Sort: playlist order".into(),
+        };
+        let Some(orig) = self.cache.get(&self.view.uri).cloned() else { return };
+        let keep = self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| r.uri.clone());
+        let (uri, title) = (self.view.uri.clone(), self.view.title.clone());
+        self.show(uri, title, orig);
+        if let Some(k) = keep
+            && let Some(i) = self.view.rows.iter().position(|r| r.uri == k)
+        {
+            self.view.state.select(Some(i));
+        }
     }
 
     fn open_side(&mut self) {
@@ -345,11 +420,14 @@ impl App {
     }
 
     fn load(&mut self, row: Row) {
-        let Ok(uri) = SpotifyUri::from_uri(&row.uri) else {
-            self.status = format!("Can't play {}", row.uri);
-            return;
-        };
-        self.player.load(uri, true, 0);
+        if self.engine.is_soloist() && self.ahead.take().is_some() {
+            // Burn the pre-queued track so it can't play later; `play` follows immediately.
+            self.engine.skip_next();
+        }
+        self.engine.load(&row.uri);
+        if self.engine.is_soloist() {
+            self.awaiting = Some((row.uri.clone(), Instant::now()));
+        }
         self.pos_ms = 0;
         self.pos_at = Instant::now();
         self.now = Some(row);
@@ -385,19 +463,17 @@ impl App {
         }
     }
 
-    /// Advance. `auto` = track ended naturally (respects repeat-one).
-    fn next(&mut self, auto: bool) {
-        if auto && self.repeat == Repeat::One && let Some(now) = self.now.clone() {
-            self.load(now);
-            return;
+    /// Move cursor/queue to the next track and return it (None = end of list).
+    /// `auto` = track ended naturally (respects repeat-one).
+    fn advance(&mut self, auto: bool) -> Option<Row> {
+        if auto && self.repeat == Repeat::One {
+            return self.now.clone();
         }
         if let Some(r) = self.queue.pop_front() {
-            self.load(r);
-            return;
+            return Some(r);
         }
         if self.order.is_empty() {
-            self.stop();
-            return;
+            return None;
         }
         if self.cursor + 1 < self.order.len() {
             self.cursor += 1;
@@ -405,13 +481,26 @@ impl App {
             self.cursor = 0;
         } else {
             self.status = "End of list".into();
-            if auto {
-                self.stop();
-            }
-            return;
+            return None;
         }
-        let row = self.ctx[self.order[self.cursor]].clone();
-        self.load(row);
+        Some(self.ctx[self.order[self.cursor]].clone())
+    }
+
+    fn next(&mut self, auto: bool) {
+        match self.advance(auto) {
+            // Soloist already has it queued: skip to it rather than queue a duplicate.
+            Some(r) if self.ahead.as_deref() == Some(r.uri.as_str()) => {
+                self.ahead = None;
+                self.engine.skip_next();
+                self.awaiting = Some((r.uri.clone(), Instant::now()));
+                self.pos_ms = 0;
+                self.pos_at = Instant::now();
+                self.now = Some(r);
+            }
+            Some(r) => self.load(r),
+            None if auto => self.stop(),
+            None => {}
+        }
     }
 
     fn prev(&mut self) {
@@ -429,25 +518,33 @@ impl App {
     }
 
     fn stop(&mut self) {
-        self.player.stop();
+        self.engine.stop();
         self.playing = false;
         self.pos_ms = 0;
     }
 
     fn toggle(&mut self) {
+        if let Some(pos) = self.reload_at.take()
+            && let Some(row) = self.now.clone()
+        {
+            // Player was restarted while paused: bring the track back where it was.
+            self.pending_seek = Some(pos);
+            self.load(row);
+            return;
+        }
         if self.now.is_none() {
             // nothing loaded: play whatever is selected
             self.activate();
         } else if self.playing {
-            self.player.pause();
+            self.engine.pause();
         } else {
-            self.player.play();
+            self.engine.resume();
         }
     }
 
     fn seek_to(&mut self, ms: u32) {
         if self.now.is_some() {
-            self.player.seek(ms);
+            self.engine.seek(ms);
             self.pos_ms = ms;
             self.pos_at = Instant::now();
         }
@@ -460,67 +557,147 @@ impl App {
     }
 
     pub fn volume_pct(&self) -> u32 {
-        (self.mixer.volume() as u32 * 100 + u16::MAX as u32 / 2) / u16::MAX as u32
+        self.vol
     }
 
     fn change_volume(&mut self, up: bool) {
-        let v = self.mixer.volume();
-        let v = if up { v.saturating_add(VOL_STEP) } else { v.saturating_sub(VOL_STEP) };
-        self.mixer.set_volume(v);
+        self.vol = if up { (self.vol + VOL_STEP).min(100) } else { self.vol.saturating_sub(VOL_STEP) };
+        self.vol_set_at = Instant::now();
+        self.engine.set_volume(self.vol);
         if let Some(c) = self.session.cache() {
-            c.save_volume(v);
+            c.save_volume((self.vol * u16::MAX as u32 / 100) as u16);
         }
     }
 
+    /// Soloist autoplays a radio track the moment ours ends. To avoid that, we hand it our
+    /// next track via its own queue ~8 s before the end; it then switches gaplessly.
+    /// Returns when that should happen (None = nothing to do).
+    pub fn end_deadline(&self) -> Option<Instant> {
+        let lead_ms = 8_000 + self.audio.crossfade_s * 1000; // crossfade starts earlier
+        if !self.engine.is_soloist()
+            || !self.playing
+            || self.awaiting.is_some()
+            || self.ahead.is_some()
+            || self.repeat == Repeat::One
+        {
+            return None;
+        }
+        let dur = self.now.as_ref()?.duration_ms;
+        self.peek_next()?;
+        let remaining = dur.saturating_sub(lead_ms).saturating_sub(self.position_ms());
+        Some(Instant::now() + std::time::Duration::from_millis(remaining as u64))
+    }
+
+    pub fn on_end_deadline(&mut self) {
+        if self.end_deadline().is_some_and(|d| d <= Instant::now() + std::time::Duration::from_millis(50))
+            && let Some(r) = self.peek_next()
+        {
+            self.engine.add_to_queue(&r.uri);
+            self.ahead = Some(r.uri);
+        }
+    }
+
+    /// True when the current track is (about) finished — used to tell a natural end apart
+    /// from the user changing tracks on another device.
+    fn near_end(&self) -> bool {
+        let dur = self.now.as_ref().map(|r| r.duration_ms).unwrap_or(0);
+        dur > 0 && self.position_ms() + 5000 >= dur
+    }
+
     /// Returns true if the UI needs a redraw.
-    pub fn on_player(&mut self, ev: PlayerEvent) -> bool {
-        use PlayerEvent::*;
-        let ours = |id: u64, me: &Self| me.req_id.is_none_or(|r| r == id);
+    pub fn on_engine(&mut self, ev: EngineEvent) -> bool {
+        if let Some((_, at)) = &self.awaiting
+            && at.elapsed().as_secs() >= 10
+        {
+            self.awaiting = None; // never got confirmation; stop waiting
+        }
         match ev {
-            PlayRequestIdChanged { play_request_id } => {
-                self.req_id = Some(play_request_id);
-                false
-            }
-            Playing { play_request_id, position_ms, .. } if ours(play_request_id, self) => {
-                self.playing = true;
-                self.skips = 0;
-                self.pos_ms = position_ms;
-                self.pos_at = Instant::now();
-                true
-            }
-            Paused { play_request_id, position_ms, .. } if ours(play_request_id, self) => {
-                self.playing = false;
-                self.pos_ms = position_ms;
-                true
-            }
-            Seeked { play_request_id, position_ms, .. } | PositionCorrection { play_request_id, position_ms, .. }
-                if ours(play_request_id, self) =>
-            {
-                self.pos_ms = position_ms;
-                self.pos_at = Instant::now();
-                true
-            }
-            Stopped { play_request_id, .. } if ours(play_request_id, self) => {
-                self.playing = false;
-                true
-            }
-            TimeToPreloadNextTrack { play_request_id, .. } if ours(play_request_id, self) => {
-                if let Some(r) = self.peek_next()
-                    && let Ok(u) = SpotifyUri::from_uri(&r.uri)
-                {
-                    self.player.preload(u);
+            EngineEvent::Position { pos_ms, playing } => {
+                if self.awaiting.is_some() {
+                    return false; // belongs to the previous track
                 }
-                false
+                if let Some(p) = playing {
+                    if p {
+                        self.skips = 0;
+                    }
+                    self.playing = p;
+                }
+                self.pos_ms = pos_ms;
+                self.pos_at = Instant::now();
             }
-            EndOfTrack { play_request_id, .. } if ours(play_request_id, self) => {
-                self.next(true);
-                true
+            EngineEvent::TrackChanged(row) => {
+                if let Some((want, _)) = &self.awaiting {
+                    if *want == row.uri {
+                        if let Some(pos) = self.pending_seek.take()
+                            && pos > 1000
+                        {
+                            self.engine.seek(pos);
+                        }
+                        if let Some(now) = self.now.as_mut()
+                            && now.art.is_none()
+                        {
+                            now.art = row.art;
+                        }
+                        self.awaiting = None;
+                        self.pos_ms = 0;
+                        self.pos_at = Instant::now();
+                    }
+                    return false;
+                }
+                if let Some(now) = self.now.as_mut()
+                    && now.uri == row.uri
+                {
+                    if now.art.is_none() && row.art.is_some() {
+                        now.art = row.art;
+                        return true;
+                    }
+                    return false;
+                }
+                if self.ahead.as_deref() == Some(row.uri.as_str()) {
+                    // Soloist moved to the track we pre-queued: catch our state up.
+                    self.ahead = None;
+                    match self.advance(true) {
+                        Some(r) if r.uri == row.uri => {
+                            self.now = Some(r);
+                            self.pos_ms = 0;
+                            self.pos_at = Instant::now();
+                        }
+                        Some(r) => self.load(r), // plan changed since we queued it
+                        None => self.stop(),
+                    }
+                } else if self.now.is_some() && self.near_end() {
+                    // Soloist moved on by itself (autoplay) at the end of our track: play our next.
+                    self.next(true);
+                } else {
+                    // Changed from another device (phone etc.): follow it.
+                    self.now = Some(row);
+                    self.pos_ms = 0;
+                    self.pos_at = Instant::now();
+                }
             }
-            Unavailable { play_request_id, .. } if ours(play_request_id, self) => {
+            EngineEvent::Idle => {
+                if self.awaiting.is_some() {
+                    return false;
+                }
+                if self.now.is_some() && self.near_end() {
+                    self.next(true);
+                } else {
+                    self.playing = false;
+                }
+            }
+            EngineEvent::Stopped => self.playing = false,
+            EngineEvent::PreloadNext => {
+                if let Some(r) = self.peek_next() {
+                    self.engine.preload(&r.uri);
+                }
+                return false;
+            }
+            EngineEvent::Ended => self.next(true),
+            EngineEvent::Unavailable => {
                 self.skips += 1;
                 if self.skips > 15 {
                     self.stop();
-                    self.status = "Too many unavailable tracks in a row; stopped.".into();
+                    self.status = "Too many unavailable tracks in a row; stopped. (CACHIFY_LOG=debug to see why)".into();
                 } else {
                     self.status = format!(
                         "Unavailable: {}, skipping",
@@ -528,10 +705,179 @@ impl App {
                     );
                     self.next(true);
                 }
-                true
             }
-            _ => false,
+            EngineEvent::Volume(v) => {
+                // Soloist echoes volume changes late; don't let an old echo undo a keypress.
+                if self.vol_set_at.elapsed().as_millis() < 1500 {
+                    return false;
+                }
+                self.vol = v.min(100);
+            }
+            EngineEvent::Status(m) | EngineEvent::Exited(m) => {
+                if Instant::now() < self.quiet_until {
+                    return false;
+                }
+                self.status = m;
+            }
         }
+        true
+    }
+
+    // ---------------------------------------------------------------- audio settings
+
+    fn apply_eq(&mut self) {
+        self.audio.save();
+        match &self.eq {
+            Some(eq) => {
+                eq.apply(&self.audio.gains());
+                self.status = format!("EQ: {}", self.audio.preset_name());
+            }
+            None if self.audio.is_flat() => self.status = format!("EQ: {}", self.audio.preset_name()),
+            None if !self.eq_allowed => self.status = "EQ is disabled (eq = off in config)".into(),
+            None if self.engine.is_soloist() => {
+                // First non-flat setting: start the EQ and reroute the player (short restart).
+                self.restart_at = Some(Instant::now() + std::time::Duration::from_millis(900));
+                self.status = format!("EQ: {} (starting EQ…)", self.audio.preset_name());
+            }
+            None => self.status = format!("EQ: {} — restart cachify to apply", self.audio.preset_name()),
+        }
+    }
+
+    /// The main loop should start the EQ process before the next player restart.
+    pub fn eq_wanted(&self) -> bool {
+        self.eq.is_none() && self.eq_allowed && !self.audio.is_flat()
+    }
+
+    fn cycle_crossfade(&mut self) {
+        if !self.engine.is_soloist() {
+            self.status = "Crossfade needs the Soloist engine".into();
+            return;
+        }
+        self.audio.cycle_crossfade();
+        self.audio.save();
+        // debounce: tapping x a few times only restarts once
+        self.restart_at = Some(Instant::now() + std::time::Duration::from_millis(1200));
+        self.status = match self.audio.crossfade_s {
+            0 => "Crossfade off (applying…)".into(),
+            s => format!("Crossfade {s} s (applying…)"),
+        };
+    }
+
+    pub fn restart_due(&self) -> bool {
+        self.restart_at.is_some_and(|t| t <= Instant::now())
+    }
+
+    /// Returns what to resume after the player restarts.
+    pub fn begin_restart(&mut self) -> Option<(Row, u32, bool)> {
+        self.restart_at = None;
+        self.awaiting = None;
+        self.ahead = None; // the new process has an empty queue
+        self.quiet_until = Instant::now() + std::time::Duration::from_secs(4);
+        self.now.clone().map(|r| (r, self.position_ms(), self.playing))
+    }
+
+    pub fn finish_restart(&mut self, engine: Engine, resume: Option<(Row, u32, bool)>) {
+        self.engine = engine;
+        self.engine.set_repeat_track(self.repeat == Repeat::One);
+        self.quiet_until = Instant::now() + std::time::Duration::from_secs(2);
+        match resume {
+            Some((row, pos, true)) => {
+                self.pending_seek = Some(pos);
+                self.load(row);
+            }
+            Some((_, pos, false)) => {
+                self.reload_at = Some(pos);
+                self.playing = false;
+            }
+            None => {}
+        }
+        let xfade = match self.audio.crossfade_s {
+            0 => "crossfade off".to_string(),
+            s => format!("crossfade {s} s"),
+        };
+        self.status = format!("EQ: {} · {xfade}", self.audio.preset_name());
+    }
+
+    fn on_eq_key(&mut self, band: usize, k: KeyEvent) {
+        let n = BANDS.len();
+        match k.code {
+            KeyCode::Esc | KeyCode::Char('E') | KeyCode::Char('q') => {
+                self.eq_panel = None;
+                return;
+            }
+            KeyCode::Up | KeyCode::Char('k') => self.eq_panel = Some((band + n - 1) % n),
+            KeyCode::Down | KeyCode::Char('j') => self.eq_panel = Some((band + 1) % n),
+            KeyCode::Left | KeyCode::Char('h') => {
+                self.audio.nudge(band, -1.0);
+                self.apply_eq();
+            }
+            KeyCode::Right | KeyCode::Char('l') => {
+                self.audio.nudge(band, 1.0);
+                self.apply_eq();
+            }
+            KeyCode::Char('0') => {
+                self.audio.set_band(band, 0.0);
+                self.apply_eq();
+            }
+            KeyCode::Char('p') | KeyCode::Char('e') | KeyCode::Tab => {
+                self.audio.cycle_preset(false);
+                self.apply_eq();
+            }
+            KeyCode::Char('P') | KeyCode::BackTab => {
+                self.audio.cycle_preset(true);
+                self.apply_eq();
+            }
+            KeyCode::Char('f') => {
+                self.audio.preset = 0;
+                self.apply_eq();
+            }
+            KeyCode::Char('x') => self.cycle_crossfade(),
+            KeyCode::Char(' ') => self.toggle(),
+            _ => {}
+        }
+    }
+
+    // ---------------------------------------------------------------- desktop (MPRIS)
+
+    pub fn on_remote(&mut self, cmd: Remote) {
+        match cmd {
+            Remote::PlayPause => self.toggle(),
+            Remote::Play => {
+                if !self.playing {
+                    self.toggle()
+                }
+            }
+            Remote::Pause | Remote::Stop => {
+                if self.playing {
+                    self.engine.pause()
+                }
+            }
+            Remote::Next => self.next(false),
+            Remote::Prev => self.prev(),
+            Remote::Seek(ms) => self.seek_by(ms),
+            Remote::SetPosition(ms) => self.seek_to(ms),
+            Remote::Volume(v) => {
+                self.vol = v.min(100);
+                self.vol_set_at = Instant::now();
+                self.engine.set_volume(self.vol);
+            }
+            Remote::Shuffle(on) => {
+                if on != self.shuffle {
+                    self.toggle_shuffle()
+                }
+            }
+            Remote::Loop(r) => {
+                self.repeat = r;
+                self.engine.set_repeat_track(r == Repeat::One);
+            }
+        }
+    }
+
+    fn toggle_shuffle(&mut self) {
+        self.shuffle = !self.shuffle;
+        let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]);
+        self.reorder(cur);
+        self.status = format!("Shuffle {}", if self.shuffle { "on" } else { "off" });
     }
 
     // ---------------------------------------------------------------- keys
@@ -602,6 +948,10 @@ impl App {
             self.quit = true;
             return;
         }
+        if let Some(band) = self.eq_panel {
+            self.on_eq_key(band, k);
+            return;
+        }
         if self.focus == Focus::Input {
             match k.code {
                 KeyCode::Esc => {
@@ -662,18 +1012,21 @@ impl App {
             KeyCode::Char('+') | KeyCode::Char('=') => self.change_volume(true),
             KeyCode::Char('-') | KeyCode::Char('_') => self.change_volume(false),
             KeyCode::Char('a') => self.enqueue(),
-            KeyCode::Char('s') => {
-                self.shuffle = !self.shuffle;
-                let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]);
-                self.reorder(cur);
-                self.status = format!("Shuffle {}", if self.shuffle { "on" } else { "off" });
+            KeyCode::Char('s') => self.toggle_shuffle(),
+            KeyCode::Char('o') => self.toggle_sort(),
+            KeyCode::Char('e') => {
+                self.audio.cycle_preset(false);
+                self.apply_eq();
             }
+            KeyCode::Char('E') => self.eq_panel = Some(0),
+            KeyCode::Char('x') => self.cycle_crossfade(),
             KeyCode::Char('r') => {
                 self.repeat = match self.repeat {
                     Repeat::Off => Repeat::All,
                     Repeat::All => Repeat::One,
                     Repeat::One => Repeat::Off,
                 };
+                self.engine.set_repeat_track(self.repeat == Repeat::One);
             }
             KeyCode::Char('c') => {
                 // jump to the queue / now playing
@@ -694,7 +1047,7 @@ impl App {
                 }
             }
             KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · s shuffle · r repeat · / search · Esc back · R reload · q quit".into();
+                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
             }
             _ => {}
         }

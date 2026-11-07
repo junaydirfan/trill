@@ -49,6 +49,10 @@ pub struct Row {
     pub album: String,
     pub duration_ms: u32,
     pub kind: Kind,
+    /// Cover image URL (album art), when known.
+    pub art: Option<String>,
+    /// When it was added to the playlist / liked songs (ms since epoch; 0 = unknown).
+    pub added_at: u64,
 }
 
 pub type Rows = Arc<Vec<Row>>;
@@ -113,6 +117,11 @@ async fn fetch_page(session: &Session, url: &str) -> Res<ContextPage> {
 /// Resolve any context URI (playlist, album, artist, `spotify:user:<u>:collection`,
 /// `spotify:search:<q>`) into a list of playable track URIs.
 pub async fn context_track_uris(session: &Session, uri: &str) -> Res<Vec<String>> {
+    Ok(context_tracks(session, uri).await?.into_iter().map(|(u, _)| u).collect())
+}
+
+/// Like [`context_track_uris`], with each track's `added_at` (ms, 0 if absent).
+pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<(String, u64)>> {
     let ctx = session.spclient().get_context(uri).await.map_err(e)?;
     let mut pages: VecDeque<ContextPage> = ctx.pages.into_iter().collect();
     let mut out = Vec::new();
@@ -133,7 +142,8 @@ pub async fn context_track_uris(session: &Session, uri: &str) -> Res<Vec<String>
             let u = t.uri();
             if u.starts_with("spotify:track:") {
                 // context-resolve sometimes appends a query (`?...`) to track uris
-                out.push(u.split('?').next().unwrap_or(u).to_string());
+                let added = t.metadata.get("added_at").and_then(|v| v.parse().ok()).unwrap_or(0);
+                out.push((u.split('?').next().unwrap_or(u).to_string(), added));
             }
         }
         if !page.next_page_url().is_empty() && fetched < MAX_PAGES {
@@ -145,6 +155,30 @@ pub async fn context_track_uris(session: &Session, uri: &str) -> Res<Vec<String>
     }
     out.truncate(MAX_TRACKS);
     Ok(out)
+}
+
+/// Pick a ~640px (LARGE) cover, falling back to the default ~300px one.
+fn cover_url(album: &librespot_protocol::metadata::Album) -> Option<String> {
+    use librespot_protocol::metadata::image::Size;
+    let imgs: Vec<_> = album
+        .cover_group
+        .as_ref()
+        .map(|g| g.image.iter().collect())
+        .filter(|v: &Vec<_>| !v.is_empty())
+        .unwrap_or_else(|| album.cover.iter().collect());
+    let rank = |i: &&&librespot_protocol::metadata::Image| match i.size() {
+        Size::LARGE => 3,
+        Size::DEFAULT => 2,
+        Size::XLARGE => 1,
+        Size::SMALL => 0,
+    };
+    let best = imgs.iter().max_by_key(rank)?;
+    let id = best.file_id();
+    if id.is_empty() {
+        return None;
+    }
+    let hex: String = id.iter().map(|b| format!("{b:02x}")).collect();
+    Some(format!("https://i.scdn.co/image/{hex}"))
 }
 
 fn track_row(uri: &str, t: &PTrack) -> Row {
@@ -161,6 +195,8 @@ fn track_row(uri: &str, t: &PTrack) -> Row {
         album: t.album.as_ref().map(|a| a.name().to_string()).unwrap_or_default(),
         duration_ms: t.duration().max(0) as u32,
         kind: Kind::Track,
+        art: t.album.as_ref().and_then(cover_url),
+        added_at: 0,
     }
 }
 
@@ -216,9 +252,15 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
     rows
 }
 
+/// Rows in the context's own order (playlist order, album order…), with `added_at` set.
 pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
-    let uris = context_track_uris(session, uri).await?;
-    Ok(track_rows(session, uris).await)
+    let tracks = context_tracks(session, uri).await?;
+    let added: HashMap<String, u64> = tracks.iter().filter(|(_, a)| *a > 0).cloned().collect();
+    let mut rows = track_rows(session, tracks.into_iter().map(|(u, _)| u).collect()).await;
+    for r in &mut rows {
+        r.added_at = added.get(&r.uri).copied().unwrap_or(0);
+    }
+    Ok(rows)
 }
 
 fn pct(s: &str) -> String {
@@ -239,6 +281,16 @@ fn names(v: &Value) -> String {
         .unwrap_or_default()
 }
 
+/// Web API image arrays are sorted largest first; take one around 300-640px.
+fn image(v: &Value) -> Option<String> {
+    let imgs = v.as_array()?;
+    imgs.iter()
+        .find(|i| i["width"].as_u64().is_some_and(|w| w <= 640))
+        .or_else(|| imgs.first())
+        .and_then(|i| i["url"].as_str())
+        .map(String::from)
+}
+
 fn parse_search(v: &Value) -> Vec<Row> {
     let mut rows = Vec::new();
     let items = |k: &str| v[k]["items"].as_array().cloned().unwrap_or_default();
@@ -251,6 +303,8 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 album: t["album"]["name"].as_str().unwrap_or("").into(),
                 duration_ms: t["duration_ms"].as_u64().unwrap_or(0) as u32,
                 kind: Kind::Track,
+                art: image(&t["album"]["images"]),
+                added_at: 0,
             });
         }
     }
@@ -263,6 +317,8 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 album: String::new(),
                 duration_ms: 0,
                 kind,
+                art: image(&x["images"]),
+                added_at: 0,
             });
         }
     };
