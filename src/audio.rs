@@ -52,6 +52,10 @@ pub struct AudioSettings {
     /// Playlist order instead of newest first.
     pub sort_original: bool,
     pub art: bool,
+    /// Index into [`crate::theme::THEMES`], or `theme::COVER`.
+    pub theme: usize,
+    /// Last cover colour, so the `cover` theme starts in it instead of the default green.
+    pub tint: Option<[u8; 3]>,
     path: PathBuf,
 }
 
@@ -65,6 +69,8 @@ impl AudioSettings {
             repeat: 0,
             sort_original: false,
             art: true,
+            theme: 0,
+            tint: None,
             path: dir.join("audio_settings"),
         };
         let Ok(text) = fs::read_to_string(&s.path) else { return s };
@@ -89,6 +95,11 @@ impl AudioSettings {
                 "repeat" => s.repeat = ["off", "all", "one"].iter().position(|r| *r == v.trim()).unwrap_or(0) as u8,
                 "sort" => s.sort_original = v.trim() == "playlist",
                 "art" => s.art = v.trim() != "off",
+                "theme" => s.theme = crate::theme::by_name(v.trim()),
+                "tint" => {
+                    let c: Vec<u8> = v.split(',').filter_map(|c| c.trim().parse().ok()).collect();
+                    s.tint = <[u8; 3]>::try_from(c).ok();
+                }
                 _ => {}
             }
         }
@@ -99,14 +110,19 @@ impl AudioSettings {
         let custom = self.custom.iter().map(|g| format!("{g:.1}")).collect::<Vec<_>>().join(",");
         let on = |b: bool| if b { "on" } else { "off" };
         let text = format!(
-            "preset={}\ncustom={custom}\ncrossfade={}\nshuffle={}\nrepeat={}\nsort={}\nart={}\n",
+            "preset={}\ncustom={custom}\ncrossfade={}\nshuffle={}\nrepeat={}\nsort={}\nart={}\ntheme={}\n",
             self.preset_name(),
             self.crossfade_s,
             on(self.shuffle),
             ["off", "all", "one"][self.repeat.min(2) as usize],
             if self.sort_original { "playlist" } else { "added" },
             on(self.art),
+            crate::theme::name(self.theme),
         );
+        let text = match self.tint {
+            Some([r, g, b]) => format!("{text}tint={r},{g},{b}\n"),
+            None => text,
+        };
         if let Some(d) = self.path.parent() {
             let _ = fs::create_dir_all(d);
         }
@@ -364,9 +380,11 @@ mod tests {
         let mut a = AudioSettings::load(&dir);
         assert!(!a.shuffle && a.repeat == 0 && !a.sort_original && a.art);
         (a.shuffle, a.repeat, a.sort_original, a.art, a.crossfade_s) = (true, 2, true, false, 6);
+        (a.theme, a.tint) = (crate::theme::COVER, Some([224, 135, 99]));
         a.save();
         let b = AudioSettings::load(&dir);
         let _ = fs::remove_dir_all(&dir);
         assert!(b.shuffle && b.repeat == 2 && b.sort_original && !b.art && b.crossfade_s == 6);
+        assert!(b.theme == crate::theme::COVER && b.tint == Some([224, 135, 99]));
     }
 }
