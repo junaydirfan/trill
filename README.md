@@ -91,7 +91,16 @@ to switch to the playlist's own order. Albums and artists always keep their trac
   Soloist. Applying it restarts Soloist (~3 s, resumes where you were).
 - **Quality:** cachify sets Soloist to 320 kbps. Out of the box it streamed at 160 kbps.
 
-These settings, plus shuffle, repeat, sort order and album art on/off, are saved in
+**Themes:** `t` cycles the accent colour. `cover` takes it from the album art of the song
+that's playing. Every pixel of the cover votes for its colour, weighted by how colourful
+it is: a vivid title or detail wins over a large muted area, pastel and off-white covers
+keep their tint, and black-and-white covers get a light grey. The colour is brightened
+until it reads on a dark terminal, and the last one is remembered, so the next start opens
+in it. It comes from the cover cachify already decodes for the art (~0.5–1 ms per song);
+with the art hidden it fetches the cover just for its colour (~50–100 KB per song).
+`cachify --debug-tint <search>` prints the colour picked for each result's cover.
+
+These settings, plus shuffle, repeat, sort order, album art on/off and the theme, are saved in
 `~/.local/share/cachify/audio_settings` and come back the next time you start cachify.
 Volume is saved too, including changes made from KDE's media controls or your phone.
 
@@ -151,6 +160,7 @@ no rate limits apply. Each action takes about 0.4–0.5 s to reach Spotify.
 | `D` `D` | remove the highlighted song from the open playlist |
 | `L` | lyrics (synced ones follow the song) |
 | `i` | show / hide album art |
+| `t` | next colour theme: spotify, ocean, violet, sunset, rose, mono, cover |
 | `s` / `r` | shuffle / repeat (off → all → one) |
 | `o` | sort: recently added ↔ playlist order |
 | `e` / `E` | next EQ preset / EQ panel |
