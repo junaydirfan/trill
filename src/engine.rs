@@ -483,6 +483,7 @@ fn entity_row(item: &Value) -> Option<Row> {
         kind: Kind::Track,
         art: cover(&d["visual_identity"]["cover"]),
         added_at: 0,
+        members: String::new(),
     })
 }
 

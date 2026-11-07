@@ -119,7 +119,9 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     *app.view.state.offset_mut() = off;
     let end = (off + visible).min(rows.len());
     let mut window_state = TableState::default().with_selected((!rows.is_empty()).then_some(sel - off));
-    let show_added = rows[off..end].iter().any(|r| r.added_at > 0);
+    // Blends: who each song is for (instead of "Added", which is the same for every song there).
+    let for_w = rows[off..end].iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16;
+    let show_added = for_w == 0 && rows[off..end].iter().any(|r| r.added_at > 0);
     let trows = rows[off..end].iter().map(|r| {
         let (tag, tag_color) = match r.kind {
             Kind::Track => ("", Color::Reset),
@@ -138,6 +140,9 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         if show_added {
             cells.push(Cell::from(if r.added_at > 0 { fmt_date(r.added_at) } else { String::new() }).style(Style::new().dim()));
         }
+        if for_w > 0 {
+            cells.push(Cell::from(r.members.as_str()).style(Style::new().fg(Color::Magenta)));
+        }
         cells.push(Cell::from(Line::from(dur).right_aligned()));
         let mut row = TRow::new(cells);
         if Some(r.uri.as_str()) == now_uri {
@@ -153,7 +158,12 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     if app.loading {
         title.push_str(" (loading…)");
     }
-    let (widths, header): (Vec<Constraint>, Vec<&str>) = if show_added {
+    let (widths, header): (Vec<Constraint>, Vec<&str>) = if for_w > 0 {
+        (
+            vec![Constraint::Percentage(36), Constraint::Percentage(25), Constraint::Percentage(25), Constraint::Length(for_w.max(3)), Constraint::Length(6)],
+            vec!["Title", "Artist", "Album", "For", "  Time"],
+        )
+    } else if show_added {
         (
             vec![Constraint::Percentage(38), Constraint::Percentage(25), Constraint::Percentage(25), Constraint::Length(10), Constraint::Length(6)],
             vec!["Title", "Artist", "Album", "Added", "  Time"],

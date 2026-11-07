@@ -86,7 +86,7 @@ impl App {
     pub fn load_liked(&self) {
         let (s, tx, uri) = (self.session.clone(), self.tx.clone(), self.liked_uri());
         tokio::spawn(async move {
-            let res = api::context_tracks(&s, &uri).await.map(|t| t.into_iter().map(|(u, _)| u).collect());
+            let res = api::context_tracks(&s, &uri).await.map(|t| t.into_iter().map(|t| t.uri).collect());
             let _ = tx.send(Msg::Liked(res));
         });
     }

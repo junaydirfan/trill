@@ -410,7 +410,7 @@ async fn run(cfg: Config) -> i32 {
             Some("isliked") => {
                 let liked = format!("spotify:user:{}:collection", session.username());
                 api::context_tracks(&session, &liked).await.map(|t| {
-                    let n = t.iter().filter(|(u, _)| a[1..].contains(u)).count();
+                    let n = t.iter().filter(|t| a[1..].contains(&t.uri)).count();
                     eprintln!("{} liked; {n} of {} given are liked", t.len(), a.len() - 1);
                 })
             }

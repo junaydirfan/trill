@@ -53,6 +53,8 @@ pub struct Row {
     pub art: Option<String>,
     /// When it was added to the playlist / liked songs (ms since epoch; 0 = unknown).
     pub added_at: u64,
+    /// Blend playlists: the members this song was picked for ("jj, Cube"); else empty.
+    pub members: String,
 }
 
 pub type Rows = Arc<Vec<Row>>;
@@ -146,11 +148,29 @@ async fn fetch_page(session: &Session, url: &str) -> Res<ContextPage> {
 /// Resolve any context URI (playlist, album, artist, `spotify:user:<u>:collection`,
 /// `spotify:search:<q>`) into a list of playable track URIs.
 pub async fn context_track_uris(session: &Session, uri: &str) -> Res<Vec<String>> {
-    Ok(context_tracks(session, uri).await?.into_iter().map(|(u, _)| u).collect())
+    Ok(context_tracks(session, uri).await?.into_iter().map(|t| t.uri).collect())
 }
 
-/// Like [`context_track_uris`], with each track's `added_at` (ms, 0 if absent).
-pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<(String, u64)>> {
+pub struct CtxTrack {
+    pub uri: String,
+    /// ms since epoch, 0 if absent
+    pub added: u64,
+    /// Blend playlists: who the song is for, e.g. "jj, Cube"; else empty.
+    pub members: String,
+}
+
+/// Names of the blend members a track is attributed to, in Spotify's order.
+fn blend_members(meta: &HashMap<String, String>) -> String {
+    let Some(json) = meta.get("multiUserAttributionMetadata") else { return String::new() };
+    let Ok(v) = serde_json::from_str::<Value>(json) else { return String::new() };
+    v["attributed_users"]
+        .as_array()
+        .map(|users| users.iter().filter_map(|u| u["display_name"].as_str()).collect::<Vec<_>>().join(", "))
+        .unwrap_or_default()
+}
+
+/// Like [`context_track_uris`], with each track's `added_at` and blend members.
+pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<CtxTrack>> {
     let ctx = session.spclient().get_context(uri).await.map_err(e)?;
     let mut pages: VecDeque<ContextPage> = ctx.pages.into_iter().collect();
     let mut out = Vec::new();
@@ -172,7 +192,11 @@ pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<(String, u6
             if u.starts_with("spotify:track:") {
                 // context-resolve sometimes appends a query (`?...`) to track uris
                 let added = t.metadata.get("added_at").and_then(|v| v.parse().ok()).unwrap_or(0);
-                out.push((u.split('?').next().unwrap_or(u).to_string(), added));
+                out.push(CtxTrack {
+                    uri: u.split('?').next().unwrap_or(u).to_string(),
+                    added,
+                    members: blend_members(&t.metadata),
+                });
             }
         }
         if !page.next_page_url().is_empty() && fetched < MAX_PAGES {
@@ -226,6 +250,7 @@ fn track_row(uri: &str, t: &PTrack) -> Row {
         kind: Kind::Track,
         art: t.album.as_ref().and_then(cover_url),
         added_at: 0,
+        members: String::new(),
     }
 }
 
@@ -284,10 +309,15 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
 /// Rows in the context's own order (playlist order, album order…), with `added_at` set.
 pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
     let tracks = context_tracks(session, uri).await?;
-    let added: HashMap<String, u64> = tracks.iter().filter(|(_, a)| *a > 0).cloned().collect();
-    let mut rows = track_rows(session, tracks.into_iter().map(|(u, _)| u).collect()).await;
+    let uris = tracks.iter().map(|t| t.uri.clone()).collect();
+    let mut extra: HashMap<String, (u64, String)> =
+        tracks.into_iter().map(|t| (t.uri, (t.added, t.members))).collect();
+    let mut rows = track_rows(session, uris).await;
     for r in &mut rows {
-        r.added_at = added.get(&r.uri).copied().unwrap_or(0);
+        if let Some((added, members)) = extra.get_mut(&r.uri) {
+            r.added_at = *added;
+            r.members = std::mem::take(members);
+        }
     }
     Ok(rows)
 }
@@ -334,6 +364,7 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 kind: Kind::Track,
                 art: image(&t["album"]["images"]),
                 added_at: 0,
+                members: String::new(),
             });
         }
     }
@@ -348,6 +379,7 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 kind,
                 art: image(&x["images"]),
                 added_at: 0,
+                members: String::new(),
             });
         }
     };
