@@ -14,7 +14,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/hero.png" width="880" alt="trill playing a song: library with pinned playlists and album art on the left, the track list on the right, the progress bar along the bottom">
+  <img src="assets/screenshots/hero-gif.gif" width="880" alt="trill playing a song: library with pinned playlists and album art on the left, the track list on the right, the progress bar along the bottom">
 </p>
 
 <p align="center">
