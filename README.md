@@ -110,11 +110,16 @@ cargo install --path .
 
 ### Windows
 
-Download `trill-windows-x86_64.zip` from [Releases](https://github.com/junaydirfan/trill/releases), unzip `trill.exe` into a folder on your `PATH`, and run it in **Windows Terminal**. To build it instead, install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), then:
+Paste this into PowerShell. It downloads the latest `trill.exe` into `~\.local\bin` and adds that folder to your `PATH`; no Rust needed:
 
 ```powershell
-cargo install --git https://github.com/junaydirfan/trill
+$dir = "$HOME\.local\bin"; New-Item -ItemType Directory -Force $dir | Out-Null
+Invoke-WebRequest https://github.com/junaydirfan/trill/releases/latest/download/trill-windows-x86_64.zip -OutFile "$env:TEMP\trill.zip"
+Expand-Archive -Force "$env:TEMP\trill.zip" $dir
+[Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
 ```
+
+Then open a **new** window (Windows Terminal shows real album art) so it picks up the new `PATH`. To build from source instead, install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), then run `cargo install --git https://github.com/junaydirfan/trill`.
 
 [Soloist setup](#soloist-setup-one-time) is the same. In PowerShell, the key file is:
 
