@@ -179,7 +179,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search | | `R` | reload the current list |
 | `P` | play everything in the list | | `?` | key help |
-| `q` | quit | | | |
+| `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
 ## Details
 

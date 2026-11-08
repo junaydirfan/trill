@@ -43,6 +43,8 @@ pub enum EngineEvent {
     Volume(u32),
     Status(String),
     Exited(String),
+    /// Soloist confirmed it gave up the Connect device (sent while quitting).
+    Deactivated,
 }
 
 pub enum Engine {
@@ -117,6 +119,11 @@ impl Engine {
             Engine::Librespot { player, .. } => player.stop(),
             Engine::Soloist { .. } => self.send(cmd("pause")),
         }
+    }
+
+    /// Give up the Spotify Connect device, so Spotify (and Discord) show nothing playing.
+    pub fn deactivate(&self) {
+        self.send(cmd("deactivate"));
     }
 
     pub fn seek(&self, ms: u32) {
@@ -489,6 +496,7 @@ impl Anchor {
                     out.push(EngineEvent::Volume(vol as u32));
                 }
             }
+            "command_result" if v["command"] == "deactivate" => out.push(EngineEvent::Deactivated),
             "error" => out.push(EngineEvent::Status(format!(
                 "Soloist: {}",
                 v["message"].as_str().unwrap_or("error")
@@ -536,6 +544,15 @@ fn cover(v: &Value) -> Option<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn notices_deactivate_reply() {
+        let mut a = Anchor::default();
+        let ok: Value = serde_json::from_str(r#"{"type":"command_result","command":"deactivate"}"#).unwrap();
+        assert!(matches!(a.parse(&ok)[..], [EngineEvent::Deactivated]));
+        let other: Value = serde_json::from_str(r#"{"type":"command_result","command":"pause"}"#).unwrap();
+        assert!(a.parse(&other).is_empty());
+    }
 
     #[test]
     fn parses_soloist_events() {

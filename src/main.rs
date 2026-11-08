@@ -747,7 +747,20 @@ async fn run(cfg: Config) -> i32 {
         }
     }
 
+    // Pause and give up the Connect device before stopping Soloist, and wait for its reply
+    // (at most 1.5 s): stopped straight away, Spotify and Discord kept showing the song playing.
     app.engine.stop();
+    if app.engine.is_soloist() {
+        app.engine.deactivate();
+        let _ = timeout(Duration::from_millis(1500), async {
+            while let Some(ev) = eng_rx.recv().await {
+                if matches!(ev, EngineEvent::Deactivated) {
+                    break;
+                }
+            }
+        })
+        .await;
+    }
     app.engine.shutdown();
     if let Some(eq) = &app.eq {
         eq.stop();

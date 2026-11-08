@@ -131,6 +131,9 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     if app.chooser.is_some() {
         draw_chooser(f, app);
     }
+    if app.help_open {
+        draw_help(f);
+    }
 
     // bottom line: search input or status
     if app.focus == Focus::Input {
@@ -405,6 +408,79 @@ fn draw_chooser(f: &mut Frame, app: &App) {
 }
 
 
+/// Every key, grouped; what `?` shows. Keep in step with the README's key table.
+const HELP: [(&str, &[(&str, &str)]); 4] = [
+    ("Playback", &[
+        ("Space", "play / pause"),
+        ("n  p", "next / previous"),
+        ("← →  , .", "seek ±10 s"),
+        ("+  -", "volume ±5%"),
+        ("s", "shuffle"),
+        ("r", "repeat: off → all → one"),
+        ("x", "crossfade off / 3 / 5 / 8 / 12 s"),
+        ("P", "play everything in the list"),
+    ]),
+    ("Library", &[
+        ("f", "like · save album · follow artist"),
+        ("a", "add to queue"),
+        ("A", "add to a playlist"),
+        ("D D", "remove from the open playlist"),
+    ]),
+    ("Browse", &[
+        ("↑↓  jk", "move (PgUp/PgDn, g/G jump)"),
+        ("Tab  h  l", "switch pane"),
+        ("Enter", "play / open"),
+        ("Esc  ⌫", "back"),
+        ("/", "search"),
+        ("o  O", "next / previous sort order"),
+        ("c", "show the queue"),
+        ("R", "reload the current list"),
+    ]),
+    ("View", &[
+        ("L", "lyrics"),
+        ("i", "album art on / off"),
+        ("t", "next colour theme"),
+        ("e  E", "next EQ preset / EQ panel"),
+        ("?", "this help"),
+        ("q  Ctrl-C", "quit"),
+    ]),
+];
+
+fn help_lines(groups: &[(&str, &[(&str, &str)])]) -> Vec<Line<'static>> {
+    let mut lines = Vec::new();
+    for (i, (name, keys)) in groups.iter().enumerate() {
+        if i > 0 {
+            lines.push(Line::from(""));
+        }
+        lines.push(Line::from(Span::styled(name.to_string(), Style::new().fg(accent()).bold())));
+        for (k, what) in keys.iter() {
+            lines.push(Line::from(vec![Span::styled(format!(" {k:<11}"), Style::new().bold()), Span::raw(what.to_string())]));
+        }
+    }
+    lines
+}
+
+/// `?`: all the keys in a centred pane, two columns when there's room.
+fn draw_help(f: &mut Frame) {
+    let area = f.area();
+    let two = area.width >= 100;
+    let (left, right) = if two { (help_lines(&HELP[..2]), help_lines(&HELP[2..])) } else { (help_lines(&HELP), Vec::new()) };
+    let w = if two { 96 } else { 50 }.min(area.width.saturating_sub(2));
+    let h = (left.len().max(right.len()) as u16 + 3).min(area.height.saturating_sub(2));
+    let rect = Rect { x: area.x + (area.width - w) / 2, y: area.y + (area.height - h) / 2, width: w, height: h };
+    f.render_widget(Clear, rect);
+    let blk = block("Keys · any key closes", true);
+    let inner = blk.inner(rect);
+    f.render_widget(blk, rect);
+    if two {
+        let [l, r] = ratatui::layout::Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)]).areas(inner);
+        f.render_widget(Paragraph::new(left), l);
+        f.render_widget(Paragraph::new(right), r);
+    } else {
+        f.render_widget(Paragraph::new(left), inner);
+    }
+}
+
 fn draw_eq(f: &mut Frame, app: &App, sel: usize) {
     let area = f.area();
     let w = 62.min(area.width.saturating_sub(2));
@@ -494,5 +570,19 @@ mod tests {
         t.draw(|f| super::draw_splash(f, &["Mix".into()])).unwrap();
         let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
         assert!(screen.contains(super::LOGO[1].trim()));
+    }
+
+    #[test]
+    fn help_shows_every_key() {
+        for (w, h) in [(120, 40), (60, 40)] {
+            let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(w, h)).unwrap();
+            t.draw(super::draw_help).unwrap();
+            let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
+            for (_, keys) in super::HELP {
+                for (_, what) in keys {
+                    assert!(screen.contains(what), "{w}x{h} is missing {what}");
+                }
+            }
+        }
     }
 }

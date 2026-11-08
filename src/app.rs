@@ -183,6 +183,8 @@ pub struct App {
     pub cache_dir: Option<std::path::PathBuf>,
     /// EQ panel open, with this band selected.
     pub eq_panel: Option<usize>,
+    /// `?`: the key help pane is open; any key closes it.
+    pub help_open: bool,
     /// When to restart Soloist to apply a crossfade change (debounced).
     pub restart_at: Option<Instant>,
     /// After a restart: position to seek to once the track is back.
@@ -287,6 +289,7 @@ impl App {
             eq_allowed: true,
             cache_dir: None,
             eq_panel: None,
+            help_open: false,
             restart_at: None,
             pending_seek: None,
             reload_at: None,
@@ -872,6 +875,7 @@ impl App {
                 }
                 self.status = m;
             }
+            EngineEvent::Deactivated => return false, // only awaited while quitting
         }
         true
     }
@@ -1103,6 +1107,10 @@ impl App {
             self.quit = true;
             return;
         }
+        if self.help_open {
+            self.help_open = false;
+            return;
+        }
         if let Some(band) = self.eq_panel {
             self.on_eq_key(band, k);
             return;
@@ -1225,9 +1233,7 @@ impl App {
             KeyCode::Char('D') => self.remove_from_playlist(),
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),
-            KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like/save/follow · P play all · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o/O sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
-            }
+            KeyCode::Char('?') => self.help_open = true,
             _ => {}
         }
     }
