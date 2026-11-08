@@ -645,6 +645,28 @@ async fn run(cfg: Config) -> i32 {
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
     let mut desktop = mpris::Mpris::new(remote_tx).await;
 
+    // Closing the terminal window (SIGHUP), `kill` (SIGTERM) or closing the Windows console
+    // quits like `q`: playback stops first, so Spotify (and Discord) don't think it's still playing.
+    let (quit_tx, mut quit_rx) = mpsc::unbounded_channel::<&str>();
+    tokio::spawn(async move {
+        #[cfg(unix)]
+        {
+            use tokio::signal::unix::{SignalKind, signal};
+            if let (Ok(mut hup), Ok(mut term)) = (signal(SignalKind::hangup()), signal(SignalKind::terminate())) {
+                let why = tokio::select! {
+                    _ = hup.recv() => "terminal closed",
+                    _ = term.recv() => "terminated",
+                };
+                let _ = quit_tx.send(why);
+            }
+        }
+        #[cfg(windows)]
+        if let Ok(mut close) = tokio::signal::windows::ctrl_close() {
+            close.recv().await;
+            let _ = quit_tx.send("console closed");
+        }
+    });
+
     let mut tick = interval(Duration::from_secs(1));
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
     let mut health = interval(Duration::from_secs(15));
@@ -689,6 +711,11 @@ async fn run(cfg: Config) -> i32 {
                     None => std::future::pending().await,
                 }
             }, if deadline.is_some() => { app.on_end_deadline(); dirty = true; }
+            Some(why) = quit_rx.recv() => {
+                log::info!("quitting: {why}");
+                app.quit = true;
+                dirty = true;
+            }
             Some(ev) = key_rx.recv() => match ev {
                 Event::Key(k) => { app.on_key(k); dirty = true; }
                 Event::Resize(..) => { app.on_resize(); dirty = true; }

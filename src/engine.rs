@@ -309,6 +309,10 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
                 .stdin(Stdio::null())
                 .stdout(log.try_clone().map_err(|e| e.to_string())?)
                 .stderr(log);
+            // Its own process group: closing the terminal hangs up trill, which then stops
+            // playback and Soloist cleanly. Soloist doesn't handle SIGHUP and would die mid-song.
+            #[cfg(unix)]
+            std::os::unix::process::CommandExt::process_group(&mut c, 0);
             // SAFETY: prctl is async-signal-safe; makes Soloist exit if trill dies.
             // shortcut: macOS has no PDEATHSIG, so Soloist outlives a crashed trill there; add a parent-pid watch if that bites.
             #[cfg(target_os = "linux")]
