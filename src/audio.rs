@@ -39,6 +39,9 @@ pub const PRESETS: &[(&str, [f32; 10])] = &[
 /// Index meaning "user-tuned bands".
 pub const CUSTOM: usize = PRESETS.len();
 
+/// Sort modes as named in the settings file (`app::Sort` keeps this order).
+pub const SORTS: [&str; 6] = ["added", "playlist", "title", "artist", "album", "duration"];
+
 /// Everything the user can change from the keyboard, kept across restarts
 /// (`~/.local/share/trill/audio_settings`). Volume lives in librespot's cache.
 pub struct AudioSettings {
@@ -49,8 +52,8 @@ pub struct AudioSettings {
     pub shuffle: bool,
     /// 0 off, 1 all, 2 one
     pub repeat: u8,
-    /// Playlist order instead of newest first.
-    pub sort_original: bool,
+    /// Index into [`SORTS`].
+    pub sort: u8,
     pub art: bool,
     /// Index into [`crate::theme::THEMES`], or `theme::COVER`.
     pub theme: usize,
@@ -67,7 +70,7 @@ impl AudioSettings {
             crossfade_s: 0,
             shuffle: false,
             repeat: 0,
-            sort_original: false,
+            sort: 0,
             art: true,
             theme: 0,
             tint: None,
@@ -93,7 +96,7 @@ impl AudioSettings {
                 "crossfade" => s.crossfade_s = v.trim().parse::<u32>().unwrap_or(0).min(12),
                 "shuffle" => s.shuffle = v.trim() == "on",
                 "repeat" => s.repeat = ["off", "all", "one"].iter().position(|r| *r == v.trim()).unwrap_or(0) as u8,
-                "sort" => s.sort_original = v.trim() == "playlist",
+                "sort" => s.sort = SORTS.iter().position(|n| *n == v.trim()).unwrap_or(0) as u8,
                 "art" => s.art = v.trim() != "off",
                 "theme" => s.theme = crate::theme::by_name(v.trim()),
                 "tint" => {
@@ -115,7 +118,7 @@ impl AudioSettings {
             self.crossfade_s,
             on(self.shuffle),
             ["off", "all", "one"][self.repeat.min(2) as usize],
-            if self.sort_original { "playlist" } else { "added" },
+            SORTS[(self.sort as usize).min(SORTS.len() - 1)],
             on(self.art),
             crate::theme::name(self.theme),
         );
@@ -378,13 +381,13 @@ mod tests {
     fn settings_survive_restart() {
         let dir = std::env::temp_dir().join(format!("trill-test-{}", std::process::id()));
         let mut a = AudioSettings::load(&dir);
-        assert!(!a.shuffle && a.repeat == 0 && !a.sort_original && a.art);
-        (a.shuffle, a.repeat, a.sort_original, a.art, a.crossfade_s) = (true, 2, true, false, 6);
+        assert!(!a.shuffle && a.repeat == 0 && a.sort == 0 && a.art);
+        (a.shuffle, a.repeat, a.sort, a.art, a.crossfade_s) = (true, 2, 4, false, 6);
         (a.theme, a.tint) = (crate::theme::COVER, Some([224, 135, 99]));
         a.save();
         let b = AudioSettings::load(&dir);
         let _ = fs::remove_dir_all(&dir);
-        assert!(b.shuffle && b.repeat == 2 && b.sort_original && !b.art && b.crossfade_s == 6);
+        assert!(b.shuffle && b.repeat == 2 && b.sort == 4 && !b.art && b.crossfade_s == 6);
         assert!(b.theme == crate::theme::COVER && b.tint == Some([224, 135, 99]));
     }
 }

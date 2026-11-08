@@ -135,7 +135,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `Space` | play / pause | | `i` | album art on / off |
 | `n` / `p` | next / previous | | `t` | next colour theme |
 | `←→` or `,` `.` | seek ±10 s | | `s` / `r` | shuffle / repeat (off → all → one) |
-| `+` / `-` | volume ±5% | | `o` | sort: recently added ↔ playlist order |
+| `+` / `-` | volume ±5% | | `o` / `O` | next / previous sort order |
 | `a` | add to queue | | `e` / `E` | next EQ preset / EQ panel |
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search | | `R` | reload the current list |
@@ -146,7 +146,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 <details>
 <summary><strong>Library, sorting and pins</strong></summary>
 
-- **Sorting:** playlists and Liked Songs show **most recently added first**, with an **Added** column, so playing from the top plays your newest additions first. Press `o` to switch to the playlist's own order. Albums and artists always keep their track order.
+- **Sorting:** playlists and Liked Songs show **most recently added first**, with an **Added** column, so playing from the top plays your newest additions first. `o` steps through the other orders: the playlist's own order, title, artist, album and length (`O` steps back). The list's header shows the current order, and it's remembered. Albums and artists always keep their track order.
 - **Pins:** playlists and folders you pinned in Spotify sit at the top of the library, newest pin first. Opening a pinned folder lists its playlists. trill can't pin or unpin, because Spotify ignores pin changes from third-party clients, so pin them from the official app.
 - **Liking:** `f` likes or unlikes the highlighted song, or the one playing. Liked songs show a ♥ everywhere, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
 - **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. It warns before adding a song that's already there. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.
@@ -211,7 +211,7 @@ For reliable full search (tracks, albums, playlists and artists):
 2. Add the redirect URI `http://127.0.0.1:8898/login`.
 3. Put the Client ID in the config as `client_id = …`. On the next start, trill asks you to log in once more, for search only.
 
-The status line shows which search path answered: `web api` (your app), `web api*` (the shared token) or `basic` (the fallback).
+The status line shows which search path answered: `web api` (your app), `web api*` (the shared token), or "tracks only" (the fallback).
 </details>
 
 <details>

@@ -233,8 +233,9 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     });
     let hl = if app.focus == Focus::Main { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let mut title = app.view.title.clone();
-    if app.view.by_added {
-        title.push_str(" · newest first");
+    if let Some(s) = app.view.sort {
+        title.push_str(" · ");
+        title.push_str(s);
     }
     if app.loading {
         title.push_str(" (loading…)");

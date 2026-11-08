@@ -52,12 +52,58 @@ pub enum Repeat {
 }
 
 /// How playlists / liked songs are ordered on screen (and therefore played).
+/// Same order as [`crate::audio::SORTS`], which names them in the settings file.
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Sort {
     /// Most recently added first (default).
     Added,
     /// The playlist's own order.
     Original,
+    Title,
+    Artist,
+    Album,
+    Duration,
+}
+
+impl Sort {
+    const ALL: [Sort; 6] = [Sort::Added, Sort::Original, Sort::Title, Sort::Artist, Sort::Album, Sort::Duration];
+
+    fn label(self) -> &'static str {
+        match self {
+            Sort::Added => "newest first",
+            Sort::Original => "playlist order",
+            Sort::Title => "by title",
+            Sort::Artist => "by artist",
+            Sort::Album => "by album",
+            Sort::Duration => "by length",
+        }
+    }
+}
+
+/// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
+/// Sorts are stable, so ties keep the playlist's order.
+fn sorted(sort: Sort, uri: &str, rows: Rows) -> (Rows, Option<&'static str>) {
+    let sortable = uri.starts_with("spotify:playlist:") || uri.contains(":collection");
+    let label = Some(sort.label());
+    match sort {
+        _ if !sortable => (rows, None),
+        Sort::Original => (rows, None),
+        Sort::Added if !rows.iter().any(|r| r.added_at > 0) => (rows, None),
+        // already newest-first (liked songs): no copy
+        Sort::Added if rows.windows(2).all(|w| w[0].added_at >= w[1].added_at) => (rows, label),
+        sort => {
+            let mut v = (*rows).clone();
+            let low = |s: &str| s.to_lowercase();
+            match sort {
+                Sort::Title => v.sort_by_cached_key(|r| low(&r.title)),
+                Sort::Artist => v.sort_by_cached_key(|r| (low(&r.artist), low(&r.album))),
+                Sort::Album => v.sort_by_cached_key(|r| (low(&r.album), low(&r.artist))),
+                Sort::Duration => v.sort_by_key(|r| r.duration_ms),
+                _ => v.sort_by_key(|r| std::cmp::Reverse(r.added_at)),
+            }
+            (Arc::new(v), label)
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -91,8 +137,8 @@ pub struct View {
     pub title: String,
     pub rows: Rows,
     pub state: TableState,
-    /// Rows are shown newest-added first.
-    pub by_added: bool,
+    /// The sort applied to the rows, for the header (None: their own order).
+    pub sort: Option<&'static str>,
 }
 
 pub struct App {
@@ -188,7 +234,7 @@ impl App {
         eq: Option<Eq>,
     ) -> Self {
         let user = session.username();
-        let (shuffle, sort) = (audio.shuffle, if audio.sort_original { Sort::Original } else { Sort::Added });
+        let (shuffle, sort) = (audio.shuffle, Sort::ALL[(audio.sort as usize).min(Sort::ALL.len() - 1)]);
         let repeat = [Repeat::Off, Repeat::All, Repeat::One][audio.repeat.min(2) as usize];
         let (theme, tint) = (audio.theme, audio.tint.map(|c| (String::new(), Some(c))));
         let side = vec![
@@ -209,7 +255,7 @@ impl App {
             tx,
             side,
             side_state: ListState::default().with_selected(Some(0)),
-            view: View { uri: String::new(), title: "trill".into(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
+            view: View { uri: String::new(), title: "trill".into(), rows: Arc::new(Vec::new()), state: TableState::default(), sort: None },
             back: Vec::new(),
             queue_src: Vec::new(),
             cache: HashMap::new(),
@@ -291,7 +337,7 @@ impl App {
         if push_back && !self.view.uri.is_empty() {
             let prev = std::mem::replace(
                 &mut self.view,
-                View { uri: String::new(), title: String::new(), rows: Arc::new(Vec::new()), state: TableState::default(), by_added: false },
+                View { uri: String::new(), title: String::new(), rows: Arc::new(Vec::new()), state: TableState::default(), sort: None },
             );
             self.back.push(prev);
             if self.back.len() > 20 {
@@ -317,32 +363,17 @@ impl App {
     }
 
     fn show(&mut self, uri: String, title: String, rows: Rows) {
-        let (rows, by_added) = self.sorted(&uri, rows);
+        let (rows, sort) = sorted(self.sort, &uri, rows);
         let sel = if rows.is_empty() { None } else { Some(0) };
-        self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), by_added };
+        self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), sort };
     }
 
-    /// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
-    fn sorted(&self, uri: &str, rows: Rows) -> (Rows, bool) {
-        let sortable = uri.starts_with("spotify:playlist:") || uri.contains(":collection");
-        if self.sort != Sort::Added || !sortable || !rows.iter().any(|r| r.added_at > 0) {
-            return (rows, false);
-        }
-        if rows.windows(2).all(|w| w[0].added_at >= w[1].added_at) {
-            return (rows, true); // already newest-first (liked songs): no copy
-        }
-        let mut v = (*rows).clone();
-        v.sort_by(|a, b| b.added_at.cmp(&a.added_at)); // stable: ties keep playlist order
-        (Arc::new(v), true)
-    }
-
-    fn toggle_sort(&mut self) {
-        self.sort = if self.sort == Sort::Added { Sort::Original } else { Sort::Added };
+    /// Step through the sort modes (`back`: the other way round).
+    fn cycle_sort(&mut self, back: bool) {
+        let n = Sort::ALL.len();
+        self.sort = Sort::ALL[(self.sort as usize + if back { n - 1 } else { 1 }) % n];
         self.save_prefs();
-        self.status = match self.sort {
-            Sort::Added => "Sort: recently added first".into(),
-            Sort::Original => "Sort: playlist order".into(),
-        };
+        self.status = format!("Sort: {}", self.sort.label());
         let Some(orig) = self.cache.get(&self.view.uri).cloned() else { return };
         let keep = self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| r.uri.clone());
         let (uri, title) = (self.view.uri.clone(), self.view.title.clone());
@@ -441,6 +472,7 @@ impl App {
                 match rows {
                     Ok((rows, via)) => {
                         self.lyrics_open = false; // results replace whatever covers the list
+                        let via = if via == "basic" { "tracks only: set client_id for albums, playlists, artists" } else { via };
                         self.status = format!("{} results for “{query}” ({via})", rows.len());
                         self.search_title = format!("Search: {query}");
                         self.search_rows = Arc::new(rows);
@@ -666,7 +698,7 @@ impl App {
     pub(crate) fn save_prefs(&mut self) {
         self.audio.shuffle = self.shuffle;
         self.audio.repeat = self.repeat as u8;
-        self.audio.sort_original = self.sort == Sort::Original;
+        self.audio.sort = self.sort as u8;
         self.audio.art = self.art_on;
         self.audio.theme = self.theme;
         self.audio.tint = self.tint.as_ref().and_then(|t| t.1).or(self.audio.tint);
@@ -1127,7 +1159,8 @@ impl App {
             KeyCode::Char('-') | KeyCode::Char('_') => self.change_volume(false),
             KeyCode::Char('a') => self.enqueue(),
             KeyCode::Char('s') => self.toggle_shuffle(),
-            KeyCode::Char('o') => self.toggle_sort(),
+            KeyCode::Char('o') => self.cycle_sort(false),
+            KeyCode::Char('O') => self.cycle_sort(true),
             KeyCode::Char('t') => {
                 self.theme = (self.theme + 1) % (crate::theme::COVER + 1);
                 self.save_prefs();
@@ -1176,9 +1209,44 @@ impl App {
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),
             KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
+                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o/O sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
             }
             _ => {}
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(title: &str, artist: &str, album: &str, ms: u32, added: u64) -> api::Row {
+        api::Row {
+            uri: format!("spotify:track:{title}"),
+            title: title.into(),
+            artist: artist.into(),
+            album: album.into(),
+            duration_ms: ms,
+            kind: api::Kind::Track,
+            art: None,
+            added_at: added,
+            members: String::new(),
+        }
+    }
+
+    #[test]
+    fn sorts_playlists_every_way() {
+        let rows: Rows = Arc::new(vec![row("b", "Zed", "x", 300, 1), row("C", "amy", "Y", 100, 3), row("a", "Amy", "y", 200, 2)]);
+        let order = |s: Sort, uri: &str| sorted(s, uri, rows.clone()).0.iter().map(|r| r.title.clone()).collect::<String>();
+        let pl = "spotify:playlist:1";
+        assert_eq!(order(Sort::Added, pl), "Cab");
+        assert_eq!(order(Sort::Original, pl), "bCa");
+        assert_eq!(order(Sort::Title, pl), "abC");
+        assert_eq!(order(Sort::Artist, pl), "Cab"); // amy == Amy, ties keep playlist order
+        assert_eq!(order(Sort::Album, pl), "bCa");
+        assert_eq!(order(Sort::Duration, pl), "Cab");
+        assert_eq!(order(Sort::Title, "spotify:album:1"), "bCa"); // albums keep their order
+        assert_eq!(sorted(Sort::Original, pl, rows.clone()).1, None);
+        assert_eq!(sorted(Sort::Album, pl, rows.clone()).1, Some("by album"));
     }
 }
