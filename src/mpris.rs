@@ -7,6 +7,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use crate::app::{App, Repeat};
 
 /// Commands coming from the desktop (widget buttons, media keys, playerctl…).
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))] // only MPRIS sends them
 pub enum Remote {
     PlayPause,
     Play,

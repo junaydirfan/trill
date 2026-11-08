@@ -463,10 +463,13 @@ fn draw_eq(f: &mut Frame, app: &App, sel: usize) {
 
 #[cfg(test)]
 mod tests {
+    #[cfg(unix)]
     unsafe extern "C" {
         fn tzset();
     }
 
+    // Windows' C runtime has no tzset and doesn't know zone names like America/Toronto.
+    #[cfg(unix)]
     #[test]
     fn formats_dates() {
         // SAFETY: test-only; no other threads read TZ here.
