@@ -306,8 +306,7 @@ impl Eq {
     }
 
     pub fn stop(&self) {
-        // SAFETY: plain signal to our own child.
-        unsafe { libc::kill(self.pid as i32, libc::SIGTERM) };
+        crate::engine::stop_process(self.pid);
     }
 }
 
@@ -347,7 +346,7 @@ mod tests {
 
     #[test]
     fn presets_and_custom_roundtrip() {
-        let dir = std::env::temp_dir().join(format!("trill-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("trill-test-eq-{}", std::process::id()));
         let mut s = AudioSettings::load(&dir);
         assert_eq!(s.preset_name(), "Flat");
         s.cycle_preset(false);
@@ -379,7 +378,7 @@ mod tests {
 
     #[test]
     fn settings_survive_restart() {
-        let dir = std::env::temp_dir().join(format!("trill-test-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("trill-test-prefs-{}", std::process::id()));
         let mut a = AudioSettings::load(&dir);
         assert!(!a.shuffle && a.repeat == 0 && a.sort == 0 && a.art);
         (a.shuffle, a.repeat, a.sort, a.art, a.crossfade_s) = (true, 2, 4, false, 6);

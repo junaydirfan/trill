@@ -27,9 +27,13 @@ fn fmt_ms(ms: u32) -> String {
 /// ms since epoch -> "YYYY-MM-DD" in the local timezone.
 fn fmt_date(ms: u64) -> String {
     let t = (ms / 1000) as libc::time_t;
-    // SAFETY: localtime_r only writes into the tm we pass.
+    // SAFETY: localtime_r / localtime_s only write into the tm we pass.
     let mut tm: libc::tm = unsafe { std::mem::zeroed() };
-    if unsafe { libc::localtime_r(&t, &mut tm) }.is_null() {
+    #[cfg(unix)]
+    let ok = !unsafe { libc::localtime_r(&t, &mut tm) }.is_null();
+    #[cfg(windows)]
+    let ok = unsafe { libc::localtime_s(&mut tm, &t) } == 0;
+    if !ok {
         return String::new();
     }
     format!("{:04}-{:02}-{:02}", tm.tm_year + 1900, tm.tm_mon + 1, tm.tm_mday)

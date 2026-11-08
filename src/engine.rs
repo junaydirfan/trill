@@ -10,7 +10,6 @@
 
 use std::{
     fs,
-    os::unix::process::ExitStatusExt,
     path::PathBuf,
     process::{Command, Stdio},
     sync::Arc,
@@ -167,8 +166,7 @@ impl Engine {
             Engine::Librespot { player, .. } => player.stop(),
             Engine::Soloist { pid, .. } => {
                 if let Some(pid) = pid {
-                    // SAFETY: plain signal to our own child.
-                    unsafe { libc::kill(*pid as i32, libc::SIGTERM) };
+                    stop_process(*pid);
                 }
             }
         }
@@ -249,11 +247,44 @@ impl SoloistOpts {
     }
 }
 
+/// Ask a child process to quit (SIGTERM; on Windows, which has no signals, `taskkill /F`).
+pub fn stop_process(pid: u32) {
+    #[cfg(unix)]
+    // SAFETY: plain signal to our own child.
+    unsafe {
+        libc::kill(pid as i32, libc::SIGTERM);
+    }
+    #[cfg(windows)]
+    let _ = std::process::Command::new("taskkill")
+        .args(["/PID", &pid.to_string(), "/T", "/F"])
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status();
+}
+
+/// Whether a process is still running.
+#[cfg(unix)]
+pub fn process_alive(pid: u32) -> bool {
+    // SAFETY: signal 0 only checks whether the process exists.
+    unsafe { libc::kill(pid as i32, 0) == 0 }
+}
+
+#[cfg(windows)]
+pub fn process_alive(pid: u32) -> bool {
+    std::process::Command::new("tasklist")
+        .args(["/FI", &format!("PID eq {pid}"), "/NH"])
+        .output()
+        .is_ok_and(|o| String::from_utf8_lossy(&o.stdout).contains(&pid.to_string()))
+}
+
 fn exit_message(status: std::io::Result<std::process::ExitStatus>) -> String {
+    #[cfg(unix)]
+    use std::os::unix::process::ExitStatusExt;
     match status {
         Ok(s) if s.code() == Some(10) => {
             "Soloist build expired (Spotify builds last 90 days). Quit and run: trill --update-soloist".into()
         }
+        #[cfg(unix)]
         Ok(s) if s.signal() == Some(libc::SIGTERM) => "Soloist stopped.".into(),
         Ok(s) => format!("Soloist exited ({s}); see ~/.cache/trill/soloist.log"),
         Err(e) => format!("Soloist: {e}"),

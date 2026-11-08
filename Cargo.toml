@@ -22,11 +22,11 @@ http = "1"
 bytes = "1"
 tokio-tungstenite = { version = "0.28", default-features = false, features = ["connect"] }
 libc = "0.2"
-mpris-server = { version = "0.11", default-features = false, features = ["tokio"] }
 ratatui-image = { version = "11.1", default-features = false, features = ["crossterm"] }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
+mpris-server = { version = "0.11", default-features = false, features = ["tokio"] }
 librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "pulseaudio-backend"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]

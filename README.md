@@ -10,6 +10,7 @@
   <img src="https://img.shields.io/badge/rust-2024-111111?style=flat-square&logo=rust" alt="Rust 2024">
   <img src="https://img.shields.io/badge/linux-PipeWire%20%C2%B7%20PulseAudio-111111?style=flat-square&logo=linux&logoColor=white" alt="Linux, PipeWire or PulseAudio">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white" alt="macOS on Apple Silicon">
+  <img src="https://img.shields.io/badge/windows-x86__64-111111?style=flat-square&logo=windows&logoColor=white" alt="Windows x86_64">
   <img src="https://img.shields.io/badge/built%20for-CachyOS-111111?style=flat-square&logo=archlinux&logoColor=white" alt="Built for CachyOS">
   <img src="https://img.shields.io/badge/needs-Spotify%20Premium-1ed760?style=flat-square&logo=spotify&logoColor=white" alt="Requires Spotify Premium">
 </p>
@@ -74,6 +75,8 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 
 ## Install
 
+Ready-made binaries for Linux, macOS and Windows are on [Releases](https://github.com/junaydirfan/trill/releases). Building it yourself takes a minute or two.
+
 ### Linux
 
 ```bash
@@ -94,7 +97,7 @@ If the `spotify-launcher` package is installed, you can set `Icon=` to `spotify-
 
 ### macOS (Apple Silicon)
 
-Install Apple's command line tools and Rust, then build. Nothing else is needed: audio goes through CoreAudio and TLS through the system's own Security framework.
+Download `trill-macos-arm64.tar.gz` from [Releases](https://github.com/junaydirfan/trill/releases) and put `trill` on your `PATH`, or install Apple's command line tools and Rust and build it. Nothing else is needed: audio goes through CoreAudio and TLS through the system's own Security framework.
 
 ```bash
 xcode-select --install
@@ -103,10 +106,25 @@ git clone https://github.com/junaydirfan/trill && cd trill
 cargo install --path .
 ```
 
-`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH` (open a new terminal first). Then follow [Soloist setup](#soloist-setup-one-time): the steps are the same, and `--update-soloist` fetches Spotify's Apple Silicon build. What's different on a Mac is in [macOS notes](#details).
+`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH` (open a new terminal first). Then follow [Soloist setup](#soloist-setup-one-time): the steps are the same, and `--update-soloist` fetches Spotify's Apple Silicon build. What's different on a Mac is in [macOS and Windows notes](#details).
+
+### Windows
+
+Download `trill-windows-x86_64.zip` from [Releases](https://github.com/junaydirfan/trill/releases), unzip `trill.exe` into a folder on your `PATH`, and run it in **Windows Terminal**. To build it instead, install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), then:
+
+```powershell
+cargo install --git https://github.com/junaydirfan/trill
+```
+
+[Soloist setup](#soloist-setup-one-time) is the same. In PowerShell, the key file is:
+
+```powershell
+New-Item -Force -ItemType File $HOME\.config\trill\soloist_api_key
+notepad $HOME\.config\trill\soloist_api_key
+```
 
 > [!NOTE]
-> macOS support is new and hasn't been tested on a real Mac yet. If something breaks, `TRILL_LOG=debug trill` and `~/.cache/trill/soloist.log` are the first places to look.
+> macOS and Windows support is new and hasn't been tested on a real Mac or Windows PC yet. If something breaks, `TRILL_LOG=debug trill` and `~/.cache/trill/soloist.log` are the first places to look.
 
 ### First run
 
@@ -129,7 +147,7 @@ Since late 2025, Spotify has been refusing audio keys to librespot on more and m
    ```bash
    trill --update-soloist
    ```
-3. **Pair once.** Run `trill --pair`, then pick **trill** in the device list of the Spotify app on your phone (on the same Wi-Fi). On a Mac, allow it if macOS asks about incoming connections or local network access, or your phone won't see it.
+3. **Pair once.** Run `trill --pair`, then pick **trill** in the device list of the Spotify app on your phone (on the same Wi-Fi). On a Mac or Windows, allow it if you're asked about incoming connections, local network access or the firewall, or your phone won't see it.
 
 > [!TIP]
 > Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
@@ -239,14 +257,14 @@ The status line shows which search path answered: `web api` (your app), `web api
 </details>
 
 <details>
-<summary><strong>macOS notes</strong></summary>
+<summary><strong>macOS and Windows notes</strong></summary>
 
-- **Apple Silicon only.** Spotify doesn't publish an Intel Mac build of Soloist. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot.
-- **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill`, not `~/Library`.
+- **Which machines:** Apple Silicon Macs and x86_64 Windows, because those are the Soloist builds Spotify publishes. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot. ARM Windows runs the x86_64 build through emulation.
+- **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill` (on Windows, under `C:\Users\<you>`), not `~/Library` or `%APPDATA%`.
 - **No EQ.** It's a PipeWire filter, and PipeWire is Linux-only. Picking an EQ setting says so instead of starting it.
-- **No media keys or Now Playing widget.** Those come from MPRIS, which macOS doesn't have. Every key inside trill works, and your phone can still control it through Spotify Connect.
-- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover. Apple's Terminal draws it with coloured half-blocks.
-- **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically, macOS has no equivalent). Run `pkill soloist` if that happens.
+- **No media keys or Now Playing widget.** Those come from MPRIS, which only Linux has. Every key inside trill works, and your phone can still control it through Spotify Connect.
+- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal and the old Windows console draw it with coloured half-blocks.
+- **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically). Run `pkill soloist` on a Mac or `taskkill /IM soloist.exe /F` on Windows if that happens.
 - The [Numbers](#numbers) were measured on Linux. The glibc memory tricks in [Why it's light](#why-its-light) only apply on Linux.
 </details>
 
@@ -270,7 +288,10 @@ On many accounts, Spotify no longer hands librespot the keys to decrypt audio. t
 No. Both Soloist and librespot need a Premium account.
 
 **Only CachyOS?**
-No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs (see [macOS](#macos-apple-silicon)).
+No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs and Windows PCs (see [Install](#install)).
+
+**Can I use it in WSL?**
+The Linux build should work under WSL2 with WSLg, which provides the audio. Pairing your phone with Soloist needs WSL's mirrored networking, though, so on Windows the native build is the easier choice.
 
 **Why does it ask me to log in twice?**
 It only does if you set your own `client_id`. That second login is for search alone.

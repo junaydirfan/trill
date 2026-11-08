@@ -41,8 +41,10 @@ use crate::{
     engine::{Engine, EngineEvent, LibrespotEvents, SoloistOpts},
 };
 
-// Spotify publishes Linux x86_64/arm64 and Apple Silicon builds (no Intel Mac one).
-const SOLOIST_URL: &str = if cfg!(target_os = "macos") {
+// Spotify publishes Linux x86_64/arm64, Apple Silicon and Windows x86_64 builds (no Intel Mac one).
+const SOLOIST_URL: &str = if cfg!(windows) {
+    "https://soloist-builds.spotifycdn.com/soloist_release_windows_x86_64.zip"
+} else if cfg!(target_os = "macos") {
     "https://soloist-builds.spotifycdn.com/soloist_release_osx_arm64.tar.gz"
 } else if cfg!(target_arch = "aarch64") {
     "https://soloist-builds.spotifycdn.com/soloist_release_arm64.tar.gz"
@@ -50,7 +52,7 @@ const SOLOIST_URL: &str = if cfg!(target_os = "macos") {
     "https://soloist-builds.spotifycdn.com/soloist_release_x86_64.tar.gz"
 };
 
-/// Hands freed heap pages back to the OS (glibc only; macOS's allocator does this itself).
+/// Hands freed heap pages back to the OS (glibc only).
 pub fn trim_heap() {
     // SAFETY: malloc_trim only releases free heap memory.
     #[cfg(target_os = "linux")]
@@ -162,7 +164,7 @@ fn update_soloist(cfg: &Config) -> i32 {
         eprintln!("{}: {e}", staging.display());
         return 1;
     }
-    let archive = staging.join("soloist.tar.gz");
+    let archive = staging.join(SOLOIST_URL.rsplit('/').next().unwrap_or("soloist.tar.gz"));
     println!("Downloading Soloist from Spotify ({SOLOIST_URL})…");
     let ok = Command::new("curl")
         .args(["-fL", "--progress-bar", "-o"])
@@ -170,8 +172,9 @@ fn update_soloist(cfg: &Config) -> i32 {
         .arg(SOLOIST_URL)
         .status()
         .is_ok_and(|s| s.success())
+        // tar detects gzip or zip itself (GNU tar, macOS bsdtar and Windows' tar.exe alike)
         && Command::new("tar")
-            .arg("-xzf")
+            .arg("-xf")
             .arg(&archive)
             .arg("-C")
             .arg(&staging)
@@ -181,12 +184,12 @@ fn update_soloist(cfg: &Config) -> i32 {
         eprintln!("Download or extract failed.");
         return 1;
     }
-    let found = walk_find(&staging, "soloist");
+    let found = walk_find(&staging, config::SOLOIST_EXE);
     let Some(bin) = found else {
         eprintln!("No `soloist` executable in the archive; contents left in {}", staging.display());
         return 1;
     };
-    let target = dir.join("soloist");
+    let target = dir.join(config::SOLOIST_EXE);
     if let Err(e) = fs::rename(&bin, &target) {
         eprintln!("install to {}: {e}", target.display());
         return 1;
@@ -734,8 +737,7 @@ async fn restart_soloist(app: &mut App, opts: &mut SoloistOpts, cfg: &Config, en
     if let Some(pid) = app.engine.pid() {
         app.engine.shutdown();
         let deadline = std::time::Instant::now() + Duration::from_secs(5);
-        // SAFETY: signal 0 only checks whether the process still exists.
-        while unsafe { libc::kill(pid as i32, 0) } == 0 && std::time::Instant::now() < deadline {
+        while engine::process_alive(pid) && std::time::Instant::now() < deadline {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
     }

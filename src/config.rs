@@ -25,6 +25,8 @@ use std::{
 
 use librespot_playback::config::Bitrate;
 
+pub const SOLOIST_EXE: &str = if cfg!(windows) { "soloist.exe" } else { "soloist" };
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Backend {
     Auto,
@@ -55,7 +57,11 @@ fn xdg(var: &str, fallback: &str) -> PathBuf {
     let base = env::var_os(var)
         .filter(|v| !v.is_empty())
         .map(PathBuf::from)
-        .unwrap_or_else(|| PathBuf::from(env::var_os("HOME").unwrap_or_else(|| "/tmp".into())).join(fallback));
+        .unwrap_or_else(|| {
+            // Windows has no HOME; USERPROFILE is C:\Users\<name>, so paths match the other systems.
+            let home = env::var_os("HOME").or_else(|| env::var_os("USERPROFILE")).unwrap_or_else(|| "/tmp".into());
+            PathBuf::from(home).join(fallback)
+        });
     let dir = base.join("trill");
     // trill was called cachify: carry its login, Soloist pairing and settings over once.
     // shortcut: drop this migration once old installs are gone.
@@ -144,15 +150,11 @@ impl Config {
         if let Some(p) = &self.soloist_path {
             return Some(p.clone());
         }
-        let local = self.soloist_install_dir().join("soloist");
+        let local = self.soloist_install_dir().join(SOLOIST_EXE);
         if local.is_file() {
             return Some(local);
         }
-        env::var_os("PATH")?
-            .to_str()?
-            .split(':')
-            .map(|d| PathBuf::from(d).join("soloist"))
-            .find(|p| p.is_file())
+        env::split_paths(&env::var_os("PATH")?).map(|d| d.join(SOLOIST_EXE)).find(|p| p.is_file())
     }
 
     pub fn use_soloist(&self) -> bool {
