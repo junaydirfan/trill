@@ -637,6 +637,7 @@ async fn run(cfg: Config) -> i32 {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
     app.eq_allowed = cfg.eq;
+    app.soloist_missing = cfg.soloist_missing();
     app.cache_dir = Some(cfg.cache_dir.clone());
     app.art_on = img_picker.is_some() && app.audio.art;
     app.img_picker = img_picker;

@@ -134,11 +134,25 @@ impl Config {
 
 impl Config {
     pub fn soloist_api_key(&self) -> Option<String> {
+        // Windows hides extensions, so a key saved from Notepad is often soloist_api_key.txt,
+        // and some editors start the file with a byte-order mark.
         env::var("SOLOIST_API_KEY")
             .ok()
             .or_else(|| fs::read_to_string(self.config_dir.join("soloist_api_key")).ok())
-            .map(|k| k.trim().to_string())
+            .or_else(|| fs::read_to_string(self.config_dir.join("soloist_api_key.txt")).ok())
+            .map(|k| k.trim().trim_start_matches('\u{feff}').trim().to_string())
             .filter(|k| !k.is_empty())
+    }
+
+    /// Why `backend = auto` fell back to librespot, if it did: shown when tracks get skipped.
+    pub fn soloist_missing(&self) -> Option<String> {
+        if self.backend != Backend::Auto || self.soloist_ws.is_some() {
+            return None;
+        }
+        if self.soloist_api_key().is_none() {
+            return Some(format!("no Soloist API key in {}", self.config_dir.join("soloist_api_key").display()));
+        }
+        self.soloist_bin().is_none().then(|| "Soloist isn't installed: quit and run trill --update-soloist".into())
     }
 
     /// Where `--update-soloist` installs the binary.
@@ -195,5 +209,40 @@ pub fn init_logger(cache_dir: &std::path::Path) {
     let logger = Box::leak(Box::new(FileLogger { file: Mutex::new(file), level }));
     if log::set_logger(logger).is_ok() {
         log::set_max_level(level);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn finds_windows_saved_key_and_says_what_is_missing() {
+        if env::var_os("SOLOIST_API_KEY").is_some() {
+            return; // the env var wins over the file
+        }
+        let dir = env::temp_dir().join(format!("trill-test-key-{}", std::process::id()));
+        fs::create_dir_all(&dir).unwrap();
+        let cfg = Config {
+            backend: Backend::Auto,
+            device_name: "trill".into(),
+            soloist_cache_mb: 200,
+            soloist_path: Some(dir.join("no-such-soloist")),
+            soloist_ws: None,
+            data_dir: dir.clone(),
+            bitrate: Bitrate::Bitrate320,
+            client_id: None,
+            audio_cache_mb: 0,
+            normalise: false,
+            eq: false,
+            art: false,
+            cache_dir: dir.clone(),
+            config_dir: dir.clone(),
+        };
+        assert!(cfg.soloist_missing().unwrap().starts_with("no Soloist API key in"));
+        // Notepad on Windows: .txt added, byte-order mark, CRLF
+        fs::write(dir.join("soloist_api_key.txt"), "\u{feff}spak_test\r\n").unwrap();
+        assert_eq!(cfg.soloist_api_key().as_deref(), Some("spak_test"));
+        let _ = fs::remove_dir_all(&dir);
     }
 }

@@ -179,6 +179,8 @@ pub struct App {
     pub eq: Option<Eq>,
     /// `eq = off` in config disables the EQ entirely.
     pub eq_allowed: bool,
+    /// Why trill fell back to librespot instead of Soloist (auto backend), if it did.
+    pub soloist_missing: Option<String>,
     /// Where the playlist list is cached so the sidebar fills instantly on start.
     pub cache_dir: Option<std::path::PathBuf>,
     /// EQ panel open, with this band selected.
@@ -290,6 +292,7 @@ impl App {
             cache_dir: None,
             eq_panel: None,
             help_open: false,
+            soloist_missing: None,
             restart_at: None,
             pending_seek: None,
             reload_at: None,
@@ -854,10 +857,12 @@ impl App {
                     self.stop();
                     self.status = "Too many unavailable tracks in a row; stopped. (TRILL_LOG=debug to see why)".into();
                 } else {
-                    self.status = format!(
-                        "Unavailable: {}, skipping",
-                        self.now.as_ref().map(|r| r.title.as_str()).unwrap_or("track")
-                    );
+                    let title = self.now.as_ref().map(|r| r.title.as_str()).unwrap_or("track");
+                    // Spotify refuses librespot on many accounts; say what Soloist still needs.
+                    self.status = match &self.soloist_missing {
+                        Some(why) => format!("Unavailable: {title}, skipping. Playing through librespot because {why}"),
+                        None => format!("Unavailable: {title}, skipping"),
+                    };
                     self.next(true);
                 }
             }
