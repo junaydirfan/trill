@@ -29,7 +29,8 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 
 ## Features
 
-- **Your library.** Playlists, Liked Songs, albums and artists. Pinned playlists and folders sit at the top, like in the official app.
+- **Your library.** Playlists, Liked Songs, saved albums and followed artists. Pinned playlists and folders sit at the top, like in the official app.
+- **Artist pages.** Top tracks, then every album, single and EP, newest first. `P` plays the whole discography.
 - **Synced lyrics.** The current line lights up and stays in view, and the screen redraws exactly when the next line starts.
 - **Real album art.** It uses kitty, Ghostty, WezTerm, foot, iTerm2 or Konsole graphics when the terminal has them, and colour half-blocks everywhere else.
 - **10-band EQ** (Linux) with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.
@@ -148,7 +149,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 
 | key | action | | key | action |
 |---|---|---|---|---|
-| `↑↓` `jk` `PgUp/PgDn` `g/G` | move | | `f` | like / unlike |
+| `↑↓` `jk` `PgUp/PgDn` `g/G` | move | | `f` | like a song · save an album · follow an artist |
 | `Tab` `h` `l` | switch pane | | `A` | add to a playlist (type to filter) |
 | `Enter` | play / open | | `D` `D` | remove from the open playlist |
 | `Esc` `Backspace` | back | | `L` | lyrics |
@@ -159,16 +160,19 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `a` | add to queue | | `e` / `E` | next EQ preset / EQ panel |
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search | | `R` | reload the current list |
-| `?` | key help | | `q` | quit |
+| `P` | play everything in the list | | `?` | key help |
+| `q` | quit | | | |
 
 ## Details
 
 <details>
 <summary><strong>Library, sorting and pins</strong></summary>
 
-- **Sorting:** playlists and Liked Songs show **most recently added first**, with an **Added** column, so playing from the top plays your newest additions first. `o` steps through the other orders: the playlist's own order, title, artist, album and length (`O` steps back). The list's header shows the current order, and it's remembered. Albums and artists always keep their track order.
+- **Sorting:** playlists and Liked Songs show **most recently added first**, with an **Added** column, so playing from the top plays your newest additions first. `o` steps through the other orders: the playlist's own order, title, artist, album and length (`O` steps back). The list's header shows the current order, and it's remembered. Artist pages and albums always keep Spotify's order.
 - **Pins:** playlists and folders you pinned in Spotify sit at the top of the library, newest pin first. Opening a pinned folder lists its playlists. trill can't pin or unpin, because Spotify ignores pin changes from third-party clients, so pin them from the official app.
-- **Liking:** `f` likes or unlikes the highlighted song, or the one playing. Liked songs show a ♥ everywhere, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
+- **Albums and Artists:** the two entries under Liked Songs list your saved albums and the artists you follow, most recent first, and sort like playlists. Opening an artist shows their top tracks, then their albums, singles, EPs and compilations, newest first.
+- **Liking, saving, following:** `f` likes or unlikes the highlighted song, saves or unsaves the highlighted album, and follows or unfollows the highlighted artist. With nothing highlighted, it likes the song playing. Everything in your library shows a ♥, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
+- **Play all:** `P` plays every track in the open list, opening the albums and playlists in it. On an artist page that's the whole discography, top tracks first, without repeats (about 1 s for ~100 songs).
 - **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. It warns before adding a song that's already there. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.
 
 These actions go through the same private Spotify API as the rest of trill (not the Web API), so no rate limits apply. Each one takes about 0.4–0.5 s to reach Spotify.

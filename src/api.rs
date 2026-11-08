@@ -5,6 +5,8 @@
 //! - playlists list      -> spclient rootlist
 //! - any list of tracks  -> context-resolve (playlists, albums, artists, liked songs)
 //! - track names/artists -> batched extended-metadata (hundreds of tracks per request)
+//! - artists and albums  -> the same batched metadata (an artist page is 3 requests)
+//! - saved albums, followed artists -> collection2v2 paging
 //!
 //! Only search prefers the Web API (better results, albums/artists/playlists too), with a
 //! fallback to context-resolve search that needs no token at all.
@@ -13,13 +15,13 @@ use std::{collections::HashMap, collections::VecDeque, sync::Arc, time::{Duratio
 
 use bytes::Bytes;
 use futures_util::{StreamExt, stream};
-use librespot_core::{Session, SpotifyUri};
+use librespot_core::{Session, SpotifyId, SpotifyUri};
 use librespot_metadata::{Metadata, Playlist};
 use librespot_protocol::{
     context_page::ContextPage,
     extended_metadata::{BatchedEntityRequest, EntityRequest, ExtensionQuery},
     extension_kind::ExtensionKind,
-    metadata::Track as PTrack,
+    metadata::{Album as PAlbum, Artist as PArtist, Track as PTrack},
     playlist4_external::SelectedListContent,
 };
 use protobuf::{EnumOrUnknown, Message};
@@ -58,6 +60,10 @@ pub struct Row {
 }
 
 pub type Rows = Arc<Vec<Row>>;
+
+/// Sidebar views of the library sets (":collection" makes them sortable like Liked Songs).
+pub const SAVED_ALBUMS: &str = "trill:collection:albums";
+pub const FOLLOWED_ARTISTS: &str = "trill:collection:artists";
 type Res<T> = Result<T, String>;
 
 fn e<E: std::fmt::Display>(err: E) -> String {
@@ -335,16 +341,14 @@ fn track_row(uri: &str, t: &PTrack) -> Row {
     }
 }
 
-async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, Row> {
+/// Batched extended-metadata of one kind: the raw proto per uri (missing ones left out).
+async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> HashMap<String, Vec<u8>> {
     let req = BatchedEntityRequest {
         entity_request: uris
             .iter()
             .map(|u| EntityRequest {
                 entity_uri: u.clone(),
-                query: vec![ExtensionQuery {
-                    extension_kind: EnumOrUnknown::new(ExtensionKind::TRACK_V4),
-                    ..Default::default()
-                }],
+                query: vec![ExtensionQuery { extension_kind: EnumOrUnknown::new(kind), ..Default::default() }],
                 ..Default::default()
             })
             .collect(),
@@ -354,15 +358,137 @@ async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, 
     let Ok(resp) = session.spclient().get_extended_metadata(req).await else {
         return map;
     };
-    for arr in &resp.extended_metadata {
-        for d in &arr.extension_data {
-            let Some(any) = d.extension_data.as_ref() else { continue };
-            if let Ok(t) = PTrack::parse_from_bytes(&any.value) {
-                map.insert(d.entity_uri.clone(), track_row(&d.entity_uri, &t));
+    for arr in resp.extended_metadata {
+        for d in arr.extension_data {
+            if let Some(any) = d.extension_data.into_option() {
+                map.insert(d.entity_uri, any.value);
             }
         }
     }
     map
+}
+
+async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, Row> {
+    ext_meta(&session, &uris, ExtensionKind::TRACK_V4)
+        .await
+        .into_iter()
+        .filter_map(|(u, b)| PTrack::parse_from_bytes(&b).ok().map(|t| (u.clone(), track_row(&u, &t))))
+        .collect()
+}
+
+fn gid_uri(kind: &str, gid: &[u8]) -> Option<String> {
+    let id = SpotifyId::from_raw(gid).ok()?.to_base62().ok()?;
+    Some(format!("spotify:{kind}:{id}"))
+}
+
+/// Metadata of one kind for many uris, 300 per request with 16 in flight; parsed in order.
+async fn entities<T: Message>(session: &Session, uris: &[String], kind: ExtensionKind) -> Vec<(String, T)> {
+    let maps: Vec<HashMap<String, Vec<u8>>> =
+        stream::iter(uris.chunks(META_CHUNK).map(<[String]>::to_vec))
+            .map(|c| {
+                let s = session.clone();
+                async move { ext_meta(&s, &c, kind).await }
+            })
+            .buffered(16)
+            .collect()
+            .await;
+    let mut all: HashMap<String, Vec<u8>> = maps.into_iter().flatten().collect();
+    uris.iter().filter_map(|u| Some((u.clone(), T::parse_from_bytes(&all.remove(u)?).ok()?))).collect()
+}
+
+fn album_row(uri: String, a: &PAlbum) -> Row {
+    use librespot_protocol::metadata::album::Type;
+    let kind = match a.type_() {
+        Type::SINGLE => "single",
+        Type::EP => "EP",
+        Type::COMPILATION => "compilation",
+        _ => "album",
+    };
+    let year = a.date.as_ref().map(|d| d.year()).filter(|&y| y > 0);
+    Row {
+        uri,
+        title: a.name().to_string(),
+        artist: a.artist.iter().map(|x| x.name()).collect::<Vec<_>>().join(", "),
+        album: year.map_or_else(|| kind.to_string(), |y| format!("{y} · {kind}")),
+        duration_ms: 0,
+        kind: Kind::Album,
+        art: cover_url(a),
+        added_at: 0,
+        members: String::new(),
+    }
+}
+
+/// Album rows in the given order (name, artists, "2021 · single" in the album column).
+pub async fn album_rows(session: &Session, uris: &[String]) -> Vec<Row> {
+    entities::<PAlbum>(session, uris, ExtensionKind::ALBUM_V4).await.into_iter().map(|(u, a)| album_row(u, &a)).collect()
+}
+
+/// An artist's page: top tracks, then albums, singles and compilations, newest first as
+/// Spotify lists them. Two metadata requests in parallel, after the artist's own.
+pub async fn artist_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
+    let raw = ext_meta(session, &[uri.to_string()], ExtensionKind::ARTIST_V4).await.remove(uri).ok_or("artist not found")?;
+    let a = PArtist::parse_from_bytes(&raw).map_err(e)?;
+    let country = session.country();
+    let top: Vec<String> = a
+        .top_track
+        .iter()
+        .find(|t| t.country() == country)
+        .or(a.top_track.first())
+        .map(|t| t.track.iter().filter_map(|t| gid_uri("track", t.gid())).collect())
+        .unwrap_or_default();
+    // Each group is one release; its first album is the main edition (the rest are regional).
+    let releases: Vec<String> = [&a.album_group, &a.single_group, &a.compilation_group]
+        .into_iter()
+        .flatten()
+        .filter_map(|g| g.album.first())
+        .filter_map(|al| gid_uri("album", al.gid()))
+        .collect();
+    let (mut rows, albums) = tokio::join!(track_rows(session, top), album_rows(session, &releases));
+    rows.extend(albums);
+    Ok(rows)
+}
+
+/// Every track in a list, in order: tracks as they are, albums and playlists opened
+/// (8 at a time), duplicates dropped. Plays an artist's whole discography.
+pub async fn expand(session: &Session, rows: &[Row]) -> Vec<Row> {
+    let items: Vec<(Kind, String)> = rows.iter().map(|r| (r.kind, r.uri.clone())).collect();
+    let lists: Vec<Vec<String>> = stream::iter(items)
+        .map(|(kind, uri)| {
+            let s = session.clone();
+            async move {
+                match kind {
+                    Kind::Track => vec![uri],
+                    Kind::Album | Kind::Playlist => context_track_uris(&s, &uri).await.unwrap_or_default(),
+                    Kind::Artist => Vec::new(),
+                }
+            }
+        })
+        .buffered(8)
+        .collect()
+        .await;
+    let mut seen = std::collections::HashSet::new();
+    let uris: Vec<String> = lists.into_iter().flatten().filter(|u| seen.insert(u.clone())).take(MAX_TRACKS).collect();
+    track_rows(session, uris).await
+}
+
+/// Followed artists, most recently followed first.
+async fn followed_artist_rows(session: &Session) -> Res<Vec<Row>> {
+    let uris = crate::library::collection(session, "artist").await?;
+    Ok(entities::<PArtist>(session, &uris, ExtensionKind::ARTIST_V4)
+        .await
+        .into_iter()
+        .map(|(uri, a)| Row {
+            uri,
+            title: a.name().to_string(),
+            artist: String::new(),
+            album: String::new(),
+            duration_ms: 0,
+            kind: Kind::Artist,
+            art: None,
+            added_at: 0,
+            members: String::new(),
+        })
+        .collect())
 }
 
 /// Turn track URIs into display rows, keeping order. Batched + 4 requests in flight.
@@ -391,6 +517,17 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
 pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
     if uri.starts_with("spotify:folder:") {
         return folder_rows(session, uri).await;
+    }
+    if uri.starts_with("spotify:artist:") {
+        return artist_rows(session, uri).await;
+    }
+    if uri == SAVED_ALBUMS {
+        let uris: Vec<String> =
+            crate::library::collection(session, "collection").await?.into_iter().filter(|u| u.starts_with("spotify:album:")).collect();
+        return Ok(album_rows(session, &uris).await);
+    }
+    if uri == FOLLOWED_ARTISTS {
+        return followed_artist_rows(session).await;
     }
     let tracks = context_tracks(session, uri).await?;
     let uris = tracks.iter().map(|t| t.uri.clone()).collect();
@@ -577,6 +714,25 @@ pub async fn search(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn album_rows_show_year_and_type() {
+        use librespot_protocol::metadata::{Date, album::Type};
+        let mut a = PAlbum::new();
+        a.set_name("Is This It".into());
+        a.set_type(Type::SINGLE);
+        let mut d = Date::new();
+        d.set_year(2001);
+        a.date = protobuf::MessageField::some(d);
+        let mut ar = PArtist::new();
+        ar.set_name("The Strokes".into());
+        a.artist.push(ar);
+        let r = album_row("spotify:album:x".into(), &a);
+        assert_eq!((r.title.as_str(), r.artist.as_str(), r.album.as_str(), r.kind), ("Is This It", "The Strokes", "2001 · single", Kind::Album));
+        a.date = protobuf::MessageField::none();
+        a.set_type(Type::ALBUM);
+        assert_eq!(album_row("spotify:album:x".into(), &a).album, "album");
+    }
 
     #[test]
     fn pct_encodes_query() {

@@ -86,12 +86,34 @@ impl App {
         format!("spotify:user:{}:collection", self.session.username())
     }
 
-    /// Load the liked-songs set in the background (uris only, no metadata).
+    /// Load the liked songs, saved albums and followed artists in the background (uris only).
     pub fn load_liked(&self) {
-        let (s, tx, uri) = (self.session.clone(), self.tx.clone(), self.liked_uri());
+        let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
-            let res = api::context_tracks(&s, &uri).await.map(|t| t.into_iter().map(|t| t.uri).collect());
+            // Liked songs and saved albums share one set; followed artists have their own.
+            let (lib, artists) = tokio::join!(library::collection(&s, "collection"), library::collection(&s, "artist"));
+            let res = lib.map(|mut v| {
+                v.extend(artists.unwrap_or_default());
+                v.into_iter().collect()
+            });
             let _ = tx.send(Msg::Liked(res));
+        });
+    }
+
+    /// `P`: play every track in the open list, opening the albums and playlists in it
+    /// (an artist page plays the whole discography).
+    pub(super) fn play_all(&mut self) {
+        let rows = self.view.rows.clone();
+        if rows.iter().all(|r| r.kind == Kind::Track) {
+            if !rows.is_empty() {
+                self.play_list(&rows, 0);
+            }
+            return;
+        }
+        self.status = format!("Loading everything in {}…", self.view.title);
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            let _ = tx.send(Msg::PlayAll(api::expand(&s, &rows).await));
         });
     }
 
@@ -124,15 +146,29 @@ impl App {
 
     // ---------------------------------------------------------------- liking
 
+    /// `f`: like a song, save an album or follow an artist (the highlighted one, else the song playing).
     pub(super) fn toggle_like(&mut self) {
-        let Some(row) = self.target_track() else {
+        let highlighted = (self.focus == Focus::Main && !self.lyrics_open)
+            .then(|| self.view.state.selected().and_then(|i| self.view.rows.get(i)))
+            .flatten()
+            .filter(|r| r.kind != Kind::Playlist)
+            .cloned();
+        let Some(row) = highlighted.or_else(|| self.now.clone()) else {
             self.status = "Nothing to like.".into();
             return;
         };
         let liked = !self.liked.contains(&row.uri);
         // Optimistic: the ♥ flips immediately; undone if Spotify says no.
         self.apply_like(&row, liked);
-        self.status = if liked { format!("♥ Liked “{}”", row.title) } else { format!("Removed “{}” from Liked Songs", row.title) };
+        let name = &row.title;
+        self.status = match (row.kind, liked) {
+            (Kind::Album, true) => format!("♥ Saved “{name}” to your albums"),
+            (Kind::Album, false) => format!("Removed “{name}” from your albums"),
+            (Kind::Artist, true) => format!("♥ Following {name}"),
+            (Kind::Artist, false) => format!("Unfollowed {name}"),
+            (_, true) => format!("♥ Liked “{name}”"),
+            _ => format!("Removed “{name}” from Liked Songs"),
+        };
         let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
             let res = library::set_liked(&s, &row.uri, liked).await;
@@ -141,7 +177,11 @@ impl App {
     }
 
     fn apply_like(&mut self, row: &Row, liked: bool) {
-        let liked_uri = self.liked_uri();
+        let liked_uri = match row.kind {
+            Kind::Album => api::SAVED_ALBUMS.to_string(),
+            Kind::Artist => api::FOLLOWED_ARTISTS.to_string(),
+            _ => self.liked_uri(),
+        };
         if liked {
             self.liked.insert(row.uri.clone());
             let mut r = row.clone();
@@ -393,9 +433,15 @@ impl App {
             Msg::Liked(Err(e)) => log::warn!("liked songs: {e}"),
             Msg::LikeDone { row, liked, res: Err(e) } => {
                 self.apply_like(&row, !liked);
-                self.status = format!("Couldn't update Liked Songs: {e}");
+                self.status = format!("Couldn't update your library: {e}");
             }
             Msg::LikeDone { .. } => {}
+            Msg::PlayAll(rows) if rows.is_empty() => self.status = "Nothing to play here.".into(),
+            Msg::PlayAll(rows) => {
+                let n = rows.len();
+                self.play_list(&Arc::new(rows), 0);
+                self.status = format!("Playing all {n} tracks");
+            }
             Msg::Lyrics { uri, res } => {
                 if let Some(slot) = self.lyrics.as_mut()
                     && slot.uri == uri

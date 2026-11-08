@@ -203,7 +203,7 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
             Kind::Playlist => ("playlist ", Color::Magenta),
             Kind::Artist => ("artist ", Color::Yellow),
         };
-        let heart = if r.kind == Kind::Track && app.liked.contains(&r.uri) { "♥ " } else { "" };
+        let heart = if app.liked.contains(&r.uri) { "♥ " } else { "" };
         let title = Line::from(vec![
             Span::styled(heart, Style::new().fg(accent())),
             Span::styled(tag, Style::new().fg(tag_color)),

@@ -27,8 +27,10 @@ pub enum Msg {
     Playlists(Result<Vec<(String, String, bool, bool)>, String>),
     Rows { uri: String, title: String, rows: Result<Vec<Row>, String> },
     Search { query: String, rows: Result<(Vec<Row>, &'static str), String> },
-    /// Every liked track uri (for the ♥ markers).
+    /// Every liked track, saved album and followed artist (for the ♥ markers and `f`).
     Liked(Result<HashSet<String>, String>),
+    /// `P`: every track in the open list, ready to play.
+    PlayAll(Vec<Row>),
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
     Art { url: String, size: (u16, u16), res: Result<ratatui_image::protocol::Protocol, String> },
@@ -36,6 +38,9 @@ pub enum Msg {
     Tint { url: String, tint: Option<[u8; 3]> },
     PlaylistEdit { playlist: String, name: String, row: Row, add: bool, res: Result<(), String> },
 }
+
+/// Sidebar entries above the playlists: Liked Songs, Albums, Artists, Queue, Search.
+const FIXED_SIDE: usize = 5;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
@@ -82,6 +87,18 @@ impl Sort {
 
 /// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
 /// Sorts are stable, so ties keep the playlist's order.
+/// "10 tracks · 7 albums" for the status line.
+fn count(rows: &[Row]) -> String {
+    let parts: Vec<String> = [(Kind::Track, "track"), (Kind::Album, "album"), (Kind::Playlist, "playlist"), (Kind::Artist, "artist")]
+        .into_iter()
+        .filter_map(|(k, name)| {
+            let n = rows.iter().filter(|r| r.kind == k).count();
+            (n > 0).then(|| format!("{n} {name}{}", if n == 1 { "" } else { "s" }))
+        })
+        .collect();
+    if parts.is_empty() { "empty".into() } else { parts.join(" · ") }
+}
+
 fn sorted(sort: Sort, uri: &str, rows: Rows) -> (Rows, Option<&'static str>) {
     let sortable = uri.starts_with("spotify:playlist:") || uri.contains(":collection");
     let label = Some(sort.label());
@@ -239,6 +256,8 @@ impl App {
         let (theme, tint) = (audio.theme, audio.tint.map(|c| (String::new(), Some(c))));
         let side = vec![
             SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
+            SideItem { name: "◉ Albums".into(), uri: api::SAVED_ALBUMS.into(), kind: SideKind::Liked, editable: false, pinned: false },
+            SideItem { name: "◈ Artists".into(), uri: api::FOLLOWED_ARTISTS.into(), kind: SideKind::Liked, editable: false, pinned: false },
             SideItem { name: "≡ Queue".into(), uri: "trill:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
             SideItem { name: "⌕ Search".into(), uri: "trill:search".into(), kind: SideKind::Search, editable: false, pinned: false },
         ];
@@ -315,7 +334,7 @@ impl App {
             && let Some(list) = self.cache_dir.as_deref().and_then(api::read_playlist_cache)
         {
             self.set_playlists(list);
-            self.status = format!("{} playlists. Tab to switch panes, / to search, ? for keys.", self.side.len() - 3);
+            self.status = format!("{} playlists. Tab to switch panes, / to search, ? for keys.", self.side.len() - FIXED_SIDE);
         }
         let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
@@ -326,7 +345,7 @@ impl App {
     /// Replace the playlists in the sidebar, keeping the selected item selected.
     fn set_playlists(&mut self, list: Vec<(String, String, bool, bool)>) {
         let sel = self.side_state.selected().and_then(|i| self.side.get(i)).map(|s| s.uri.clone());
-        self.side.truncate(3);
+        self.side.truncate(FIXED_SIDE);
         self.side.extend(list.into_iter().map(|(uri, name, editable, pinned)| SideItem { name, uri, kind: SideKind::Playlist, editable, pinned }));
         let i = sel.and_then(|u| self.side.iter().position(|s| s.uri == u)).unwrap_or(0);
         self.side_state.select(Some(i.min(self.side.len() - 1)));
@@ -452,7 +471,7 @@ impl App {
                             crate::trim_heap();
                         }
                         if is_current {
-                            self.status = format!("{title}: {} tracks", rows.len());
+                            self.status = format!("{title}: {}", count(&rows));
                             self.show(uri, title, rows);
                         }
                     }
@@ -1195,18 +1214,19 @@ impl App {
                 if self.focus == Focus::Side || self.view.uri.is_empty() {
                     self.status = "Reloading playlists…".into();
                     self.load_playlists();
-                } else if !self.view.uri.starts_with("trill:") {
+                } else if !self.view.uri.starts_with("trill:") || self.view.uri.starts_with("trill:collection:") {
                     let (u, t) = (self.view.uri.clone(), self.view.title.clone());
                     self.open(u, t, false, true);
                 }
             }
             KeyCode::Char('f') => self.toggle_like(),
+            KeyCode::Char('P') => self.play_all(),
             KeyCode::Char('A') => self.open_chooser(),
             KeyCode::Char('D') => self.remove_from_playlist(),
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),
             KeyCode::Char('?') => {
-                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o/O sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
+                self.status = "↑↓/jk move · Tab/h/l pane · ⏎ play/open · space pause · n/p next/prev · ←→ seek · +/- vol · a queue · c queue view · f like/save/follow · P play all · A add to playlist · D remove · L lyrics · i art · t theme · s shuffle · r repeat · o/O sort · e/E EQ · x crossfade · / search · Esc back · R reload · q quit".into();
             }
             _ => {}
         }
@@ -1229,6 +1249,14 @@ mod tests {
             added_at: added,
             members: String::new(),
         }
+    }
+
+    #[test]
+    fn counts_each_kind() {
+        let mut a = row("a", "x", "y", 1, 0);
+        a.kind = Kind::Album;
+        assert_eq!(count(&[row("t", "x", "y", 1, 0), row("u", "x", "y", 1, 0), a]), "2 tracks · 1 album");
+        assert_eq!(count(&[]), "empty");
     }
 
     #[test]

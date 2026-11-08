@@ -33,6 +33,8 @@ fn proto_headers(content_type: &'static str) -> HeaderMap {
 /// collection2v2 `WriteRequest` (not compiled into librespot-protocol; it's 3 fields):
 /// { 1: username, 2: set, 3: repeated CollectionItem { 1: uri, 2: added_at s, 3: is_removed } }
 fn collection_write(user: &str, uri: &str, liked: bool) -> Res<Vec<u8>> {
+    // Followed artists have their own set; liked songs and saved albums share "collection".
+    let set = if uri.starts_with("spotify:artist:") { "artist" } else { "collection" };
     let mut item = Vec::new();
     {
         let mut os = CodedOutputStream::vec(&mut item);
@@ -47,14 +49,14 @@ fn collection_write(user: &str, uri: &str, liked: bool) -> Res<Vec<u8>> {
     {
         let mut os = CodedOutputStream::vec(&mut body);
         os.write_string(1, user).map_err(e)?;
-        os.write_string(2, "collection").map_err(e)?;
+        os.write_string(2, set).map_err(e)?;
         os.write_bytes(3, &item).map_err(e)?;
         os.flush().map_err(e)?;
     }
     Ok(body)
 }
 
-/// Like (`true`) or unlike a track.
+/// Like (`true`) or unlike a track, save or unsave an album, follow or unfollow an artist.
 pub async fn set_liked(session: &Session, uri: &str, liked: bool) -> Res<()> {
     let body = collection_write(&session.username(), uri, liked)?;
     session
@@ -71,52 +73,70 @@ pub async fn set_liked(session: &Session, uri: &str, liked: bool) -> Res<()> {
 }
 
 /// Items pinned to the top of Your Library (playlists, albums, artists, Liked Songs…),
-/// most recently pinned first (the server lists them by id). collection2v2 set "ylpin",
-/// read-only for us: writes to it are accepted but ignored, so pinning stays in the apps.
-/// PageRequest { 1: username, 2: set, 4: limit }
-/// -> PageResponse { 1: repeated CollectionItem { 1: uri, 2: added_at s, 3: is_removed } }
+/// most recently pinned first. Set "ylpin" is read-only for us: writes to it are accepted
+/// but ignored, so pinning stays in the apps.
 pub async fn pins(session: &Session) -> Res<Vec<String>> {
-    let mut body = Vec::new();
-    {
-        let mut os = CodedOutputStream::vec(&mut body);
-        os.write_string(1, &session.username()).map_err(e)?;
-        os.write_string(2, "ylpin").map_err(e)?;
-        os.write_int32(4, 100).map_err(e)?;
-        os.flush().map_err(e)?;
-    }
-    let bytes = session
-        .spclient()
-        .request(
-            &Method::POST,
-            "/collection/v2/paging",
-            Some(proto_headers("application/vnd.collection-v2.spotify.proto")),
-            Some(&body),
-        )
-        .await
-        .map_err(e)?;
+    collection(session, "ylpin").await
+}
+
+/// Every uri in a collection2v2 set, newest first: "collection" (liked songs and saved
+/// albums), "artist" (followed artists), "ylpin" (pins).
+/// PageRequest { 1: username, 2: set, 3: page token, 4: limit }
+/// -> PageResponse { 1: repeated CollectionItem { 1: uri, 2: added_at s, 3: is_removed }, 2: next page token }
+pub async fn collection(session: &Session, set: &str) -> Res<Vec<String>> {
     let mut items: Vec<(i64, String)> = Vec::new();
-    let mut is = CodedInputStream::from_bytes(&bytes);
-    while let Some(tag) = is.read_raw_tag_or_eof().map_err(e)? {
-        if tag != (1 << 3 | 2) {
-            is.skip_field(protobuf::rt::WireType::new(tag & 7).ok_or("bad wire type")?).map_err(e)?;
-            continue;
+    let mut token = String::new();
+    for _ in 0..100 {
+        let mut body = Vec::new();
+        {
+            let mut os = CodedOutputStream::vec(&mut body);
+            os.write_string(1, &session.username()).map_err(e)?;
+            os.write_string(2, set).map_err(e)?;
+            if !token.is_empty() {
+                os.write_string(3, &token).map_err(e)?;
+            }
+            os.write_int32(4, 5000).map_err(e)?;
+            os.flush().map_err(e)?;
         }
-        let raw = is.read_bytes().map_err(e)?;
-        let mut it = CodedInputStream::from_bytes(&raw);
-        let (mut uri, mut at, mut removed) = (String::new(), 0i64, false);
-        while let Some(t) = it.read_raw_tag_or_eof().map_err(e)? {
-            match t {
-                0x0a => uri = it.read_string().map_err(e)?,
-                0x10 => at = it.read_int64().map_err(e)?,
-                0x18 => removed = it.read_bool().map_err(e)?,
-                _ => it.skip_field(protobuf::rt::WireType::new(t & 7).ok_or("bad wire type")?).map_err(e)?,
+        let bytes = session
+            .spclient()
+            .request(
+                &Method::POST,
+                "/collection/v2/paging",
+                Some(proto_headers("application/vnd.collection-v2.spotify.proto")),
+                Some(&body),
+            )
+            .await
+            .map_err(e)?;
+        token.clear();
+        let mut is = CodedInputStream::from_bytes(&bytes);
+        while let Some(tag) = is.read_raw_tag_or_eof().map_err(e)? {
+            match tag {
+                0x0a => {
+                    let raw = is.read_bytes().map_err(e)?;
+                    let mut it = CodedInputStream::from_bytes(&raw);
+                    let (mut uri, mut at, mut removed) = (String::new(), 0i64, false);
+                    while let Some(t) = it.read_raw_tag_or_eof().map_err(e)? {
+                        match t {
+                            0x0a => uri = it.read_string().map_err(e)?,
+                            0x10 => at = it.read_int64().map_err(e)?,
+                            0x18 => removed = it.read_bool().map_err(e)?,
+                            _ => it.skip_field(protobuf::rt::WireType::new(t & 7).ok_or("bad wire type")?).map_err(e)?,
+                        }
+                    }
+                    if !removed && !uri.is_empty() {
+                        items.push((at, uri));
+                    }
+                }
+                0x12 => token = is.read_string().map_err(e)?,
+                _ => is.skip_field(protobuf::rt::WireType::new(tag & 7).ok_or("bad wire type")?).map_err(e)?,
             }
         }
-        if !removed && !uri.is_empty() {
-            items.push((at, uri));
+        if token.is_empty() {
+            break;
         }
     }
-    items.sort_by_key(|i| std::cmp::Reverse(i.0));
+    items.sort_by_key(|i| std::cmp::Reverse(i.0)); // stable: same-second items keep server order
     Ok(items.into_iter().map(|(_, u)| u).collect())
 }
 

@@ -465,6 +465,23 @@ async fn run(cfg: Config) -> i32 {
                 })
             }
             Some("pins") => library::pins(&session).await.map(|p| p.iter().for_each(|u| eprintln!("{u}"))),
+            Some("all") => match api::context_rows(&session, &a[1]).await {
+                Ok(rows) => {
+                    let all = api::expand(&session, &rows).await;
+                    eprintln!("{} tracks; first: {:?}", all.len(), all.iter().take(12).map(|r| r.title.as_str()).collect::<Vec<_>>());
+                    Ok(())
+                }
+                Err(e) => Err(e),
+            },
+            Some("rows") => api::context_rows(&session, &a[1]).await.map(|rows| {
+                eprintln!("{} rows", rows.len());
+                rows.iter().take(40).for_each(|r| eprintln!("{:?} {} | {} | {} | {}", r.kind, r.title, r.artist, r.album, r.uri));
+            }),
+            Some("set") => library::collection(&session, &a[1]).await.map(|p| {
+                let mut kinds = std::collections::BTreeMap::<&str, usize>::new();
+                p.iter().for_each(|u| *kinds.entry(u.split(':').nth(1).unwrap_or("?")).or_default() += 1);
+                eprintln!("{} items {kinds:?}; first: {:?}", p.len(), p.iter().filter(|u| !u.contains(":track:")).take(4).collect::<Vec<_>>());
+            }),
             Some("lyrics") => library::lyrics(&session, &a[1]).await.map(|l| match l {
                 Some(l) => eprintln!("synced={} lines={} provider={}", l.synced, l.lines.len(), l.provider),
                 None => eprintln!("no lyrics"),
