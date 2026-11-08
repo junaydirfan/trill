@@ -671,7 +671,7 @@ async fn run(cfg: Config) -> i32 {
             }, if deadline.is_some() => { app.on_end_deadline(); dirty = true; }
             Some(ev) = key_rx.recv() => match ev {
                 Event::Key(k) => { app.on_key(k); dirty = true; }
-                Event::Resize(..) => dirty = true,
+                Event::Resize(..) => { app.on_resize(); dirty = true; }
                 _ => {}
             },
             Some(ev) = eng_rx.recv() => dirty |= app.on_engine(ev),

@@ -302,6 +302,29 @@ impl App {
         }
     }
 
+    /// Zooming changes the font's pixel size, which iTerm2 and sixel images are drawn in:
+    /// pick up the new size and re-encode the cover. Takes one ioctl per resize.
+    /// shortcut: terminals that report no pixel size (ws_xpixel = 0) keep the startup size; re-query them if one matters.
+    pub fn on_resize(&mut self) {
+        let (Some(p), Ok(ws)) = (self.img_picker.as_ref(), crossterm::terminal::window_size()) else { return };
+        if ws.width == 0 || ws.height == 0 || ws.columns == 0 || ws.rows == 0 {
+            return;
+        }
+        let (w, h) = (ws.width / ws.columns, ws.height / ws.rows);
+        let old = p.font_size();
+        if (w, h) == (old.width, old.height) {
+            return;
+        }
+        // The query-built picker can't change its font size; from_fontsize is the only way.
+        #[allow(deprecated)]
+        let mut np = Picker::from_fontsize(ratatui_image::FontSize::new(w, h));
+        np.set_protocol_type(p.protocol_type());
+        self.img_picker = Some(np);
+        if let Some(a) = self.art.as_mut() {
+            a.size = (0, 0); // no longer matches art_want, so refresh_media re-encodes (old cover stays up meanwhile)
+        }
+    }
+
     /// Start whatever lyrics / art fetches the current state needs. Cheap when nothing changed.
     pub fn refresh_media(&mut self) {
         let Some(now) = self.now.as_ref() else {
