@@ -9,6 +9,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/rust-2024-111111?style=flat-square&logo=rust" alt="Rust 2024">
   <img src="https://img.shields.io/badge/linux-PipeWire%20%C2%B7%20PulseAudio-111111?style=flat-square&logo=linux&logoColor=white" alt="Linux, PipeWire or PulseAudio">
+  <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white" alt="macOS on Apple Silicon">
   <img src="https://img.shields.io/badge/built%20for-CachyOS-111111?style=flat-square&logo=archlinux&logoColor=white" alt="Built for CachyOS">
   <img src="https://img.shields.io/badge/needs-Spotify%20Premium-1ed760?style=flat-square&logo=spotify&logoColor=white" alt="Requires Spotify Premium">
 </p>
@@ -31,11 +32,11 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **Your library.** Playlists, Liked Songs, albums and artists. Pinned playlists and folders sit at the top, like in the official app.
 - **Synced lyrics.** The current line lights up and stays in view, and the screen redraws exactly when the next line starts.
 - **Real album art.** It uses kitty, Ghostty, WezTerm, foot, iTerm2 or Konsole graphics when the terminal has them, and colour half-blocks everywhere else.
-- **10-band EQ** with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.
+- **10-band EQ** (Linux) with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.
 - **Spotify's own crossfade** and gapless transitions, streaming at 320 kbps.
 - **Themes,** including `cover`, which takes its accent colour from the album art that's playing.
 - **Edit as you listen.** Like and unlike, add to your playlists, remove from them. Every change is safe against edits made on your phone.
-- **Desktop native.** MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect.
+- **Desktop native** (Linux). MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
 
 ## Numbers
@@ -72,6 +73,8 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 
 ## Install
 
+### Linux
+
 ```bash
 git clone https://github.com/junaydirfan/trill && cd trill
 cargo build --release
@@ -88,6 +91,22 @@ install -Dm644 assets/trill.desktop ~/.local/share/applications/trill.desktop
 
 If the `spotify-launcher` package is installed, you can set `Icon=` to `spotify-launcher` to get Spotify's icon.
 
+### macOS (Apple Silicon)
+
+Install Apple's command line tools and Rust, then build. Nothing else is needed: audio goes through CoreAudio and TLS through the system's own Security framework.
+
+```bash
+xcode-select --install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+git clone https://github.com/junaydirfan/trill && cd trill
+cargo install --path .
+```
+
+`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH` (open a new terminal first). Then follow [Soloist setup](#soloist-setup-one-time): the steps are the same, and `--update-soloist` fetches Spotify's Apple Silicon build. What's different on a Mac is in [macOS notes](#details).
+
+> [!NOTE]
+> macOS support is new and hasn't been tested on a real Mac yet. If something breaks, `TRILL_LOG=debug trill` and `~/.cache/trill/soloist.log` are the first places to look.
+
 ### First run
 
 ```bash
@@ -102,13 +121,17 @@ Since late 2025, Spotify has been refusing audio keys to librespot on more and m
 
 1. **Get an API key** at https://developer.spotify.com/dashboard, under **Spotify Soloist API Key**. Save it so that only you can read it:
    ```bash
-   install -Dm600 /dev/null ~/.config/trill/soloist_api_key && $EDITOR ~/.config/trill/soloist_api_key
+   mkdir -p ~/.config/trill && touch ~/.config/trill/soloist_api_key && chmod 600 ~/.config/trill/soloist_api_key
+   ${EDITOR:-nano} ~/.config/trill/soloist_api_key
    ```
 2. **Install Soloist** from Spotify's CDN. Spotify's builds expire, so re-run this at least every 90 days:
    ```bash
    trill --update-soloist
    ```
-3. **Pair once.** Run `trill --pair`, then pick **trill** in the device list of the Spotify app on your phone (on the same Wi-Fi).
+3. **Pair once.** Run `trill --pair`, then pick **trill** in the device list of the Spotify app on your phone (on the same Wi-Fi). On a Mac, allow it if macOS asks about incoming connections or local network access, or your phone won't see it.
+
+> [!TIP]
+> Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
 
 trill uses Soloist automatically once the key and the binary are both in place. To force an engine, set `backend = soloist` or `backend = librespot` in the config.
 
@@ -212,6 +235,18 @@ The status line shows which search path answered: `web api` (your app), `web api
 </details>
 
 <details>
+<summary><strong>macOS notes</strong></summary>
+
+- **Apple Silicon only.** Spotify doesn't publish an Intel Mac build of Soloist. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot.
+- **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill`, not `~/Library`.
+- **No EQ.** It's a PipeWire filter, and PipeWire is Linux-only. Picking an EQ setting says so instead of starting it.
+- **No media keys or Now Playing widget.** Those come from MPRIS, which macOS doesn't have. Every key inside trill works, and your phone can still control it through Spotify Connect.
+- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover. Apple's Terminal draws it with coloured half-blocks.
+- **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically, macOS has no equivalent). Run `pkill soloist` if that happens.
+- The [Numbers](#numbers) were measured on Linux. The glibc memory tricks in [Why it's light](#why-its-light) only apply on Linux.
+</details>
+
+<details>
 <summary><strong>Debugging</strong></summary>
 
 ```bash
@@ -231,7 +266,7 @@ On many accounts, Spotify no longer hands librespot the keys to decrypt audio. t
 No. Both Soloist and librespot need a Premium account.
 
 **Only CachyOS?**
-No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works.
+No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs (see [macOS](#macos-apple-silicon)).
 
 **Why does it ask me to log in twice?**
 It only does if you set your own `client_id`. That second login is for search alone.
