@@ -96,9 +96,6 @@ trill
 
 Your browser opens once for Spotify login, which is used to browse your library. librespot then stores reusable credentials in `~/.cache/trill/credentials.json`, so later starts skip the browser. `trill --logout` deletes them.
 
-> [!TIP]
-> trill used to be called **cachify**. On its first start, trill moves `~/.config/cachify`, `~/.cache/cachify` and `~/.local/share/cachify` to their `trill` names, so your login, Soloist pairing and settings carry over.
-
 ## Soloist setup (one time)
 
 Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
