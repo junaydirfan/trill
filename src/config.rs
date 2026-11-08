@@ -82,7 +82,7 @@ impl Config {
             client_id: None,
             audio_cache_mb: 0,
             normalise: false,
-            eq: true,
+            eq: cfg!(target_os = "linux"), // PipeWire filter-chain; there is none on macOS
             art: true,
             cache_dir,
             config_dir,

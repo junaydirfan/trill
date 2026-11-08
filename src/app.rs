@@ -449,10 +449,7 @@ impl App {
                         if big {
                             // Loading a big list decodes megabytes of protobuf that is freed
                             // right away; hand those pages back to the OS instead of keeping them.
-                            // SAFETY: malloc_trim only releases free heap memory.
-                            unsafe {
-                                libc::malloc_trim(0);
-                            }
+                            crate::trim_heap();
                         }
                         if is_current {
                             self.status = format!("{title}: {} tracks", rows.len());
@@ -870,7 +867,7 @@ impl App {
                 self.status = format!("EQ: {}", self.audio.preset_name());
             }
             None if self.audio.is_flat() => self.status = format!("EQ: {}", self.audio.preset_name()),
-            None if !self.eq_allowed => self.status = "EQ is disabled (eq = off in config)".into(),
+            None if !self.eq_allowed => self.status = if cfg!(target_os = "linux") { "EQ is disabled (eq = off in config)" } else { "EQ needs PipeWire, which is Linux-only" }.into(),
             None if self.engine.is_soloist() => {
                 // First non-flat setting: start the EQ and reroute the player (short restart).
                 self.restart_at = Some(Instant::now() + std::time::Duration::from_millis(900));

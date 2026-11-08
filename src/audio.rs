@@ -9,7 +9,6 @@
 
 use std::{
     fs,
-    os::unix::process::CommandExt,
     path::{Path, PathBuf},
     process::{Command, Stdio},
     sync::mpsc,
@@ -261,8 +260,9 @@ impl Eq {
         let mut c = Command::new("pipewire");
         c.arg("-c").arg(&path).stdin(Stdio::null()).stdout(log.try_clone().map_err(|e| e.to_string())?).stderr(log);
         // SAFETY: prctl is async-signal-safe; the EQ goes away if trill dies.
+        #[cfg(target_os = "linux")]
         unsafe {
-            c.pre_exec(|| {
+            std::os::unix::process::CommandExt::pre_exec(&mut c, || {
                 libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
                 Ok(())
             });

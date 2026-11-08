@@ -6,7 +6,6 @@ description = "Lean terminal Spotify player for CachyOS"
 
 [dependencies]
 librespot-core = { version = "0.8", default-features = false, features = ["native-tls"] }
-librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "pulseaudio-backend"] }
 librespot-metadata = { version = "0.8", default-features = false, features = ["native-tls"] }
 librespot-oauth = { version = "0.8", default-features = false, features = ["native-tls"] }
 librespot-protocol = "0.8"
@@ -26,6 +25,12 @@ libc = "0.2"
 mpris-server = { version = "0.11", default-features = false, features = ["tokio"] }
 ratatui-image = { version = "11.1", default-features = false, features = ["crossterm"] }
 image = { version = "0.25", default-features = false, features = ["jpeg"] }
+
+[target.'cfg(target_os = "linux")'.dependencies]
+librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "pulseaudio-backend"] }
+
+[target.'cfg(not(target_os = "linux"))'.dependencies]
+librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "rodio-backend"] }
 
 [profile.release]
 opt-level = 3

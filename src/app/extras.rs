@@ -365,10 +365,7 @@ impl App {
             Msg::Liked(Ok(set)) => {
                 self.liked = set;
                 // The liked-songs context is a few MB of protobuf, freed by now.
-                // SAFETY: malloc_trim only releases free heap memory.
-                unsafe {
-                    libc::malloc_trim(0);
-                }
+                crate::trim_heap();
             }
             Msg::Liked(Err(e)) => log::warn!("liked songs: {e}"),
             Msg::LikeDone { row, liked, res: Err(e) } => {
@@ -400,10 +397,7 @@ impl App {
                     && a.size == size
                 {
                     // Decoding a 640 px cover allocates a few MB that's freed right away.
-                    // SAFETY: malloc_trim only releases free heap memory.
-                    unsafe {
-                        libc::malloc_trim(0);
-                    }
+                    crate::trim_heap();
                     match res {
                         Ok(p) => a.proto = Some(p),
                         Err(e) => {

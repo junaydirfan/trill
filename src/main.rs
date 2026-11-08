@@ -41,7 +41,23 @@ use crate::{
     engine::{Engine, EngineEvent, LibrespotEvents, SoloistOpts},
 };
 
-const SOLOIST_URL: &str = "https://soloist-builds.spotifycdn.com/soloist_release_x86_64.tar.gz";
+// Spotify publishes Linux x86_64/arm64 and Apple Silicon builds (no Intel Mac one).
+const SOLOIST_URL: &str = if cfg!(target_os = "macos") {
+    "https://soloist-builds.spotifycdn.com/soloist_release_osx_arm64.tar.gz"
+} else if cfg!(target_arch = "aarch64") {
+    "https://soloist-builds.spotifycdn.com/soloist_release_arm64.tar.gz"
+} else {
+    "https://soloist-builds.spotifycdn.com/soloist_release_x86_64.tar.gz"
+};
+
+/// Hands freed heap pages back to the OS (glibc only; macOS's allocator does this itself).
+pub fn trim_heap() {
+    // SAFETY: malloc_trim only releases free heap memory.
+    #[cfg(target_os = "linux")]
+    unsafe {
+        libc::malloc_trim(0);
+    }
+}
 
 fn main() {
     // SAFETY: no other threads exist yet.
@@ -98,6 +114,7 @@ fn main() {
     // Every helper thread gets its own malloc arena that is never handed back; with a few
     // short-lived DNS/file threads that's megabytes of RSS for nothing. Two arenas is plenty.
     // SAFETY: called before any other threads exist.
+    #[cfg(target_os = "linux")]
     unsafe {
         libc::mallopt(libc::M_ARENA_MAX, 2);
     }
@@ -402,8 +419,9 @@ async fn run(cfg: Config) -> i32 {
             }
         };
         mixer.set_volume((saved_vol * u16::MAX as u32 / 100) as u16);
-        let Some(backend) = audio_backend::find(Some("pulseaudio".into())) else {
-            eprintln!("pulseaudio backend missing from build");
+        // The one backend in the build: PulseAudio on Linux, CoreAudio (rodio) on macOS.
+        let Some(backend) = audio_backend::find(None) else {
+            eprintln!("no audio backend in this build");
             return 1;
         };
         let player_cfg = PlayerConfig {

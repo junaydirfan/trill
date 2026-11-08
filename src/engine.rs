@@ -10,7 +10,7 @@
 
 use std::{
     fs,
-    os::unix::process::{CommandExt, ExitStatusExt},
+    os::unix::process::ExitStatusExt,
     path::PathBuf,
     process::{Command, Stdio},
     sync::Arc,
@@ -279,8 +279,10 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
                 .stdout(log.try_clone().map_err(|e| e.to_string())?)
                 .stderr(log);
             // SAFETY: prctl is async-signal-safe; makes Soloist exit if trill dies.
+            // shortcut: macOS has no PDEATHSIG, so Soloist outlives a crashed trill there; add a parent-pid watch if that bites.
+            #[cfg(target_os = "linux")]
             unsafe {
-                c.pre_exec(|| {
+                std::os::unix::process::CommandExt::pre_exec(&mut c, || {
                     libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM);
                     Ok(())
                 });
