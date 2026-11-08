@@ -73,44 +73,13 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 - Freed heap goes back to the OS after big lists load (`malloc_trim`), and glibc is limited to 2 malloc arenas.
 - Album art is decoded and resized once per song, off the UI thread.
 
-## Install
+## Get started
 
-Ready-made binaries for Linux, macOS and Windows are on [Releases](https://github.com/junaydirfan/trill/releases). Building it yourself takes a minute or two.
+You need **Spotify Premium** and about 10 minutes. Each step only happens once.
 
-### Linux
+### 1. Install trill
 
-```bash
-git clone https://github.com/junaydirfan/trill && cd trill
-cargo build --release
-install -Dm755 target/release/trill ~/.local/bin/trill
-```
-
-Build deps (already on CachyOS): `rust`, `libpulse`, `openssl`, `pkgconf`.
-
-Optional: install the launcher so KDE shows trill's name and icon in the media widget (it also adds a menu entry).
-
-```bash
-install -Dm644 assets/trill.desktop ~/.local/share/applications/trill.desktop
-```
-
-If the `spotify-launcher` package is installed, you can set `Icon=` to `spotify-launcher` to get Spotify's icon.
-
-### macOS (Apple Silicon)
-
-Download `trill-macos-arm64.tar.gz` from [Releases](https://github.com/junaydirfan/trill/releases) and put `trill` on your `PATH`, or install Apple's command line tools and Rust and build it. Nothing else is needed: audio goes through CoreAudio and TLS through the system's own Security framework.
-
-```bash
-xcode-select --install
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
-git clone https://github.com/junaydirfan/trill && cd trill
-cargo install --path .
-```
-
-`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH` (open a new terminal first). Then follow [Soloist setup](#soloist-setup-one-time): the steps are the same, and `--update-soloist` fetches Spotify's Apple Silicon build. What's different on a Mac is in [macOS and Windows notes](#details).
-
-### Windows
-
-Paste this into PowerShell. It downloads the latest `trill.exe` into `~\.local\bin` and adds that folder to your `PATH`; no Rust needed:
+**Windows:** paste this into PowerShell. It puts `trill.exe` in `~\.local\bin` and adds that folder to your `PATH`:
 
 ```powershell
 $dir = "$HOME\.local\bin"; New-Item -ItemType Directory -Force $dir | Out-Null
@@ -119,45 +88,110 @@ Expand-Archive -Force "$env:TEMP\trill.zip" $dir
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
 ```
 
-Then open a **new** window (Windows Terminal shows real album art) so it picks up the new `PATH`. To build from source instead, install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), then run `cargo install --git https://github.com/junaydirfan/trill`.
+Then **close PowerShell and open a new window**. Only new windows know where `trill` is; the old one says "trill is not recognized". Use Windows Terminal if you can: it shows real album art, and the old console draws it with coloured blocks.
 
-[Soloist setup](#soloist-setup-one-time) is the same. In PowerShell, the key file is:
+**macOS (Apple Silicon):** paste this into Terminal, then open a new Terminal window:
+
+```bash
+mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-macos-arm64.tar.gz | tar -xz -C ~/.local/bin
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+```
+
+**Linux (x86_64):** download it, or build it (below). It needs `libpulse`, which comes with PipeWire and PulseAudio:
+
+```bash
+mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
+```
+
+<details>
+<summary><strong>Build from source instead</strong></summary>
+
+You only need Rust for this; "`cargo` is not recognized" means it isn't installed, and the downloads above don't need it.
+
+- **Linux:** needs `rust`, `libpulse`, `openssl` and `pkgconf` (all already on CachyOS).
+  ```bash
+  git clone https://github.com/junaydirfan/trill && cd trill
+  cargo build --release
+  install -Dm755 target/release/trill ~/.local/bin/trill
+  ```
+  Optional: install the launcher so KDE shows trill's name and icon in the media widget (it also adds a menu entry). With the `spotify-launcher` package installed, you can set its `Icon=` to `spotify-launcher` for Spotify's icon.
+  ```bash
+  install -Dm644 assets/trill.desktop ~/.local/share/applications/trill.desktop
+  ```
+- **macOS:** run `xcode-select --install`, install Rust from https://rustup.rs, then `cargo install --git https://github.com/junaydirfan/trill`.
+- **Windows:** install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), open a new window, then `cargo install --git https://github.com/junaydirfan/trill`.
+
+`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH`.
+</details>
+
+### 2. Get your Soloist API key
+
+trill plays music through **Soloist**, Spotify's own player ([why](#why-soloist)). Soloist needs a free API key that belongs to your Spotify account:
+
+1. Sign in at https://developer.spotify.com/dashboard with your Premium account. The first time, accept the developer terms.
+2. Open the **Soloist API Key** page and create a key. It starts with `spak_`.
+
+Everyone needs their own key, made with their own Premium account: a friend can't use yours. Keep it private, like a password. Spotify's guide: [Soloist authentication](https://developer.spotify.com/documentation/soloist/concepts/authentication).
+
+### 3. Save the key where trill looks for it
+
+**Windows (PowerShell):** this opens an empty file in Notepad. Paste the key, press Ctrl+S, and close Notepad.
 
 ```powershell
-New-Item -Force -ItemType File $HOME\.config\trill\soloist_api_key
+New-Item -Force -ItemType File $HOME\.config\trill\soloist_api_key | Out-Null
 notepad $HOME\.config\trill\soloist_api_key
 ```
 
-> [!NOTE]
-> macOS and Windows support is new and hasn't been tested on a real Mac or Windows PC yet. If something breaks, `TRILL_LOG=debug trill` and `~/.cache/trill/soloist.log` are the first places to look.
+**macOS and Linux:** this makes a file only you can read and opens it. Paste the key and save (in nano: Ctrl+O, Enter, Ctrl+X).
 
-### First run
+```bash
+mkdir -p ~/.config/trill && touch ~/.config/trill/soloist_api_key && chmod 600 ~/.config/trill/soloist_api_key
+${EDITOR:-nano} ~/.config/trill/soloist_api_key
+```
+
+### 4. Download Soloist
+
+```bash
+trill --update-soloist
+```
+
+This fetches Spotify's Soloist build for your system. Spotify's builds expire after 90 days; when trill says yours has, run this again.
+
+### 5. Pair with your phone
+
+```bash
+trill --pair
+```
+
+Open Spotify on your phone (on the same Wi-Fi), tap the devices icon and pick **trill**. On Windows or a Mac, allow it when you're asked about the firewall, incoming connections or local network access, or your phone won't see it.
+
+### 6. Play
 
 ```bash
 trill
 ```
 
-Your browser opens once for Spotify login, which is used to browse your library. librespot then stores reusable credentials in `~/.cache/trill/credentials.json`, so later starts skip the browser. `trill --logout` deletes them.
+Your browser opens once to log in to Spotify, which trill uses to browse your library. Later starts skip it (`trill --logout` forgets the login). Press `?` for every key.
 
-## Soloist setup (one time)
+### If something's wrong
 
-Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
+- **"trill is not recognized" or "command not found":** open a new terminal window after installing.
+- **"cargo is not recognized":** you only need Rust to build trill yourself. Use the download in step 1.
+- **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't saved in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`), or step 4 hasn't been run.
+- **Your phone doesn't list trill:** run `trill --pair` again with the phone on the same Wi-Fi, and allow the firewall prompt.
+- **Anything else:** run `TRILL_LOG=debug trill` (on Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then in `~/.cache/trill/trill.log`, and Soloist's in `~/.cache/trill/soloist.log`.
 
-1. **Get an API key** at https://developer.spotify.com/dashboard, under **Spotify Soloist API Key**. Save it so that only you can read it:
-   ```bash
-   mkdir -p ~/.config/trill && touch ~/.config/trill/soloist_api_key && chmod 600 ~/.config/trill/soloist_api_key
-   ${EDITOR:-nano} ~/.config/trill/soloist_api_key
-   ```
-2. **Install Soloist** from Spotify's CDN. Spotify's builds expire, so re-run this at least every 90 days:
-   ```bash
-   trill --update-soloist
-   ```
-3. **Pair once.** Run `trill --pair`, then pick **trill** in the device list of the Spotify app on your phone (on the same Wi-Fi). On a Mac or Windows, allow it if you're asked about incoming connections, local network access or the firewall, or your phone won't see it.
+> [!NOTE]
+> macOS and Windows support is new. If something doesn't work there, an issue with the log helps.
 
 > [!TIP]
 > Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
 
-trill uses Soloist automatically once the key and the binary are both in place. To force an engine, set `backend = soloist` or `backend = librespot` in the config.
+### Why Soloist
+
+Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
+
+trill uses Soloist automatically once the key and Soloist are both in place, and librespot otherwise. To force one, set `backend = soloist` or `backend = librespot` in the [config](#details).
 
 > [!NOTE]
 > Soloist only accepts the API key as a command-line argument. While it runs, anything that can list processes on this machine (`/proc/<pid>/cmdline`) can see the key. That's fine on a single-user desktop, but keep it in mind on a shared machine.
@@ -293,7 +327,7 @@ On many accounts, Spotify no longer hands librespot the keys to decrypt audio. t
 No. Both Soloist and librespot need a Premium account.
 
 **Only CachyOS?**
-No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs and Windows PCs (see [Install](#install)).
+No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs and Windows PCs (see [Get started](#get-started)).
 
 **Can I use it in WSL?**
 The Linux build should work under WSL2 with WSLg, which provides the audio. Pairing your phone with Soloist needs WSL's mirrored networking, though, so on Windows the native build is the easier choice.
