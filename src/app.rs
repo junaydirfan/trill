@@ -37,6 +37,23 @@ pub enum Msg {
     /// Accent colour picked from a cover (`None`: black-and-white cover).
     Tint { url: String, tint: Option<[u8; 3]> },
     PlaylistEdit { playlist: String, name: String, row: Row, add: bool, res: Result<(), String> },
+    /// Smart-shuffle recommendations for the list `list`.
+    Recs { list: String, rows: Vec<Row> },
+    /// The playlists (not already loaded) that hold the song "Add to playlist" is open for.
+    Holding { track: String, playlists: Vec<String> },
+}
+
+/// Put one of `recs` after every 3 entries of `order[from..]`; leftovers aren't used.
+fn weave(order: &mut Vec<usize>, from: usize, mut recs: std::ops::Range<usize>) {
+    let tail = order.split_off(from.min(order.len()));
+    for (i, t) in tail.into_iter().enumerate() {
+        order.push(t);
+        if i % 3 == 2
+            && let Some(r) = recs.next()
+        {
+            order.push(r);
+        }
+    }
 }
 
 /// Sidebar entries above the playlists: Liked Songs, Albums, Artists, Queue, Search.
@@ -203,6 +220,12 @@ pub struct App {
 
     // playback
     ctx: Rows,
+    /// ctx[..base] is the list; ctx[base..] are smart-shuffle recommendations.
+    base: usize,
+    /// The list the playing context came from (uri, title), for `w`.
+    ctx_src: (String, String),
+    /// `w` opened that list: select the playing song once it's shown.
+    jump: bool,
     order: Vec<usize>,
     cursor: usize,
     pub queue: VecDeque<Row>,
@@ -219,6 +242,8 @@ pub struct App {
     vol_set_at: Instant,
     skips: u32,
     pub shuffle: bool,
+    /// Smart shuffle: a recommendation after every few songs (only with `shuffle`).
+    pub smart: bool,
     pub repeat: Repeat,
     rng: u64,
 
@@ -255,7 +280,7 @@ impl App {
         eq: Option<Eq>,
     ) -> Self {
         let user = session.username();
-        let (shuffle, sort) = (audio.shuffle, Sort::ALL[(audio.sort as usize).min(Sort::ALL.len() - 1)]);
+        let (shuffle, smart, sort) = (audio.shuffle, audio.smart, Sort::ALL[(audio.sort as usize).min(Sort::ALL.len() - 1)]);
         let repeat = [Repeat::Off, Repeat::All, Repeat::One][audio.repeat.min(2) as usize];
         let (theme, tint) = (audio.theme, audio.tint.map(|c| (String::new(), Some(c))));
         let side = vec![
@@ -303,6 +328,9 @@ impl App {
             loading: false,
             quit: false,
             ctx: Arc::new(Vec::new()),
+            base: 0,
+            ctx_src: (String::new(), String::new()),
+            jump: false,
             order: Vec::new(),
             cursor: 0,
             queue: VecDeque::new(),
@@ -316,6 +344,7 @@ impl App {
             vol_set_at: Instant::now().checked_sub(std::time::Duration::from_secs(10)).unwrap_or_else(Instant::now),
             skips: 0,
             shuffle,
+            smart: shuffle && smart,
             repeat,
             rng: seed,
             liked: HashSet::new(),
@@ -391,6 +420,43 @@ impl App {
         let (rows, sort) = sorted(self.sort, &uri, rows);
         let sel = if rows.is_empty() { None } else { Some(0) };
         self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), sort };
+        if std::mem::take(&mut self.jump) {
+            self.select_now();
+        }
+    }
+
+    /// `w`: show the playing song in the list it's playing from.
+    fn jump_to_now(&mut self) {
+        if self.now.is_none() {
+            self.status = "Nothing is playing.".into();
+            return;
+        }
+        self.lyrics_open = false;
+        self.focus = Focus::Main;
+        if self.select_now() {
+            return;
+        }
+        let (uri, title) = self.ctx_src.clone();
+        match uri.as_str() {
+            "" => self.status = "It isn't playing from a list.".into(),
+            "trill:search" => {
+                let rows = self.search_rows.clone();
+                self.jump = true;
+                self.show(uri, title, rows);
+            }
+            _ => {
+                self.jump = true;
+                self.open(uri, title, true, false);
+            }
+        }
+    }
+
+    /// Select the playing song if the open list has it.
+    fn select_now(&mut self) -> bool {
+        let Some(now) = self.now.as_ref() else { return false };
+        let Some(i) = self.view.rows.iter().position(|r| r.uri == now.uri) else { return false };
+        self.view.state.select(Some(i));
+        true
     }
 
     /// Step through the sort modes (`back`: the other way round).
@@ -441,7 +507,11 @@ impl App {
         }
         let start = if self.now.is_some() { self.cursor + 1 } else { self.cursor };
         for p in start..(start + 100).min(self.order.len()) {
-            rows.push(self.ctx[self.order[p]].clone());
+            let mut r = self.ctx[self.order[p]].clone();
+            if self.order[p] >= self.base {
+                r.title = format!("✦ {}", r.title);
+            }
+            rows.push(r);
             self.queue_src.push(QSrc::Upcoming(p));
         }
         self.show("trill:queue".into(), format!("Queue — {} manual, {} upcoming", self.queue.len(), rows.len().saturating_sub(self.queue.len() + self.now.is_some() as usize)), Arc::new(rows));
@@ -545,7 +615,7 @@ impl App {
 
     /// Rebuild `order`, keeping the current track at the cursor.
     fn reorder(&mut self, keep: Option<usize>) {
-        self.order = (0..self.ctx.len()).collect();
+        self.order = (0..self.base).collect();
         if self.shuffle {
             for i in (1..self.order.len()).rev() {
                 let j = (self.rand() % (i as u64 + 1)) as usize;
@@ -560,6 +630,27 @@ impl App {
         } else {
             self.cursor = keep.unwrap_or(0);
         }
+    }
+
+    /// Smart shuffle: one recommendation after every 3 songs still to come.
+    fn weave(&mut self) {
+        if self.smart {
+            weave(&mut self.order, self.cursor + 1, self.base..self.ctx.len());
+        }
+    }
+
+    /// Whether `uri` is playing as a smart-shuffle recommendation (shown with ✦).
+    pub fn is_rec(&self, uri: &str) -> bool {
+        self.smart && self.ctx[self.base..].iter().any(|r| r.uri == uri)
+    }
+
+    fn fetch_recs(&self) {
+        let (s, tx, list) = (self.session.clone(), self.tx.clone(), self.ctx_src.0.clone());
+        let Some(track) = self.now.as_ref().or(self.ctx.first()).map(|r| r.uri.clone()) else { return };
+        tokio::spawn(async move {
+            let rows = api::recommendations(&s, &list, &track).await;
+            let _ = tx.send(Msg::Recs { list, rows });
+        });
     }
 
     fn load(&mut self, row: Row) {
@@ -583,10 +674,15 @@ impl App {
         let before = rows[..idx].iter().filter(|r| r.kind == Kind::Track).count();
         let pos = if tracks.get(before).map(|r| &r.uri) == Some(target) { before } else { 0 };
         self.ctx = if tracks.len() == rows.len() { rows.clone() } else { Arc::new(tracks) };
+        self.ctx_src = (self.view.uri.clone(), self.view.title.clone());
+        self.base = self.ctx.len();
         self.reorder(Some(pos));
         self.skips = 0;
         let row = self.ctx[self.order[self.cursor]].clone();
         self.load(row);
+        if self.smart {
+            self.fetch_recs();
+        }
     }
 
     fn peek_next(&self) -> Option<Row> {
@@ -719,6 +815,7 @@ impl App {
     /// Write the keyboard toggles (shuffle, repeat, sort, art) next to the EQ settings.
     pub(crate) fn save_prefs(&mut self) {
         self.audio.shuffle = self.shuffle;
+        self.audio.smart = self.smart;
         self.audio.repeat = self.repeat as u8;
         self.audio.sort = self.sort as u8;
         self.audio.art = self.art_on;
@@ -1025,7 +1122,7 @@ impl App {
             }
             Remote::Shuffle(on) => {
                 if on != self.shuffle {
-                    self.toggle_shuffle()
+                    self.set_shuffle(on, false)
                 }
             }
             Remote::Loop(r) => {
@@ -1036,12 +1133,30 @@ impl App {
         }
     }
 
+    /// `s`: shuffle off → on → smart → off.
     fn toggle_shuffle(&mut self) {
-        self.shuffle = !self.shuffle;
+        match (self.shuffle, self.smart) {
+            (false, _) => self.set_shuffle(true, false),
+            (true, false) => self.set_shuffle(true, true),
+            (true, true) => self.set_shuffle(false, false),
+        }
+    }
+
+    fn set_shuffle(&mut self, on: bool, smart: bool) {
+        (self.shuffle, self.smart) = (on, on && smart);
         self.save_prefs();
-        let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]);
+        // A playing recommendation isn't in the list's order; carry on from the list.
+        let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]).filter(|&c| c < self.base);
         self.reorder(cur);
-        self.status = format!("Shuffle {}", if self.shuffle { "on" } else { "off" });
+        self.weave();
+        if self.smart && self.ctx.len() == self.base && !self.ctx.is_empty() {
+            self.fetch_recs();
+        }
+        self.status = match (self.shuffle, self.smart) {
+            (true, true) => "Smart shuffle: a recommendation (✦) after every 3 songs".into(),
+            (true, false) => "Shuffle on".into(),
+            _ => "Shuffle off".into(),
+        };
     }
 
     // ---------------------------------------------------------------- keys
@@ -1234,6 +1349,7 @@ impl App {
             }
             KeyCode::Char('f') => self.toggle_like(),
             KeyCode::Char('P') => self.play_all(),
+            KeyCode::Char('w') => self.jump_to_now(),
             KeyCode::Char('A') => self.open_chooser(),
             KeyCode::Char('D') => self.remove_from_playlist(),
             KeyCode::Char('L') => self.toggle_lyrics(),
@@ -1247,6 +1363,17 @@ impl App {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn smart_shuffle_mixes_after_the_cursor() {
+        // 8 songs (0..8) with 2 recommendations (8, 9); song at position 1 is playing.
+        let mut order: Vec<usize> = (0..8).collect();
+        weave(&mut order, 2, 8..10);
+        assert_eq!(order, [0, 1, 2, 3, 4, 8, 5, 6, 7, 9]);
+        let mut short = vec![0, 1];
+        weave(&mut short, 5, 2..4);
+        assert_eq!(short, [0, 1]);
+    }
 
     fn row(title: &str, artist: &str, album: &str, ms: u32, added: u64) -> api::Row {
         api::Row {

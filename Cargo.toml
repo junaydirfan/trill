@@ -32,6 +32,13 @@ librespot-playback = { version = "0.8", default-features = false, features = ["n
 [target.'cfg(not(target_os = "linux"))'.dependencies]
 librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "rodio-backend"] }
 
+# macOS Now Playing (media keys, Control Center): Apple's MediaPlayer framework.
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+block2 = "0.6"
+objc2-foundation = { version = "0.3", default-features = false, features = ["std", "NSString", "NSDictionary", "NSValue", "NSRunLoop", "NSDate", "NSObject", "NSObjCRuntime"] }
+objc2-media-player = { version = "0.3", default-features = false, features = ["std", "block2", "MPRemoteCommandCenter", "MPRemoteCommand", "MPRemoteCommandEvent", "MPNowPlayingInfoCenter", "MPMediaItem"] }
+
 [profile.release]
 opt-level = 3
 lto = "fat"

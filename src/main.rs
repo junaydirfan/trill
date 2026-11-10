@@ -77,13 +77,22 @@ fn main() {
         }
     }
 
+    // after set_var: AppKit may start threads of its own
+    #[cfg(target_os = "macos")]
+    mpris::prepare();
+
     let has = |flag: &str| env::args().any(|a| a == flag);
+    if has("-V") || has("--version") {
+        println!("trill {}", env!("CARGO_PKG_VERSION"));
+        return;
+    }
     if has("-h") || has("--help") {
         println!("trill — lean terminal Spotify player (Premium required)\n");
         println!("  trill                   start (first run opens a browser to log in)");
         println!("  trill --update-soloist  download/refresh Spotify's Soloist player (every <90 days)");
         println!("  trill --pair            pair Soloist once via the Spotify app on your phone");
-        println!("  trill --logout          forget saved logins\n");
+        println!("  trill --logout          forget saved logins");
+        println!("  trill --version         which version this is\n");
         println!("Config: ~/.config/trill/config   Logs: TRILL_LOG=debug trill");
         return;
     }
@@ -466,6 +475,11 @@ async fn run(cfg: Config) -> i32 {
                     let n = t.iter().filter(|t| a[1..].contains(&t.uri)).count();
                     eprintln!("{} liked; {n} of {} given are liked", t.len(), a.len() - 1);
                 })
+            }
+            Some("recs") => {
+                let rows = api::recommendations(&session, &a[1], a.get(2).map_or("", String::as_str)).await;
+                eprintln!("{} recs; first: {:?}", rows.len(), rows.iter().take(6).map(|r| format!("{} — {}", r.title, r.artist)).collect::<Vec<_>>());
+                Ok(())
             }
             Some("pins") => library::pins(&session).await.map(|p| p.iter().for_each(|u| eprintln!("{u}"))),
             Some("all") => match api::context_rows(&session, &a[1]).await {

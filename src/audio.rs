@@ -49,6 +49,8 @@ pub struct AudioSettings {
     pub custom: [f32; 10],
     pub crossfade_s: u32,
     pub shuffle: bool,
+    /// Smart shuffle: recommendations mixed in (only with `shuffle`).
+    pub smart: bool,
     /// 0 off, 1 all, 2 one
     pub repeat: u8,
     /// Index into [`SORTS`].
@@ -68,6 +70,7 @@ impl AudioSettings {
             custom: [0.0; 10],
             crossfade_s: 0,
             shuffle: false,
+            smart: false,
             repeat: 0,
             sort: 0,
             art: true,
@@ -93,7 +96,7 @@ impl AudioSettings {
                     }
                 }
                 "crossfade" => s.crossfade_s = v.trim().parse::<u32>().unwrap_or(0).min(12),
-                "shuffle" => s.shuffle = v.trim() == "on",
+                "shuffle" => (s.shuffle, s.smart) = (matches!(v.trim(), "on" | "smart"), v.trim() == "smart"),
                 "repeat" => s.repeat = ["off", "all", "one"].iter().position(|r| *r == v.trim()).unwrap_or(0) as u8,
                 "sort" => s.sort = SORTS.iter().position(|n| *n == v.trim()).unwrap_or(0) as u8,
                 "art" => s.art = v.trim() != "off",
@@ -115,7 +118,7 @@ impl AudioSettings {
             "preset={}\ncustom={custom}\ncrossfade={}\nshuffle={}\nrepeat={}\nsort={}\nart={}\ntheme={}\n",
             self.preset_name(),
             self.crossfade_s,
-            on(self.shuffle),
+            if self.shuffle && self.smart { "smart" } else { on(self.shuffle) },
             ["off", "all", "one"][self.repeat.min(2) as usize],
             SORTS[(self.sort as usize).min(SORTS.len() - 1)],
             on(self.art),
@@ -381,12 +384,12 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("trill-test-prefs-{}", std::process::id()));
         let mut a = AudioSettings::load(&dir);
         assert!(!a.shuffle && a.repeat == 0 && a.sort == 0 && a.art);
-        (a.shuffle, a.repeat, a.sort, a.art, a.crossfade_s) = (true, 2, 4, false, 6);
+        (a.shuffle, a.smart, a.repeat, a.sort, a.art, a.crossfade_s) = (true, true, 2, 4, false, 6);
         (a.theme, a.tint) = (crate::theme::COVER, Some([224, 135, 99]));
         a.save();
         let b = AudioSettings::load(&dir);
         let _ = fs::remove_dir_all(&dir);
-        assert!(b.shuffle && b.repeat == 2 && b.sort == 4 && !b.art && b.crossfade_s == 6);
+        assert!(b.shuffle && b.smart && b.repeat == 2 && b.sort == 4 && !b.art && b.crossfade_s == 6);
         assert!(b.theme == crate::theme::COVER && b.tint == Some([224, 135, 99]));
     }
 }

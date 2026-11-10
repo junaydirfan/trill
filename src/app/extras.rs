@@ -5,6 +5,7 @@
 //! never run on the UI path; results come back as `Msg`s.
 
 use std::{
+    collections::HashSet,
     sync::Arc,
     time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
@@ -45,8 +46,10 @@ pub struct Chooser {
     pub track: Row,
     pub filter: String,
     pub sel: usize,
-    /// Track is already in the highlighted playlist; Enter again adds a duplicate.
-    pub confirm: Option<String>,
+    /// Playlists that hold the song (✓); Enter on one removes it.
+    pub holding: HashSet<String>,
+    /// Still asking Spotify about the playlists not loaded yet.
+    pub checking: bool,
 }
 
 impl Chooser {
@@ -208,7 +211,27 @@ impl App {
             self.status = "None of your playlists can be edited.".into();
             return;
         }
-        self.chooser = Some(Chooser { track, filter: String::new(), sel: 0, confirm: None });
+        // Loaded playlists answer right away; the others are fetched (uris only).
+        let mut holding = HashSet::new();
+        let mut ask = Vec::new();
+        for s in self.side.iter().filter(|s| s.kind == SideKind::Playlist && s.editable) {
+            match self.cache.get(&s.uri) {
+                Some(rows) if rows.iter().any(|r| r.uri == track.uri) => {
+                    holding.insert(s.uri.clone());
+                }
+                Some(_) => {}
+                None => ask.push(s.uri.clone()),
+            }
+        }
+        let checking = !ask.is_empty();
+        if checking {
+            let (s, tx, t) = (self.session.clone(), self.tx.clone(), track.uri.clone());
+            tokio::spawn(async move {
+                let playlists = library::playlists_with(s, ask, t.clone()).await;
+                let _ = tx.send(Msg::Holding { track: t, playlists });
+            });
+        }
+        self.chooser = Some(Chooser { track, filter: String::new(), sel: 0, holding, checking });
     }
 
     pub(super) fn on_chooser_key(&mut self, k: KeyEvent) {
@@ -229,28 +252,28 @@ impl App {
                 c.sel = 0;
             }
             KeyCode::Enter => {
-                let Some((uri, name)) = c.matches(self).get(c.sel).map(|(u, n)| (u.to_string(), n.to_string())) else {
-                    self.chooser = Some(c);
-                    return;
-                };
-                let dupe = self.cache.get(&uri).is_some_and(|rows| rows.iter().any(|r| r.uri == c.track.uri));
-                if dupe && c.confirm.as_deref() != Some(uri.as_str()) {
-                    self.status = format!("“{}” is already in {name}. Enter again to add it anyway.", c.track.title);
-                    c.confirm = Some(uri);
-                    self.chooser = Some(c);
-                    return;
+                if let Some((uri, name)) = c.matches(self).get(c.sel).map(|(u, n)| (u.to_string(), n.to_string())) {
+                    // Toggle, like the ✓ boxes in the official "Save in" dialog; stays open for more.
+                    let add = !c.holding.contains(&uri);
+                    if add {
+                        c.holding.insert(uri.clone());
+                    } else {
+                        c.holding.remove(&uri);
+                    }
+                    self.status = format!("{} “{}” {} {name}…", if add { "Adding" } else { "Removing" }, c.track.title, if add { "to" } else { "from" });
+                    let (s, tx, row) = (self.session.clone(), self.tx.clone(), c.track.clone());
+                    tokio::spawn(async move {
+                        let res = if add {
+                            library::playlist_add(&s, &uri, &row.uri).await
+                        } else {
+                            library::playlist_remove(&s, &uri, &row.uri).await
+                        };
+                        let _ = tx.send(Msg::PlaylistEdit { playlist: uri, name, row, add, res });
+                    });
                 }
-                self.status = format!("Adding “{}” to {name}…", c.track.title);
-                let (s, tx, row) = (self.session.clone(), self.tx.clone(), c.track);
-                tokio::spawn(async move {
-                    let res = library::playlist_add(&s, &uri, &row.uri).await;
-                    let _ = tx.send(Msg::PlaylistEdit { playlist: uri, name, row, add: true, res });
-                });
-                return;
             }
             _ => {}
         }
-        c.confirm = None;
         self.chooser = Some(c);
     }
 
@@ -491,8 +514,38 @@ impl App {
                         }
                     });
                 }
-                Err(e) => self.status = format!("Couldn't change {name}: {e}"),
+                Err(e) => {
+                    self.status = format!("Couldn't change {name}: {e}");
+                    // undo the ✓ we showed straight away
+                    if let Some(c) = self.chooser.as_mut().filter(|c| c.track.uri == row.uri) {
+                        if add {
+                            c.holding.remove(&playlist);
+                        } else {
+                            c.holding.insert(playlist);
+                        }
+                    }
+                }
             },
+            Msg::Recs { list, rows } => {
+                if !self.smart || list != self.ctx_src.0 || self.ctx.len() != self.base {
+                    return;
+                }
+                if rows.is_empty() {
+                    self.status = "Spotify has no recommendations for this list.".into();
+                    return;
+                }
+                let have: std::collections::HashSet<&str> = self.ctx.iter().map(|r| r.uri.as_str()).collect();
+                let mut ctx: Vec<Row> = self.ctx.to_vec();
+                ctx.extend(rows.into_iter().filter(|r| !have.contains(r.uri.as_str())));
+                self.ctx = Arc::new(ctx);
+                self.weave();
+            }
+            Msg::Holding { track, playlists } => {
+                if let Some(c) = self.chooser.as_mut().filter(|c| c.track.uri == track) {
+                    c.holding.extend(playlists);
+                    c.checking = false;
+                }
+            }
             _ => {}
         }
     }

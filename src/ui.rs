@@ -279,7 +279,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
         flags.push_str(&format!("  xfade {}s", app.audio.crossfade_s));
     }
     if app.shuffle {
-        flags.push_str("  shuffle");
+        flags.push_str(if app.smart { "  smart shuffle" } else { "  shuffle" });
     }
     match app.repeat {
         Repeat::All => flags.push_str("  repeat"),
@@ -292,7 +292,11 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
     match &app.now {
         Some(r) => {
             let icon = if app.playing { "▶" } else { "⏸" };
-            let heart = if app.liked.contains(&r.uri) { " ♥" } else { "" };
+            let heart = match (app.liked.contains(&r.uri), app.is_rec(&r.uri)) {
+                (true, _) => " ♥",
+                (false, true) => " ✦",
+                _ => "",
+            };
             let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length((flags.len() as u16 + 1).min(line1.width / 3))]).areas(line1);
             f.render_widget(
                 Paragraph::new(Line::from(vec![
@@ -390,7 +394,7 @@ fn draw_chooser(f: &mut Frame, app: &App) {
     let h = 18.min(area.height.saturating_sub(2));
     let rect = Rect { x: area.x + area.width.saturating_sub(w) / 2, y: area.y + area.height.saturating_sub(h) / 2, width: w, height: h };
     f.render_widget(Clear, rect);
-    let blk = block("Add to playlist", true);
+    let blk = block(if c.checking { "Add to playlist · checking…" } else { "Add to playlist" }, true);
     let inner = blk.inner(rect);
     f.render_widget(blk, rect);
     let [song, filter, list, help] =
@@ -400,11 +404,11 @@ fn draw_chooser(f: &mut Frame, app: &App) {
     let matches = c.matches(app);
     let visible = list.height as usize;
     let off = c.sel.saturating_sub(visible.saturating_sub(1));
-    let items: Vec<ListItem> = matches.iter().skip(off).take(visible).map(|(_, n)| ListItem::new(format!(" {n}"))).collect();
+    let items: Vec<ListItem> = matches.iter().skip(off).take(visible).map(|(u, n)| ListItem::new(format!(" {} {n}", if c.holding.contains(*u) { "✓" } else { " " }))).collect();
     let mut st = ratatui::widgets::ListState::default().with_selected((!matches.is_empty()).then_some(c.sel - off));
     let l = if matches.is_empty() { List::new(vec![ListItem::new(" no matching playlists").dim()]) } else { List::new(items) };
     f.render_stateful_widget(l.highlight_style(Style::new().fg(on_accent()).bg(accent())), list, &mut st);
-    f.render_widget(Paragraph::new(" type to filter · ↑↓ pick · ⏎ add · Esc cancel").dim(), help);
+    f.render_widget(Paragraph::new(" type to filter · ⏎ add / remove ✓ · Esc done").dim(), help);
 }
 
 
@@ -415,7 +419,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("n  p", "next / previous"),
         ("← →  , .", "seek ±10 s"),
         ("+  -", "volume ±5%"),
-        ("s", "shuffle"),
+        ("s", "shuffle: off → on → smart"),
         ("r", "repeat: off → all → one"),
         ("x", "crossfade off / 3 / 5 / 8 / 12 s"),
         ("P", "play everything in the list"),
@@ -423,7 +427,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
     ("Library", &[
         ("f", "like · save album · follow artist"),
         ("a", "add to queue"),
-        ("A", "add to a playlist"),
+        ("A", "add to / remove from a playlist"),
         ("D D", "remove from the open playlist"),
     ]),
     ("Browse", &[
@@ -434,6 +438,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("/", "search"),
         ("o  O", "next / previous sort order"),
         ("c", "show the queue"),
+        ("w", "jump to the playing song"),
         ("R", "reload the current list"),
     ]),
     ("View", &[

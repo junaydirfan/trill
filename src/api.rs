@@ -513,6 +513,28 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
     rows
 }
 
+/// Songs Spotify recommends for a list (its radio station), for smart shuffle. Seeded by
+/// the list (playlists, albums, artists), else by `track` (Liked Songs, search). Up to 50.
+pub async fn recommendations(session: &Session, list: &str, track: &str) -> Vec<Row> {
+    async fn station(session: &Session, seed: &str) -> Vec<String> {
+        let scope = if seed.starts_with("spotify:track:") { "tracks" } else { "stations" };
+        let Ok(body) = session.spclient().get_apollo_station(scope, seed, Some(50), Vec::new(), false).await else {
+            return Vec::new();
+        };
+        let v: Value = serde_json::from_slice(&body).unwrap_or_default();
+        station_uris(&v)
+    }
+    let mut uris = if list.starts_with("spotify:") { station(session, list).await } else { Vec::new() };
+    if uris.is_empty() {
+        uris = station(session, track).await;
+    }
+    track_rows(session, uris).await
+}
+
+fn station_uris(v: &Value) -> Vec<String> {
+    v["tracks"].as_array().into_iter().flatten().filter_map(|t| t["uri"].as_str()).filter(|u| u.starts_with("spotify:track:")).map(String::from).collect()
+}
+
 /// Rows in the context's own order (playlist order, album order…), with `added_at` set.
 pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
     if uri.starts_with("spotify:folder:") {
@@ -714,6 +736,16 @@ pub async fn search(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn reads_station_tracks() {
+        let v: Value = serde_json::from_str(
+            r#"{"tracks":[{"uri":"spotify:track:a"},{"uri":"spotify:episode:b"},{"name":"no uri"},{"uri":"spotify:track:c"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(station_uris(&v), ["spotify:track:a", "spotify:track:c"]);
+        assert!(station_uris(&Value::Null).is_empty());
+    }
 
     #[test]
     fn album_rows_show_year_and_type() {

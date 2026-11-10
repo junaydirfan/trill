@@ -200,6 +200,24 @@ pub async fn playlist_add(session: &Session, playlist: &str, track: &str) -> Res
     send_changes(session, playlist, list.revision().to_vec(), op).await
 }
 
+/// Which of `playlists` already hold `track` (for the ✓ in "Add to playlist"); 16 fetched
+/// at a time. A playlist that fails to load counts as not holding it.
+pub async fn playlists_with(session: Session, playlists: Vec<String>, track: String) -> Vec<String> {
+    use futures_util::{StreamExt, stream};
+    stream::iter(playlists)
+        .map(|p| {
+            let (s, t) = (session.clone(), track.clone());
+            async move {
+                let list = fetch_playlist(&s, &p).await.ok()?;
+                list.contents.as_ref()?.items.iter().any(|it| it.uri() == t).then_some(p)
+            }
+        })
+        .buffer_unordered(16)
+        .filter_map(|p| async { p })
+        .collect()
+        .await
+}
+
 /// Remove the first occurrence of a track. The current playlist is fetched first so the
 /// index is never stale (e.g. edited from the phone meanwhile).
 pub async fn playlist_remove(session: &Session, playlist: &str, track: &str) -> Res<()> {

@@ -37,8 +37,9 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **10-band EQ** (Linux) with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.
 - **Spotify's own crossfade** and gapless transitions, streaming at 320 kbps.
 - **Themes,** including `cover`, which takes its accent colour from the album art that's playing.
-- **Edit as you listen.** Like and unlike, add to your playlists, remove from them. Every change is safe against edits made on your phone.
-- **Desktop native** (Linux). MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect.
+- **Smart shuffle.** Like Spotify's: a recommended song (✦) after every three of yours, picked from the list's own Spotify radio.
+- **Edit as you listen.** Like and unlike, add to your playlists and remove from them; a ✓ shows which playlists already have the song. Every change is safe against edits made on your phone.
+- **Desktop native.** On Linux, MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect. On macOS, the media keys, Control Center and the lock screen control trill.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
 
 ## Numbers
@@ -173,6 +174,33 @@ trill
 
 Your browser opens once to log in to Spotify, which trill uses to browse your library. Later starts skip it (`trill --logout` forgets the login). Press `?` for every key.
 
+### Updating
+
+Run the download again; it replaces the old trill. Quit trill first (on Windows the file is locked while it runs). Your login, key, pairing and settings stay. `trill --version` shows what you have, and the [releases page](https://github.com/junaydirfan/trill/releases) what's new.
+
+**Windows** (PowerShell):
+
+```powershell
+Invoke-WebRequest https://github.com/junaydirfan/trill/releases/latest/download/trill-windows-x86_64.zip -OutFile "$env:TEMP\trill.zip"
+Expand-Archive -Force "$env:TEMP\trill.zip" "$HOME\.local\bin"
+```
+
+**macOS:**
+
+```bash
+curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-macos-arm64.tar.gz | tar -xz -C ~/.local/bin
+```
+
+**Linux:**
+
+```bash
+curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
+```
+
+Built it yourself? Run `cargo install --git https://github.com/junaydirfan/trill --force`, or `git pull` and build again in your clone.
+
+Soloist updates separately: when trill says your Soloist build has expired (Spotify's builds last 90 days), run `trill --update-soloist`.
+
 ### If something's wrong
 
 - **"trill is not recognized" or "command not found":** open a new terminal window after installing.
@@ -207,12 +235,13 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | key | action | | key | action |
 |---|---|---|---|---|
 | `↑↓` `jk` `PgUp/PgDn` `g/G` | move | | `f` | like a song · save an album · follow an artist |
-| `Tab` `h` `l` | switch pane | | `A` | add to a playlist (type to filter) |
+| `Tab` `h` `l` | switch pane | | `A` | add to or remove from a playlist (✓ = already in it) |
 | `Enter` | play / open | | `D` `D` | remove from the open playlist |
 | `Esc` `Backspace` | back | | `L` | lyrics |
 | `Space` | play / pause | | `i` | album art on / off |
 | `n` / `p` | next / previous | | `t` | next colour theme |
-| `←→` or `,` `.` | seek ±10 s | | `s` / `r` | shuffle / repeat (off → all → one) |
+| `w` | jump to the playing song | | `s` | shuffle: off → on → smart |
+| `←→` or `,` `.` | seek ±10 s | | `r` | repeat: off → all → one |
 | `+` / `-` | volume ±5% | | `o` / `O` | next / previous sort order |
 | `a` | add to queue | | `e` / `E` | next EQ preset / EQ panel |
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
@@ -229,8 +258,10 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 - **Pins:** playlists and folders you pinned in Spotify sit at the top of the library, newest pin first. Opening a pinned folder lists its playlists. trill can't pin or unpin, because Spotify ignores pin changes from third-party clients, so pin them from the official app.
 - **Albums and Artists:** the two entries under Liked Songs list your saved albums and the artists you follow, most recent first, and sort like playlists. Opening an artist shows their top tracks, then their albums, singles, EPs and compilations, newest first.
 - **Liking, saving, following:** `f` likes or unlikes the highlighted song, saves or unsaves the highlighted album, and follows or unfollows the highlighted artist. With nothing highlighted, it likes the song playing. Everything in your library shows a ♥, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
+- **Smart shuffle:** `s` steps through off, shuffle and smart shuffle. Smart shuffle plays your list shuffled with a song Spotify recommends after every three, marked ✦ in the now-playing line and the queue (`c`). They come from the list's Spotify radio (playlists, albums, artists), or the playing song's radio for Liked Songs and search results. Like in Spotify, they're only played, not added; `f` or `A` keeps one you like.
+- **Jump to the playing song:** `w` opens the list it's playing from and highlights it.
 - **Play all:** `P` plays every track in the open list, opening the albums and playlists in it. On an artist page that's the whole discography, top tracks first, without repeats (about 1 s for ~100 songs).
-- **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. It warns before adding a song that's already there. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.
+- **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. A ✓ marks the ones that already have the song. `Enter` adds it, or removes it from a ✓ playlist, and the picker stays open for more until `Esc`. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.
 
 These actions go through the same private Spotify API as the rest of trill (not the Web API), so no rate limits apply. Each one takes about 0.4–0.5 s to reach Spotify.
 </details>
@@ -301,8 +332,8 @@ The status line shows which search path answered: `web api` (your app), `web api
 - **Which machines:** Apple Silicon Macs and x86_64 Windows, because those are the Soloist builds Spotify publishes. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot. ARM Windows runs the x86_64 build through emulation.
 - **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill` (on Windows, under `C:\Users\<you>`), not `~/Library` or `%APPDATA%`.
 - **No EQ.** It's a PipeWire filter, and PipeWire is Linux-only. Picking an EQ setting says so instead of starting it.
-- **No media keys or Now Playing widget.** Those come from MPRIS, which only Linux has. Every key inside trill works, and your phone can still control it through Spotify Connect.
-- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal and the old Windows console draw it with coloured half-blocks.
+- **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song (no cover yet). Windows has no media-key support yet. Every key inside trill works everywhere, and your phone can control it through Spotify Connect.
+- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal can't draw images, so there the cover is coloured half-blocks and looks blurry and blocky; use one of the others on a Mac for a sharp cover. The old Windows console also uses half-blocks.
 - **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically). Run `pkill soloist` on a Mac or `taskkill /IM soloist.exe /F` on Windows if that happens.
 - The [Numbers](#numbers) were measured on Linux. The glibc memory tricks in [Why it's light](#why-its-light) only apply on Linux.
 </details>
