@@ -98,6 +98,9 @@ mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/release
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
 ```
 
+> [!NOTE]
+> Album art looks pixelated in Apple's Terminal. That's a known limit of Terminal, not trill: it can't display images, so trill draws the cover with coloured blocks. For the real cover, run trill in [Ghostty](https://ghostty.org) or [iTerm2](https://iterm2.com) (both free). trill picks them up by itself.
+
 **Linux (x86_64):** download it, or build it (below). It needs `libpulse`, which comes with PipeWire and PulseAudio:
 
 ```bash
@@ -212,6 +215,7 @@ Soloist updates separately: when trill says your Soloist build has expired (Spot
 - **"trill is not recognized" or "command not found":** open a new terminal window after installing.
 - **"cargo is not recognized":** you only need Rust to build trill yourself. Use the download in step 1.
 - **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't saved in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`), or step 4 hasn't been run.
+- **Album art looks pixelated or blocky:** your terminal can't display images, so trill draws the cover with coloured blocks. This is always the case in Apple's Terminal, Alacritty and the old Windows console. Use Ghostty, kitty, WezTerm, iTerm2 or Windows Terminal for the real cover.
 - **Your phone doesn't list trill:** run `trill --pair` again with the phone on the same Wi-Fi, and allow the firewall prompt.
 - **Anything else:** run `TRILL_LOG=debug trill` (on Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then in `~/.cache/trill/trill.log`, and Soloist's in `~/.cache/trill/soloist.log`.
 
@@ -338,7 +342,7 @@ The status line shows which search path answered: `web api` (your app), `web api
 - **Which machines:** Apple Silicon Macs and x86_64 Windows, because those are the Soloist builds Spotify publishes. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot. ARM Windows runs the x86_64 build through emulation.
 - **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill` (on Windows, under `C:\Users\<you>`), not `~/Library` or `%APPDATA%`.
 - **No EQ.** It's a PipeWire filter, and PipeWire is Linux-only. Picking an EQ setting says so instead of starting it.
-- **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song (no cover yet). Windows has no media-key support yet. Every key inside trill works everywhere, and your phone can control it through Spotify Connect.
+- **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song and its cover. Windows has no media-key support yet. Every key inside trill works everywhere, and your phone can control it through Spotify Connect.
 - **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal can't draw images, so there the cover is coloured half-blocks and looks blurry and blocky; use one of the others on a Mac for a sharp cover. The old Windows console also uses half-blocks.
 - **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically). Run `pkill soloist` on a Mac or `taskkill /IM soloist.exe /F` on Windows if that happens.
 - The [Numbers](#numbers) were measured on Linux. The glibc memory tricks in [Why it's light](#why-its-light) only apply on Linux.

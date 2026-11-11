@@ -248,6 +248,7 @@ mod dbus {
 #[cfg(target_os = "macos")]
 mod mac {
     use std::{
+        cell::{Cell, RefCell},
         ffi::c_void,
         ptr::NonNull,
         sync::{
@@ -260,12 +261,12 @@ mod mac {
     use block2::{DynBlock, RcBlock};
     use objc2::{
         msg_send,
-        rc::autoreleasepool,
+        rc::{Allocated, Retained, autoreleasepool},
         runtime::{AnyClass, AnyObject},
     };
-    use objc2_foundation::{NSMutableDictionary, NSNumber, NSString};
+    use objc2_foundation::{NSData, NSMutableDictionary, NSNumber, NSSize, NSString};
     use objc2_media_player::{
-        MPChangePlaybackPositionCommandEvent, MPMediaItemPropertyAlbumTitle, MPMediaItemPropertyArtist,
+        MPChangePlaybackPositionCommandEvent, MPMediaItemPropertyAlbumTitle, MPMediaItemPropertyArtist, MPMediaItemPropertyArtwork,
         MPMediaItemPropertyPlaybackDuration, MPMediaItemPropertyTitle, MPNowPlayingInfoCenter,
         MPNowPlayingInfoPropertyElapsedPlaybackTime, MPNowPlayingInfoPropertyPlaybackRate, MPNowPlayingPlaybackState,
         MPRemoteCommand, MPRemoteCommandCenter, MPRemoteCommandEvent, MPRemoteCommandHandlerStatus,
@@ -357,13 +358,39 @@ mod mac {
         title: String,
         artist: String,
         album: String,
+        art: Option<String>,
         len_s: f64,
         pos_s: f64,
+        /// when `pos_s` was read
+        at: Instant,
         playing: bool,
+    }
+
+    thread_local! {
+        /// Main thread: the cover (with its url) and the info last published, so a cover
+        /// that arrives later can be added to it.
+        static SHOWN: RefCell<(Option<(String, Retained<AnyObject>)>, Option<Info>)> = const { RefCell::new((None, None)) };
+    }
+
+    /// Run `f` once on the main thread, which MediaPlayer belongs to.
+    fn on_main(f: impl FnOnce() + 'static) {
+        let f = Cell::new(Some(f));
+        let block = RcBlock::new(move || {
+            if let Some(f) = f.take() {
+                autoreleasepool(|_| f());
+            }
+        });
+        // SAFETY: CoreFoundation copies the block and runs it on the main run loop.
+        unsafe {
+            let main = CFRunLoopGetMain();
+            CFRunLoopPerformBlock(main, kCFRunLoopCommonModes, &block);
+            CFRunLoopWakeUp(main);
+        }
     }
 
     pub struct Mpris {
         uri: String,
+        art: String,
         playing: bool,
         pos_ms: u32,
         pos_at: Instant,
@@ -375,12 +402,24 @@ mod mac {
                 return None;
             }
             let _ = TX.set(tx);
-            Some(Mpris { uri: String::new(), playing: false, pos_ms: 0, pos_at: Instant::now() })
+            Some(Mpris { uri: String::new(), art: String::new(), playing: false, pos_ms: 0, pos_at: Instant::now() })
         }
 
         /// Publish when the song, play/pause or position (a seek) changed; macOS moves
         /// the position along by itself in between.
         pub async fn sync(&mut self, app: &App) {
+            if let Some(url) = app.now.as_ref().and_then(|r| r.art.clone())
+                && url != self.art
+            {
+                self.art = url.clone();
+                let s = app.session.clone();
+                tokio::spawn(async move {
+                    match s.spclient().request_url(&url).await {
+                        Ok(bytes) => on_main(move || set_art(url, &bytes)),
+                        Err(e) => log::debug!("now playing cover: {e}"),
+                    }
+                });
+            }
             let uri = app.now.as_ref().map_or("", |r| r.uri.as_str());
             let pos = app.position_ms();
             let expected = self.pos_ms + if self.playing { self.pos_at.elapsed().as_millis() as u32 } else { 0 };
@@ -393,22 +432,49 @@ mod mac {
                 title: r.title.clone(),
                 artist: r.artist.clone(),
                 album: r.album.clone(),
+                art: r.art.clone(),
                 len_s: r.duration_ms as f64 / 1000.0,
                 pos_s: pos as f64 / 1000.0,
+                at: Instant::now(),
                 playing: app.playing,
             });
-            // MediaPlayer belongs to the main thread: hand it the update there.
-            let block = RcBlock::new(move || autoreleasepool(|_| unsafe { publish(info.as_ref()) }));
-            // SAFETY: CoreFoundation copies the block and runs it once on the main run loop.
-            unsafe {
-                let main = CFRunLoopGetMain();
-                CFRunLoopPerformBlock(main, kCFRunLoopCommonModes, &block);
-                CFRunLoopWakeUp(main);
-            }
+            on_main(move || {
+                SHOWN.with_borrow_mut(|(art, last)| {
+                    *last = info;
+                    // SAFETY: main thread.
+                    unsafe { publish(art.as_ref(), last.as_ref()) }
+                })
+            });
         }
     }
 
-    unsafe fn publish(info: Option<&Info>) {
+    /// Main thread: a cover arrived; add it if its song is still the one shown.
+    fn set_art(url: String, bytes: &[u8]) {
+        // SAFETY: main thread; plain AppKit / MediaPlayer calls.
+        let Some(a) = (unsafe { artwork(bytes) }) else { return };
+        SHOWN.with_borrow_mut(|(art, last)| {
+            *art = Some((url, a));
+            if last.as_ref().and_then(|i| i.art.as_ref()) == art.as_ref().map(|a| &a.0) {
+                unsafe { publish(art.as_ref(), last.as_ref()) }
+            }
+        });
+    }
+
+    /// An `MPMediaItemArtwork` for the image bytes (NSImage reads jpeg/png itself).
+    unsafe fn artwork(bytes: &[u8]) -> Option<Retained<AnyObject>> {
+        let data = NSData::with_bytes(bytes);
+        unsafe {
+            let a: Allocated<AnyObject> = msg_send![AnyClass::get(c"NSImage")?, alloc];
+            let img: Option<Retained<AnyObject>> = msg_send![a, initWithData: &*data];
+            let img = img?;
+            let size: NSSize = msg_send![&*img, size];
+            let handler = RcBlock::new(move |_: NSSize| Retained::as_ptr(&img) as *mut AnyObject);
+            let a: Allocated<AnyObject> = msg_send![AnyClass::get(c"MPMediaItemArtwork")?, alloc];
+            msg_send![a, initWithBoundsSize: size, requestHandler: &*handler]
+        }
+    }
+
+    unsafe fn publish(art: Option<&(String, Retained<AnyObject>)>, info: Option<&Info>) {
         let center = unsafe { MPNowPlayingInfoCenter::defaultCenter() };
         let Some(i) = info else {
             unsafe {
@@ -417,17 +483,23 @@ mod mac {
             }
             return;
         };
-        // shortcut: no cover in Now Playing; add an MPMediaItemArtwork from the art bytes if it's missed.
         let dict = NSMutableDictionary::<NSString, AnyObject>::new();
         let text = |k: &NSString, v: &str| dict.insert(k, NSString::from_str(v).as_ref());
         let num = |k: &NSString, v: f64| dict.insert(k, NSNumber::new_f64(v).as_ref());
+        // a re-publish (cover arrived) mustn't move the position back
+        let pos = i.pos_s + if i.playing { i.at.elapsed().as_secs_f64() } else { 0.0 };
         unsafe {
             text(MPMediaItemPropertyTitle, &i.title);
             text(MPMediaItemPropertyArtist, &i.artist);
             text(MPMediaItemPropertyAlbumTitle, &i.album);
             num(MPMediaItemPropertyPlaybackDuration, i.len_s);
-            num(MPNowPlayingInfoPropertyElapsedPlaybackTime, i.pos_s);
+            num(MPNowPlayingInfoPropertyElapsedPlaybackTime, pos);
             num(MPNowPlayingInfoPropertyPlaybackRate, if i.playing { 1.0 } else { 0.0 });
+            if let Some((url, a)) = art
+                && i.art.as_ref() == Some(url)
+            {
+                dict.insert(MPMediaItemPropertyArtwork, a);
+            }
             center.setNowPlayingInfo(Some(&dict));
             center.setPlaybackState(if i.playing { MPNowPlayingPlaybackState::Playing } else { MPNowPlayingPlaybackState::Paused });
         }
