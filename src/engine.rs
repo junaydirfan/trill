@@ -73,6 +73,7 @@ impl Engine {
 
     fn send(&self, v: Value) {
         if let Engine::Soloist { tx, .. } = self {
+            log::debug!("soloist <- {v}");
             let _ = tx.send(v.to_string());
         }
     }
@@ -410,6 +411,10 @@ pub async fn start_soloist(opts: &SoloistOpts, ev_tx: UnboundedSender<EngineEven
             {
                 if v["type"] == "auth_state" && v["logged_in"] == true {
                     logged_in.store(true, std::sync::atomic::Ordering::Relaxed);
+                } else if log::log_enabled!(log::Level::Debug) {
+                    // TRILL_LOG=debug: what Soloist reports, minus the track metadata
+                    let item = v["item"]["uri"].as_str().unwrap_or("");
+                    log::debug!("soloist -> {} {} status={} position={} {item}", v["type"], v["command"], v["status"], v["position"]);
                 }
                 for ev in anchor.parse(&v) {
                     if ev_tx.send(ev).is_err() {

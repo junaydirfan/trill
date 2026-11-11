@@ -27,7 +27,7 @@ pub enum Remote {
 #[cfg(target_os = "linux")]
 pub use dbus::Mpris;
 #[cfg(target_os = "macos")]
-pub use mac::{Mpris, prepare};
+pub use mac::{Mpris, prepare, run_main};
 
 /// Windows: no media-key integration yet; trill runs without it.
 #[cfg(not(any(target_os = "linux", target_os = "macos")))]
@@ -243,19 +243,27 @@ mod dbus {
 }
 
 /// macOS Now Playing: media keys, Control Center and the lock screen. macOS only hands
-/// media keys to a process with an NSApplication ([`prepare`]); the commands arrive on the
-/// run loop of the thread that registered for them, which sleeps in it until then.
+/// media keys to an NSApplication whose main thread runs AppKit's event loop, which is
+/// where it delivers them; so on macOS trill itself runs on a second thread ([`prepare`]).
 #[cfg(target_os = "macos")]
 mod mac {
-    use std::{ptr::NonNull, time::{Duration, Instant}};
+    use std::{
+        ffi::c_void,
+        ptr::NonNull,
+        sync::{
+            OnceLock,
+            atomic::{AtomicBool, Ordering},
+        },
+        time::Instant,
+    };
 
-    use block2::RcBlock;
+    use block2::{DynBlock, RcBlock};
     use objc2::{
         msg_send,
         rc::autoreleasepool,
         runtime::{AnyClass, AnyObject},
     };
-    use objc2_foundation::{NSDate, NSDefaultRunLoopMode, NSMutableDictionary, NSNumber, NSRunLoop, NSString};
+    use objc2_foundation::{NSMutableDictionary, NSNumber, NSString};
     use objc2_media_player::{
         MPChangePlaybackPositionCommandEvent, MPMediaItemPropertyAlbumTitle, MPMediaItemPropertyArtist,
         MPMediaItemPropertyPlaybackDuration, MPMediaItemPropertyTitle, MPNowPlayingInfoCenter,
@@ -269,20 +277,89 @@ mod mac {
     #[link(name = "AppKit", kind = "framework")]
     unsafe extern "C" {}
 
-    /// Make trill an NSApplication, on the main thread (AppKit wants it there) before any
-    /// other threads start. Skipped over SSH, where there's no desktop to talk to.
-    pub fn prepare() {
+    #[link(name = "CoreFoundation", kind = "framework")]
+    unsafe extern "C" {
+        fn CFRunLoopGetMain() -> *mut c_void;
+        fn CFRunLoopPerformBlock(rl: *mut c_void, mode: *const c_void, block: &DynBlock<dyn Fn()>);
+        fn CFRunLoopWakeUp(rl: *mut c_void);
+        static kCFRunLoopCommonModes: *const c_void;
+    }
+
+    static ON: AtomicBool = AtomicBool::new(false);
+    static TX: OnceLock<UnboundedSender<Remote>> = OnceLock::new();
+
+    fn ns_app() -> Option<*mut AnyObject> {
+        let cls = AnyClass::get(c"NSApplication")?;
+        // SAFETY: plain AppKit call.
+        Some(unsafe { msg_send![cls, sharedApplication] })
+    }
+
+    /// On the main thread, before other threads start: make trill a background NSApplication
+    /// and register for the media keys. True when the main thread must then go to
+    /// [`run_main`] and trill run elsewhere. Skipped over SSH, where there's no desktop.
+    pub fn prepare() -> bool {
         if std::env::var_os("SSH_CONNECTION").is_some() {
-            return;
+            return false;
         }
-        // SAFETY: main thread; plain AppKit calls.
+        let Some(app) = ns_app() else { return false };
+        // SAFETY: main thread; plain AppKit / MediaPlayer calls.
         unsafe {
-            if let Some(cls) = AnyClass::get(c"NSApplication") {
-                let app: *mut AnyObject = msg_send![cls, sharedApplication];
-                // background-only: no Dock icon, no menu bar (NSApplicationActivationPolicyProhibited)
-                let _: bool = msg_send![app, setActivationPolicy: 2isize];
-            }
+            // background-only: no Dock icon, no menu bar (NSApplicationActivationPolicyProhibited)
+            let _: bool = msg_send![app, setActivationPolicy: 2isize];
+            autoreleasepool(|_| register());
         }
+        ON.store(true, Ordering::Relaxed);
+        true
+    }
+
+    /// The main thread's job from here on: AppKit's event loop. Never returns.
+    pub fn run_main() -> ! {
+        if let Some(app) = ns_app() {
+            // SAFETY: main thread.
+            let _: () = unsafe { msg_send![app, run] };
+        }
+        loop {
+            std::thread::park();
+        }
+    }
+
+    unsafe fn register() {
+        let cc = unsafe { MPRemoteCommandCenter::sharedCommandCenter() };
+        let on = |cmd: &MPRemoteCommand, f: fn(&MPRemoteCommandEvent) -> Remote| {
+            let block = RcBlock::new(move |e: NonNull<MPRemoteCommandEvent>| {
+                log::debug!("now playing: command from macOS");
+                let Some(tx) = TX.get() else { return MPRemoteCommandHandlerStatus::CommandFailed };
+                // SAFETY: MediaPlayer hands us a live event.
+                let _ = tx.send(f(unsafe { e.as_ref() }));
+                MPRemoteCommandHandlerStatus::Success
+            });
+            unsafe {
+                cmd.setEnabled(true);
+                cmd.addTargetWithHandler(&block);
+            }
+        };
+        unsafe {
+            on(&cc.togglePlayPauseCommand(), |_| Remote::PlayPause);
+            on(&cc.playCommand(), |_| Remote::Play);
+            on(&cc.pauseCommand(), |_| Remote::Pause);
+            on(&cc.stopCommand(), |_| Remote::Stop);
+            on(&cc.nextTrackCommand(), |_| Remote::Next);
+            on(&cc.previousTrackCommand(), |_| Remote::Prev);
+            on(&cc.changePlaybackPositionCommand(), |e| {
+                let e = &*(e as *const MPRemoteCommandEvent as *const MPChangePlaybackPositionCommandEvent);
+                Remote::SetPosition((e.positionTime().max(0.0) * 1000.0) as u32)
+            });
+        }
+    }
+
+    /// What Now Playing shows, copied out of the app so the main thread can publish it.
+    struct Info {
+        title: String,
+        artist: String,
+        album: String,
+        len_s: f64,
+        pos_s: f64,
+        playing: bool,
     }
 
     pub struct Mpris {
@@ -294,11 +371,10 @@ mod mac {
 
     impl Mpris {
         pub async fn new(tx: UnboundedSender<Remote>) -> Option<Self> {
-            std::thread::Builder::new()
-                .name("now-playing".into())
-                .spawn(move || listen(tx))
-                .map_err(|e| log::warn!("Now Playing unavailable: {e}"))
-                .ok()?;
+            if !ON.load(Ordering::Relaxed) {
+                return None;
+            }
+            let _ = TX.set(tx);
             Some(Mpris { uri: String::new(), playing: false, pos_ms: 0, pos_at: Instant::now() })
         }
 
@@ -313,14 +389,28 @@ mod mac {
             }
             (self.playing, self.pos_ms, self.pos_at) = (app.playing, pos, Instant::now());
             self.uri = uri.to_string();
-            // SAFETY: plain calls into MediaPlayer, which may be used from any thread.
-            autoreleasepool(|_| unsafe { publish(app, pos) });
+            let info = app.now.as_ref().map(|r| Info {
+                title: r.title.clone(),
+                artist: r.artist.clone(),
+                album: r.album.clone(),
+                len_s: r.duration_ms as f64 / 1000.0,
+                pos_s: pos as f64 / 1000.0,
+                playing: app.playing,
+            });
+            // MediaPlayer belongs to the main thread: hand it the update there.
+            let block = RcBlock::new(move || autoreleasepool(|_| unsafe { publish(info.as_ref()) }));
+            // SAFETY: CoreFoundation copies the block and runs it once on the main run loop.
+            unsafe {
+                let main = CFRunLoopGetMain();
+                CFRunLoopPerformBlock(main, kCFRunLoopCommonModes, &block);
+                CFRunLoopWakeUp(main);
+            }
         }
     }
 
-    unsafe fn publish(app: &App, pos_ms: u32) {
+    unsafe fn publish(info: Option<&Info>) {
         let center = unsafe { MPNowPlayingInfoCenter::defaultCenter() };
-        let Some(r) = app.now.as_ref() else {
+        let Some(i) = info else {
             unsafe {
                 center.setNowPlayingInfo(None);
                 center.setPlaybackState(MPNowPlayingPlaybackState::Stopped);
@@ -328,53 +418,18 @@ mod mac {
             return;
         };
         // shortcut: no cover in Now Playing; add an MPMediaItemArtwork from the art bytes if it's missed.
-        let info = NSMutableDictionary::<NSString, AnyObject>::new();
-        let text = |k: &NSString, v: &str| info.insert(k, NSString::from_str(v).as_ref());
-        let num = |k: &NSString, v: f64| info.insert(k, NSNumber::new_f64(v).as_ref());
+        let dict = NSMutableDictionary::<NSString, AnyObject>::new();
+        let text = |k: &NSString, v: &str| dict.insert(k, NSString::from_str(v).as_ref());
+        let num = |k: &NSString, v: f64| dict.insert(k, NSNumber::new_f64(v).as_ref());
         unsafe {
-            text(MPMediaItemPropertyTitle, &r.title);
-            text(MPMediaItemPropertyArtist, &r.artist);
-            text(MPMediaItemPropertyAlbumTitle, &r.album);
-            num(MPMediaItemPropertyPlaybackDuration, r.duration_ms as f64 / 1000.0);
-            num(MPNowPlayingInfoPropertyElapsedPlaybackTime, pos_ms as f64 / 1000.0);
-            num(MPNowPlayingInfoPropertyPlaybackRate, if app.playing { 1.0 } else { 0.0 });
-            center.setNowPlayingInfo(Some(&info));
-            center.setPlaybackState(if app.playing { MPNowPlayingPlaybackState::Playing } else { MPNowPlayingPlaybackState::Paused });
-        }
-    }
-
-    /// Runs on its own thread for the life of the app.
-    fn listen(tx: UnboundedSender<Remote>) {
-        autoreleasepool(|_| unsafe {
-            let cc = MPRemoteCommandCenter::sharedCommandCenter();
-            let on = |cmd: &MPRemoteCommand, f: fn(&MPRemoteCommandEvent) -> Remote| {
-                let tx = tx.clone();
-                let block = RcBlock::new(move |e: NonNull<MPRemoteCommandEvent>| {
-                    let _ = tx.send(f(e.as_ref()));
-                    MPRemoteCommandHandlerStatus::Success
-                });
-                cmd.setEnabled(true);
-                cmd.addTargetWithHandler(&block);
-            };
-            on(&cc.togglePlayPauseCommand(), |_| Remote::PlayPause);
-            on(&cc.playCommand(), |_| Remote::Play);
-            on(&cc.pauseCommand(), |_| Remote::Pause);
-            on(&cc.stopCommand(), |_| Remote::Stop);
-            on(&cc.nextTrackCommand(), |_| Remote::Next);
-            on(&cc.previousTrackCommand(), |_| Remote::Prev);
-            on(&cc.changePlaybackPositionCommand(), |e| {
-                let e = &*(e as *const MPRemoteCommandEvent as *const MPChangePlaybackPositionCommandEvent);
-                Remote::SetPosition((e.positionTime().max(0.0) * 1000.0) as u32)
-            });
-        });
-        let rl = NSRunLoop::currentRunLoop();
-        loop {
-            // Sleeps until a command arrives. Returns false at once if the run loop has no
-            // sources (macOS gave us none): then look in now and then instead of spinning.
-            let waited = autoreleasepool(|_| unsafe { rl.runMode_beforeDate(NSDefaultRunLoopMode, &NSDate::distantFuture()) });
-            if !waited {
-                std::thread::sleep(Duration::from_millis(200));
-            }
+            text(MPMediaItemPropertyTitle, &i.title);
+            text(MPMediaItemPropertyArtist, &i.artist);
+            text(MPMediaItemPropertyAlbumTitle, &i.album);
+            num(MPMediaItemPropertyPlaybackDuration, i.len_s);
+            num(MPNowPlayingInfoPropertyElapsedPlaybackTime, i.pos_s);
+            num(MPNowPlayingInfoPropertyPlaybackRate, if i.playing { 1.0 } else { 0.0 });
+            center.setNowPlayingInfo(Some(&dict));
+            center.setPlaybackState(if i.playing { MPNowPlayingPlaybackState::Playing } else { MPNowPlayingPlaybackState::Paused });
         }
     }
 }

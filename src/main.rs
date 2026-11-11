@@ -79,7 +79,7 @@ fn main() {
 
     // after set_var: AppKit may start threads of its own
     #[cfg(target_os = "macos")]
-    mpris::prepare();
+    let mac_app = mpris::prepare();
 
     let has = |flag: &str| env::args().any(|a| a == flag);
     if has("-V") || has("--version") {
@@ -129,16 +129,25 @@ fn main() {
     unsafe {
         libc::mallopt(libc::M_ARENA_MAX, 2);
     }
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .enable_all()
-        // DNS lookups and file I/O run here; parallel requests shouldn't mean a thread each.
-        .max_blocking_threads(4)
-        .build()
-        .expect("tokio runtime");
-    // LocalSet: the MPRIS server is single-threaded (!Send), like the rest of the app.
-    let local = tokio::task::LocalSet::new();
-    let code = local.block_on(&rt, run(cfg));
-    std::process::exit(code);
+    let go = move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            // DNS lookups and file I/O run here; parallel requests shouldn't mean a thread each.
+            .max_blocking_threads(4)
+            .build()
+            .expect("tokio runtime");
+        // LocalSet: the MPRIS server is single-threaded (!Send), like the rest of the app.
+        let local = tokio::task::LocalSet::new();
+        let code = local.block_on(&rt, run(cfg));
+        std::process::exit(code);
+    };
+    // macOS delivers media keys on the main thread's event loop, so trill moves off it.
+    #[cfg(target_os = "macos")]
+    if mac_app {
+        std::thread::Builder::new().name("trill".into()).stack_size(8 << 20).spawn(go).expect("thread");
+        mpris::run_main();
+    }
+    go();
 }
 
 fn soloist_opts(cfg: &Config) -> Result<SoloistOpts, String> {
@@ -739,7 +748,10 @@ async fn run(cfg: Config) -> i32 {
             Some(ev) = eng_rx.recv() => dirty |= app.on_engine(ev),
             Some(msg) = rx.recv() => { app.on_msg(msg); dirty = true; }
             Some(cmd) = remote_rx.recv() => { app.on_remote(cmd); dirty = true; }
-            _ = tick.tick(), if app.playing => dirty = true,
+            _ = tick.tick(), if app.playing => {
+                app.check_resume();
+                dirty = true;
+            }
             _ = health.tick() => {
                 if app.session.is_invalid() {
                     app.status = "Connection lost, reconnecting…".into();

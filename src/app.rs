@@ -206,8 +206,10 @@ pub struct App {
     pub help_open: bool,
     /// When to restart Soloist to apply a crossfade change (debounced).
     pub restart_at: Option<Instant>,
-    /// After a restart: position to seek to once the track is back.
-    pending_seek: Option<u32>,
+    /// After a restart: the position to resume at, and until when to keep correcting
+    /// Soloist if it reports playing well before it (a fresh Soloist can start the track
+    /// from 0 after accepting our seek). A track change or seek by the user cancels it.
+    pending_seek: Option<(u32, Instant, Instant)>, // (position, keep correcting until, last seek)
     /// After a restart while paused: reload this position on the next play.
     reload_at: Option<u32>,
     /// Ignore stale "Soloist stopped" messages from the old process.
@@ -433,6 +435,12 @@ impl App {
         }
         self.lyrics_open = false;
         self.focus = Focus::Main;
+        if self.now.as_ref().is_some_and(|r| self.is_rec(&r.uri)) {
+            // A recommendation isn't in any list: show it atop the queue, where f and A act on it.
+            self.show_queue();
+            self.status = format!("✦ recommended while playing {}. f likes it, A adds it.", self.ctx_src.1);
+            return;
+        }
         if self.select_now() {
             return;
         }
@@ -654,6 +662,7 @@ impl App {
     }
 
     fn load(&mut self, row: Row) {
+        self.pending_seek = None; // a resume belongs to the track it was set for
         if self.engine.is_soloist() && self.ahead.take().is_some() {
             // Burn the pre-queued track so it can't play later; `play` follows immediately.
             self.engine.skip_next();
@@ -767,8 +776,8 @@ impl App {
             && let Some(row) = self.now.clone()
         {
             // Player was restarted while paused: bring the track back where it was.
-            self.pending_seek = Some(pos);
             self.load(row);
+            self.resume_at(pos);
             return;
         }
         if self.now.is_none() {
@@ -781,7 +790,30 @@ impl App {
         }
     }
 
+    /// Seek to `pos` once the reloaded track plays (see `pending_seek`).
+    fn resume_at(&mut self, pos: u32) {
+        if pos > 1000 {
+            let now = Instant::now();
+            self.pending_seek = Some((pos, now + std::time::Duration::from_secs(10), now));
+        }
+    }
+
+    /// Seek again while Soloist plays well before the resume point (see `pending_seek`).
+    /// Runs on each position report and each second: after a restart Soloist first sends
+    /// the old session's snapshot, then starts our track from 0 and may report nothing more.
+    pub fn check_resume(&mut self) {
+        let Some((want, until, last)) = self.pending_seek else { return };
+        if Instant::now() > until {
+            self.pending_seek = None;
+        } else if self.awaiting.is_none() && self.playing && self.position_ms() + 2500 < want && last.elapsed().as_millis() >= 1000 {
+            log::debug!("resume: at {} ms, seeking to {want} ms", self.position_ms());
+            self.engine.seek(want);
+            self.pending_seek = Some((want, until, Instant::now()));
+        }
+    }
+
     fn seek_to(&mut self, ms: u32) {
+        self.pending_seek = None;
         if self.now.is_some() {
             self.engine.seek(ms);
             self.pos_ms = ms;
@@ -879,14 +911,14 @@ impl App {
                 }
                 self.pos_ms = pos_ms;
                 self.pos_at = Instant::now();
+                self.check_resume();
             }
             EngineEvent::TrackChanged(row) => {
                 if let Some((want, _)) = &self.awaiting {
                     if *want == row.uri {
-                        if let Some(pos) = self.pending_seek.take()
-                            && pos > 1000
-                        {
-                            self.engine.seek(pos);
+                        if let Some((pos, _, last)) = self.pending_seek.as_mut() {
+                            self.engine.seek(*pos);
+                            *last = Instant::now();
                         }
                         if let Some(now) = self.now.as_mut()
                             && now.art.is_none()
@@ -1041,8 +1073,8 @@ impl App {
         self.quiet_until = Instant::now() + std::time::Duration::from_secs(2);
         match resume {
             Some((row, pos, true)) => {
-                self.pending_seek = Some(pos);
                 self.load(row);
+                self.resume_at(pos);
             }
             Some((_, pos, false)) => {
                 self.reload_at = Some(pos);

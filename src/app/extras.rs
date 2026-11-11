@@ -231,7 +231,14 @@ impl App {
                 let _ = tx.send(Msg::Holding { track: t, playlists });
             });
         }
-        self.chooser = Some(Chooser { track, filter: String::new(), sel: 0, holding, checking });
+        // A smart-shuffle recommendation most likely belongs in the list it was picked for.
+        let mut c = Chooser { track, filter: String::new(), sel: 0, holding, checking };
+        if self.is_rec(&c.track.uri)
+            && let Some(i) = c.matches(self).iter().position(|(u, _)| *u == self.ctx_src.0)
+        {
+            c.sel = i;
+        }
+        self.chooser = Some(c);
     }
 
     pub(super) fn on_chooser_key(&mut self, k: KeyEvent) {
