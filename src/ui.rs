@@ -143,6 +143,12 @@ pub fn draw(f: &mut Frame, app: &mut App) {
         f.set_cursor_position((x.min(bottom.right().saturating_sub(1)), bottom.y));
     } else {
         f.render_widget(Paragraph::new(format!(" {}", app.status)).dim(), bottom);
+        if let Some(tag) = &app.update {
+            let note = format!("trill {tag} is out: quit and run trill --update ");
+            let w = (note.chars().count() as u16).min(bottom.width);
+            let area = Rect { x: bottom.right() - w, width: w, ..bottom };
+            f.render_widget(Paragraph::new(note).fg(accent()), area);
+        }
     }
 }
 

@@ -27,6 +27,12 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # `trill --update` compares the release tag with the version built into trill
+      - name: Tag matches Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: bash
+        run: test "$GITHUB_REF_NAME" = "v$(grep -m1 '^version' Cargo.toml | cut -d'"' -f2)"
+
       - name: Linux build deps
         if: runner.os == 'Linux'
         run: sudo apt-get update && sudo apt-get install -y libpulse-dev pkg-config libssl-dev

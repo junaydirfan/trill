@@ -176,7 +176,13 @@ Your browser opens once to log in to Spotify, which trill uses to browse your li
 
 ### Updating
 
-Run the download again; it replaces the old trill. Quit trill first (on Windows the file is locked while it runs). Your login, key, pairing and settings stay. `trill --version` shows what you have, and the [releases page](https://github.com/junaydirfan/trill/releases) what's new.
+```bash
+trill --update
+```
+
+That downloads the latest release and puts it in place of your trill; restart trill afterwards. Your login, key, pairing and settings stay. Once a day trill also checks for a new release and says so at the bottom right. `trill --version` shows what you have, and the [releases page](https://github.com/junaydirfan/trill/releases) what's new.
+
+On v0.2.0 or older (no `--update` yet), or if it can't replace the file (say a package manager installed trill), run the download again. Quit trill first; on Windows the file is locked while it runs.
 
 **Windows** (PowerShell):
 

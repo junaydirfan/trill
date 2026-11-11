@@ -18,6 +18,7 @@ mod library;
 mod theme;
 mod mpris;
 mod ui;
+mod update;
 
 use std::{env, fs, process::Command, sync::Arc, time::Duration};
 
@@ -89,6 +90,7 @@ fn main() {
     if has("-h") || has("--help") {
         println!("trill — lean terminal Spotify player (Premium required)\n");
         println!("  trill                   start (first run opens a browser to log in)");
+        println!("  trill --update          update trill to the latest release");
         println!("  trill --update-soloist  download/refresh Spotify's Soloist player (every <90 days)");
         println!("  trill --pair            pair Soloist once via the Spotify app on your phone");
         println!("  trill --logout          forget saved logins");
@@ -105,6 +107,9 @@ fn main() {
         let _ = fs::remove_file(cfg.cache_dir.join("webapi_refresh_token"));
         println!("Logged out of trill. (Soloist pairing kept; re-pair with --pair.)");
         return;
+    }
+    if has("--update") {
+        std::process::exit(update::run(&cfg.cache_dir));
     }
     if has("--update-soloist") {
         std::process::exit(update_soloist(&cfg));
@@ -219,7 +224,7 @@ fn update_soloist(cfg: &Config) -> i32 {
     0
 }
 
-fn walk_find(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
+pub(crate) fn walk_find(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
     for e in fs::read_dir(dir).ok()?.flatten() {
         let p = e.path();
         if p.is_dir() {
@@ -666,6 +671,7 @@ async fn run(cfg: Config) -> i32 {
     app.img_picker = img_picker;
     app.load_playlists();
     app.load_liked();
+    app.check_update();
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
     let mut desktop = mpris::Mpris::new(remote_tx).await;
 

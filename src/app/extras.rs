@@ -89,6 +89,17 @@ impl App {
         format!("spotify:user:{}:collection", self.session.username())
     }
 
+    /// Look for a newer trill release (at most once a day) for the title bar.
+    pub fn check_update(&self) {
+        let Some(dir) = self.cache_dir.clone() else { return };
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            if let Some(tag) = crate::update::check(&s, &dir).await {
+                let _ = tx.send(Msg::Update(tag));
+            }
+        });
+    }
+
     /// Load the liked songs, saved albums and followed artists in the background (uris only).
     pub fn load_liked(&self) {
         let (s, tx) = (self.session.clone(), self.tx.clone());
@@ -483,6 +494,7 @@ impl App {
                     };
                 }
             }
+            Msg::Update(tag) => self.update = Some(tag),
             Msg::Tint { url, tint } => {
                 // kept for any theme (switching to `cover` later needs no refetch), but only
                 // for the song that's still playing

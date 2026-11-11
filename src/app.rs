@@ -36,6 +36,8 @@ pub enum Msg {
     Art { url: String, size: (u16, u16), res: Result<ratatui_image::protocol::Protocol, String> },
     /// Accent colour picked from a cover (`None`: black-and-white cover).
     Tint { url: String, tint: Option<[u8; 3]> },
+    /// A newer trill release is out (its tag).
+    Update(String),
     PlaylistEdit { playlist: String, name: String, row: Row, add: bool, res: Result<(), String> },
     /// Smart-shuffle recommendations for the list `list`.
     Recs { list: String, rows: Vec<Row> },
@@ -200,6 +202,8 @@ pub struct App {
     pub soloist_missing: Option<String>,
     /// Where the playlist list is cached so the sidebar fills instantly on start.
     pub cache_dir: Option<std::path::PathBuf>,
+    /// Tag of a newer trill release, shown in the title bar.
+    pub update: Option<String>,
     /// EQ panel open, with this band selected.
     pub eq_panel: Option<usize>,
     /// `?`: the key help pane is open; any key closes it.
@@ -317,6 +321,7 @@ impl App {
             eq,
             eq_allowed: true,
             cache_dir: None,
+            update: None,
             eq_panel: None,
             help_open: false,
             soloist_missing: None,
