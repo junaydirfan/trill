@@ -33,7 +33,7 @@ pub enum Msg {
     PlayAll(Vec<Row>),
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
-    Art { url: String, size: (u16, u16), res: Result<ratatui_image::protocol::Protocol, String> },
+    Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
     /// Accent colour picked from a cover (`None`: black-and-white cover).
     Tint { url: String, tint: Option<[u8; 3]> },
     /// A newer trill release is out (its tag).
@@ -829,7 +829,9 @@ impl App {
     fn resume_at(&mut self, pos: u32) {
         if pos > 1000 {
             let now = Instant::now();
-            self.pending_seek = Some((pos, now + std::time::Duration::from_secs(10), now));
+            // "last seek" a second ago: the first report of playing from the start seeks at once
+            let ago = now.checked_sub(std::time::Duration::from_secs(1)).unwrap_or(now);
+            self.pending_seek = Some((pos, now + std::time::Duration::from_secs(10), ago));
         }
     }
 
@@ -956,10 +958,9 @@ impl App {
             EngineEvent::TrackChanged(row) => {
                 if let Some((want, _)) = &self.awaiting {
                     if *want == row.uri {
-                        if let Some((pos, _, last)) = self.pending_seek.as_mut() {
-                            self.engine.seek(*pos);
-                            *last = Instant::now();
-                        }
+                        // No seek here: after a restart this is often the new Soloist's stale
+                        // snapshot, and a seek before it starts our track is lost. check_resume
+                        // seeks once it reports playing.
                         if let Some(now) = self.now.as_mut()
                             && now.art.is_none()
                         {

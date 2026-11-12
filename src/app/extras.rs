@@ -40,6 +40,10 @@ pub struct Art {
     pub size: (u16, u16),
     /// None while it's being fetched / decoded.
     pub proto: Option<Protocol>,
+    /// The downloaded cover, kept so a resize re-encodes it without fetching it again.
+    pub bytes: Option<bytes::Bytes>,
+    /// An encode is running; resizes wait for it instead of starting one each.
+    pub busy: bool,
 }
 
 pub struct Chooser {
@@ -441,21 +445,30 @@ impl App {
         let (Some(picker), Some(size), true) = (self.img_picker.as_ref(), self.art_want, art_needed) else {
             return;
         };
+        let same = self.art.as_ref().filter(|a| a.url == url);
+        if same.is_some_and(|a| a.busy) {
+            return; // the next draw after it finishes picks up the newest size
+        }
+        let bytes = same.and_then(|a| a.bytes.clone());
         // Keep showing the old cover until the new one is ready (no flicker); the url
         // check in on_extra_msg drops results that arrive after another change.
         let keep = self.art.take().and_then(|a| a.proto);
-        self.art = Some(Art { url: url.clone(), size, proto: keep });
+        self.art = Some(Art { url: url.clone(), size, proto: keep, bytes: bytes.clone(), busy: true });
         let (s, tx, picker, url) = (self.session.clone(), self.tx.clone(), picker.clone(), url.clone());
         tokio::spawn(async move {
-            let res = match s.spclient().request_url(&url).await {
-                Ok(bytes) => tokio::task::spawn_blocking(move || encode_art(&picker, &bytes, size))
+            let bytes = match bytes {
+                Some(b) => Ok(b),
+                None => s.spclient().request_url(&url).await.map_err(|e| e.to_string()),
+            };
+            let res = match bytes {
+                Ok(bytes) => tokio::task::spawn_blocking(move || encode_art(&picker, &bytes, size).map(|r| (r, bytes)))
                     .await
                     .unwrap_or_else(|e| Err(e.to_string())),
-                Err(e) => Err(e.to_string()),
+                Err(e) => Err(e),
             };
-            let res = res.map(|(proto, tint)| {
+            let res = res.map(|((proto, tint), bytes)| {
                 let _ = tx.send(Msg::Tint { url: url.clone(), tint });
-                proto
+                (proto, bytes)
             });
             let _ = tx.send(Msg::Art { url, size, res });
         });
@@ -504,16 +517,22 @@ impl App {
             Msg::Art { url, size, res } => {
                 if let Some(a) = self.art.as_mut()
                     && a.url == url
-                    && a.size == size
                 {
+                    a.busy = false;
                     // Decoding a 640 px cover allocates a few MB that's freed right away.
                     crate::trim_heap();
                     match res {
-                        Ok(p) => a.proto = Some(p),
-                        Err(e) => {
+                        Ok((p, bytes)) => {
+                            a.bytes = Some(bytes);
+                            if a.size == size {
+                                a.proto = Some(p);
+                            }
+                        }
+                        Err(e) if a.size == size => {
                             log::warn!("album art: {e}");
                             a.proto = None;
                         }
+                        Err(_) => {}
                     }
                 }
             }

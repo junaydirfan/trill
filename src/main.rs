@@ -720,7 +720,7 @@ async fn run(cfg: Config) -> i32 {
                     }
                 }
                 let _ = term.draw(|f| ui::draw(f, &mut app));
-                restart_soloist(&mut app, opts, &cfg, &eng_tx).await;
+                restart_soloist(&mut app, opts, &cfg, &eng_tx, &mut eng_rx).await;
             }
             dirty = true;
         }
@@ -796,7 +796,13 @@ async fn run(cfg: Config) -> i32 {
 
 /// Crossfade lives in Soloist's prefs, read at startup: stop it, rewrite prefs, start it
 /// again and resume the current track where it was.
-async fn restart_soloist(app: &mut App, opts: &mut SoloistOpts, cfg: &Config, eng_tx: &mpsc::UnboundedSender<EngineEvent>) {
+async fn restart_soloist(
+    app: &mut App,
+    opts: &mut SoloistOpts,
+    cfg: &Config,
+    eng_tx: &mpsc::UnboundedSender<EngineEvent>,
+    eng_rx: &mut mpsc::UnboundedReceiver<EngineEvent>,
+) {
     let resume = app.begin_restart();
     if let Some(pid) = app.engine.pid() {
         app.engine.shutdown();
@@ -808,7 +814,12 @@ async fn restart_soloist(app: &mut App, opts: &mut SoloistOpts, cfg: &Config, en
     opts.initial_volume = Some(app.volume_pct());
     audio::write_soloist_prefs(&opts.data_dir, &app.session.username(), app.audio.crossfade_s, cfg.bitrate);
     match engine::start_soloist(opts, eng_tx.clone()).await {
-        Ok(e) => app.finish_restart(e, resume),
+        Ok(e) => {
+            // The old process's last words and the new one's snapshot of the old session:
+            // stale, and they'd make the resume think our track had already started.
+            while eng_rx.try_recv().is_ok() {}
+            app.finish_restart(e, resume)
+        }
         Err(e) => {
             app.playing = false;
             app.status = format!("Couldn't restart Soloist: {e}");
