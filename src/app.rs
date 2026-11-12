@@ -177,6 +177,14 @@ pub struct View {
     pub sort: Option<&'static str>,
 }
 
+impl View {
+    /// Select row `sel` again after the rows changed, or the last one if the list got shorter.
+    fn reselect(&mut self, sel: Option<usize>) {
+        let len = self.rows.len();
+        self.state.select(sel.map(|i| i.min(len.saturating_sub(1))).filter(|_| len > 0));
+    }
+}
+
 pub struct App {
     pub session: Session,
     pub engine: Engine,
@@ -218,6 +226,8 @@ pub struct App {
     reload_at: Option<u32>,
     /// Ignore stale "Soloist stopped" messages from the old process.
     quiet_until: Instant,
+    /// When Soloist last died on its own and was started again (at most once a minute).
+    revived_at: Option<Instant>,
     pub focus: Focus,
     pub input: String,
     pub status: String,
@@ -273,6 +283,10 @@ pub struct App {
 }
 
 const SEEK_MS: u32 = 10_000;
+
+fn playlists_status(n: usize) -> String {
+    format!("{n} playlists. Tab to switch panes, / to search, ? for keys.")
+}
 const VOL_STEP: u32 = 5; // percent
 
 impl App {
@@ -329,6 +343,7 @@ impl App {
             pending_seek: None,
             reload_at: None,
             quiet_until: Instant::now(),
+            revived_at: None,
             focus: Focus::Side,
             input: String::new(),
             status: "Loading playlists…".into(),
@@ -372,11 +387,11 @@ impl App {
 
     /// Shows the cached playlist list right away (if any), then refreshes it.
     pub fn load_playlists(&mut self) {
-        if self.side.len() <= 3
+        if self.side.len() <= FIXED_SIDE
             && let Some(list) = self.cache_dir.as_deref().and_then(api::read_playlist_cache)
         {
             self.set_playlists(list);
-            self.status = format!("{} playlists. Tab to switch panes, / to search, ? for keys.", self.side.len() - FIXED_SIDE);
+            self.status = playlists_status(self.side.len() - FIXED_SIDE);
         }
         let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
@@ -427,8 +442,9 @@ impl App {
         let (rows, sort) = sorted(self.sort, &uri, rows);
         let sel = if rows.is_empty() { None } else { Some(0) };
         self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), sort };
-        if std::mem::take(&mut self.jump) {
-            self.select_now();
+        // `w` opened the list, but the song has since left it
+        if std::mem::take(&mut self.jump) && !self.select_now() {
+            self.show_now_in_queue();
         }
     }
 
@@ -440,18 +456,16 @@ impl App {
         }
         self.lyrics_open = false;
         self.focus = Focus::Main;
-        if self.now.as_ref().is_some_and(|r| self.is_rec(&r.uri)) {
-            // A recommendation isn't in any list: show it atop the queue, where f and A act on it.
-            self.show_queue();
-            self.status = format!("✦ recommended while playing {}. f likes it, A adds it.", self.ctx_src.1);
-            return;
-        }
         if self.select_now() {
             return;
         }
         let (uri, title) = self.ctx_src.clone();
+        if !self.now.as_ref().is_some_and(|n| self.ctx[..self.base].iter().any(|r| r.uri == n.uri)) {
+            // A recommendation, or a song started elsewhere: it's in no list we know of.
+            self.show_now_in_queue();
+            return;
+        }
         match uri.as_str() {
-            "" => self.status = "It isn't playing from a list.".into(),
             "trill:search" => {
                 let rows = self.search_rows.clone();
                 self.jump = true;
@@ -462,6 +476,17 @@ impl App {
                 self.open(uri, title, true, false);
             }
         }
+    }
+
+    /// The playing song isn't in a list: show it atop the queue, where `f` and `A` act on it.
+    fn show_now_in_queue(&mut self) {
+        let Some(uri) = self.now.as_ref().map(|r| r.uri.clone()) else { return };
+        self.show_queue();
+        self.status = match self.ctx_src.1.as_str() {
+            _ if !self.is_rec(&uri) => "This song isn't in a list you're playing. f likes it, A adds it to a playlist.".into(),
+            "" => "✦ a recommendation. f likes it, A adds it to a playlist.".into(),
+            list => format!("✦ recommended while playing {list}. f likes it, A adds it."),
+        };
     }
 
     /// Select the playing song if the open list has it.
@@ -507,6 +532,15 @@ impl App {
         self.focus = if kind == SideKind::Search { Focus::Input } else { Focus::Main };
     }
 
+    /// The play order changed: rebuild the Queue view if it's open, so its rows still match.
+    pub(super) fn refresh_queue_view(&mut self) {
+        if self.view.uri == "trill:queue" {
+            let sel = self.view.state.selected();
+            self.show_queue();
+            self.view.reselect(sel);
+        }
+    }
+
     fn show_queue(&mut self) {
         let mut rows = Vec::new();
         self.queue_src.clear();
@@ -520,11 +554,7 @@ impl App {
         }
         let start = if self.now.is_some() { self.cursor + 1 } else { self.cursor };
         for p in start..(start + 100).min(self.order.len()) {
-            let mut r = self.ctx[self.order[p]].clone();
-            if self.order[p] >= self.base {
-                r.title = format!("✦ {}", r.title);
-            }
-            rows.push(r);
+            rows.push(self.ctx[self.order[p]].clone());
             self.queue_src.push(QSrc::Upcoming(p));
         }
         self.show("trill:queue".into(), format!("Queue — {} manual, {} upcoming", self.queue.len(), rows.len().saturating_sub(self.queue.len() + self.now.is_some() as usize)), Arc::new(rows));
@@ -536,11 +566,11 @@ impl App {
                 if let Some(d) = &self.cache_dir {
                     api::write_playlist_cache(d, &list);
                 }
-                let had_cached = self.side.len() > 3;
+                let had_cached = self.side.len() > FIXED_SIDE;
                 let n = list.len();
                 self.set_playlists(list);
                 if !had_cached {
-                    self.status = format!("{n} playlists. Tab to switch panes, / to search, ? for keys.");
+                    self.status = playlists_status(n);
                 }
             }
             Msg::Playlists(Err(e)) => self.status = format!("Couldn't load playlists: {e}  (R to retry)"),
@@ -654,7 +684,7 @@ impl App {
 
     /// Whether `uri` is playing as a smart-shuffle recommendation (shown with ✦).
     pub fn is_rec(&self, uri: &str) -> bool {
-        self.smart && self.ctx[self.base..].iter().any(|r| r.uri == uri)
+        self.ctx[self.base..].iter().any(|r| r.uri == uri)
     }
 
     fn fetch_recs(&self) {
@@ -837,7 +867,11 @@ impl App {
     }
 
     fn change_volume(&mut self, up: bool) {
-        self.vol = if up { (self.vol + VOL_STEP).min(100) } else { self.vol.saturating_sub(VOL_STEP) };
+        self.set_volume(if up { self.vol + VOL_STEP } else { self.vol.saturating_sub(VOL_STEP) });
+    }
+
+    fn set_volume(&mut self, pct: u32) {
+        self.vol = pct.min(100);
         self.vol_set_at = Instant::now();
         self.engine.set_volume(self.vol);
         self.save_volume();
@@ -893,7 +927,8 @@ impl App {
     /// from the user changing tracks on another device.
     fn near_end(&self) -> bool {
         let dur = self.now.as_ref().map(|r| r.duration_ms).unwrap_or(0);
-        dur > 0 && self.position_ms() + 5000 >= dur
+        // with crossfade, Soloist moves on that much earlier
+        dur > 0 && self.position_ms() + 5000 + self.audio.crossfade_s * 1000 >= dur
     }
 
     /// Returns true if the UI needs a redraw.
@@ -991,13 +1026,19 @@ impl App {
                     self.stop();
                     self.status = "Too many unavailable tracks in a row; stopped. (TRILL_LOG=debug to see why)".into();
                 } else {
-                    let title = self.now.as_ref().map(|r| r.title.as_str()).unwrap_or("track");
+                    let title = self.now.as_ref().map_or_else(|| "track".into(), |r| r.title.clone());
                     // Spotify refuses librespot on many accounts; say what Soloist still needs.
                     self.status = match &self.soloist_missing {
                         Some(why) => format!("Unavailable: {title}, skipping. Playing through librespot because {why}"),
                         None => format!("Unavailable: {title}, skipping"),
                     };
-                    self.next(true);
+                    // repeat-one would retry the same track forever
+                    if self.repeat == Repeat::One {
+                        self.stop();
+                        self.status = format!("Unavailable: {title}");
+                    } else {
+                        self.next(true);
+                    }
                 }
             }
             EngineEvent::Volume(v) => {
@@ -1008,6 +1049,20 @@ impl App {
                 self.vol = v.min(100); // changed from the phone / another Connect device
                 self.save_volume();
             }
+            // Soloist crashed or was killed: start it again and carry on where it was.
+            EngineEvent::Exited(m)
+                if self.engine.is_soloist()
+                    && Instant::now() >= self.quiet_until
+                    && self.restart_at.is_none()
+                    && !m.contains("expired")
+                    && self.revived_at.is_none_or(|t| t.elapsed().as_secs() >= 60) =>
+            {
+                log::warn!("{m} Restarting it.");
+                self.revived_at = Some(Instant::now());
+                self.restart_at = Some(Instant::now() + std::time::Duration::from_secs(1));
+                self.status = format!("{m} Restarting it…");
+            }
+            EngineEvent::Exited(_) if self.restart_at.is_some() => return false, // already restarting
             EngineEvent::Status(m) | EngineEvent::Exited(m) => {
                 if Instant::now() < self.quiet_until {
                     return false;
@@ -1091,7 +1146,11 @@ impl App {
             0 => "crossfade off".to_string(),
             s => format!("crossfade {s} s"),
         };
-        self.status = format!("EQ: {} · {xfade}", self.audio.preset_name());
+        self.status = if self.revived_at.is_some_and(|t| t.elapsed().as_secs() < 30) {
+            "Soloist restarted.".into()
+        } else {
+            format!("EQ: {} · {xfade}", self.audio.preset_name())
+        };
     }
 
     fn on_eq_key(&mut self, band: usize, k: KeyEvent) {
@@ -1151,12 +1210,7 @@ impl App {
             Remote::Prev => self.prev(),
             Remote::Seek(ms) => self.seek_by(ms),
             Remote::SetPosition(ms) => self.seek_to(ms),
-            Remote::Volume(v) => {
-                self.vol = v.min(100);
-                self.vol_set_at = Instant::now();
-                self.engine.set_volume(self.vol);
-                self.save_volume();
-            }
+            Remote::Volume(v) => self.set_volume(v),
             Remote::Shuffle(on) => {
                 if on != self.shuffle {
                     self.set_shuffle(on, false)
@@ -1182,13 +1236,14 @@ impl App {
     fn set_shuffle(&mut self, on: bool, smart: bool) {
         (self.shuffle, self.smart) = (on, on && smart);
         self.save_prefs();
-        // A playing recommendation isn't in the list's order; carry on from the list.
-        let cur = (!self.order.is_empty()).then(|| self.order[self.cursor]).filter(|&c| c < self.base);
+        // A playing recommendation isn't in the list's order: carry on after the list song before it.
+        let cur = self.order.get(..=self.cursor).and_then(|o| o.iter().rev().find(|&&c| c < self.base).copied());
         self.reorder(cur);
         self.weave();
         if self.smart && self.ctx.len() == self.base && !self.ctx.is_empty() {
             self.fetch_recs();
         }
+        self.refresh_queue_view();
         self.status = match (self.shuffle, self.smart) {
             (true, true) => "Smart shuffle: a recommendation (✦) after every 3 songs".into(),
             (true, false) => "Shuffle on".into(),
@@ -1210,12 +1265,12 @@ impl App {
                         self.load(r);
                     }
                 }
-                Some(QSrc::Upcoming(p)) => {
+                Some(QSrc::Upcoming(p)) if p < self.order.len() => {
                     self.cursor = p;
                     let r = self.ctx[self.order[p]].clone();
                     self.load(r);
                 }
-                None => {}
+                _ => {}
             }
             self.show_queue();
             return;

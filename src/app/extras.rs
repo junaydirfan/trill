@@ -152,8 +152,7 @@ impl App {
             let (u, t, rows) = (self.view.uri.clone(), self.view.title.clone(), rows.clone());
             let offset = self.view.state.offset();
             self.show(u, t, rows);
-            let len = self.view.rows.len();
-            self.view.state.select(sel.map(|i| i.min(len.saturating_sub(1))).filter(|_| len > 0));
+            self.view.reselect(sel);
             *self.view.state.offset_mut() = offset;
         }
     }
@@ -242,9 +241,9 @@ impl App {
                 let _ = tx.send(Msg::Holding { track: t, playlists });
             });
         }
-        // A smart-shuffle recommendation most likely belongs in the list it was picked for.
+        // A song playing outside its list (a recommendation, say) most likely belongs in that list.
         let mut c = Chooser { track, filter: String::new(), sel: 0, holding, checking };
-        if self.is_rec(&c.track.uri)
+        if !self.ctx[..self.base].iter().any(|r| r.uri == c.track.uri)
             && let Some(i) = c.matches(self).iter().position(|(u, _)| *u == self.ctx_src.0)
         {
             c.sel = i;
@@ -553,11 +552,12 @@ impl App {
                     self.status = "Spotify has no recommendations for this list.".into();
                     return;
                 }
-                let have: std::collections::HashSet<&str> = self.ctx.iter().map(|r| r.uri.as_str()).collect();
+                let mut have: HashSet<String> = self.ctx.iter().map(|r| r.uri.clone()).collect();
                 let mut ctx: Vec<Row> = self.ctx.to_vec();
-                ctx.extend(rows.into_iter().filter(|r| !have.contains(r.uri.as_str())));
+                ctx.extend(rows.into_iter().filter(|r| have.insert(r.uri.clone())));
                 self.ctx = Arc::new(ctx);
                 self.weave();
+                self.refresh_queue_view();
             }
             Msg::Holding { track, playlists } => {
                 if let Some(c) = self.chooser.as_mut().filter(|c| c.track.uri == track) {

@@ -84,19 +84,9 @@ pub fn run(cache: &Path) -> i32 {
     }
 
     let staging = cache.join("update");
-    let _ = fs::remove_dir_all(&staging);
-    if let Err(e) = fs::create_dir_all(&staging) {
-        eprintln!("{}: {e}", staging.display());
-        return 1;
-    }
     let url = format!("https://github.com/junaydirfan/trill/releases/download/{tag}/{asset}");
-    let archive = staging.join(asset);
     println!("Updating trill {have} → {tag}…");
-    let ok = Command::new("curl").args(["-fL", "--progress-bar", "-o"]).arg(&archive).arg(&url).status().is_ok_and(|s| s.success())
-        // tar detects gzip or zip itself (GNU tar, macOS bsdtar and Windows' tar.exe alike)
-        && Command::new("tar").arg("-xf").arg(&archive).arg("-C").arg(&staging).status().is_ok_and(|s| s.success());
-    let Some(new) = ok.then(|| crate::walk_find(&staging, EXE)).flatten() else {
-        eprintln!("Download or extract of {url} failed.");
+    let Some(new) = crate::fetch_and_unpack(&url, &staging).map_err(|e| eprintln!("{e}")).ok().and_then(|()| crate::walk_find(&staging, EXE)) else {
         return 1;
     };
 

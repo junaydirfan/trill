@@ -209,8 +209,11 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     // Blends: who each song is for (instead of "Added", which is the same for every song there).
     let for_w = if show_extra { rows[off..end].iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16 } else { 0 };
     let show_added = show_extra && for_w == 0 && rows[off..end].iter().any(|r| r.added_at > 0);
+    let in_queue = app.view.uri == "trill:queue";
     let trows = rows[off..end].iter().map(|r| {
         let (tag, tag_color) = match r.kind {
+            // smart-shuffle recommendations, kept out of the row so likes and adds get the plain title
+            Kind::Track if in_queue && app.is_rec(&r.uri) => ("✦ ", accent()),
             Kind::Track => ("", Color::Reset),
             Kind::Album => ("album ", Color::Cyan),
             Kind::Playlist => ("playlist ", Color::Magenta),

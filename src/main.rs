@@ -182,29 +182,9 @@ fn soloist_opts(cfg: &Config) -> Result<SoloistOpts, String> {
 fn update_soloist(cfg: &Config) -> i32 {
     let dir = cfg.soloist_install_dir();
     let staging = dir.join("staging");
-    let _ = fs::remove_dir_all(&staging);
-    if let Err(e) = fs::create_dir_all(&staging) {
-        eprintln!("{}: {e}", staging.display());
-        return 1;
-    }
-    let archive = staging.join(SOLOIST_URL.rsplit('/').next().unwrap_or("soloist.tar.gz"));
     println!("Downloading Soloist from Spotify ({SOLOIST_URL})…");
-    let ok = Command::new("curl")
-        .args(["-fL", "--progress-bar", "-o"])
-        .arg(&archive)
-        .arg(SOLOIST_URL)
-        .status()
-        .is_ok_and(|s| s.success())
-        // tar detects gzip or zip itself (GNU tar, macOS bsdtar and Windows' tar.exe alike)
-        && Command::new("tar")
-            .arg("-xf")
-            .arg(&archive)
-            .arg("-C")
-            .arg(&staging)
-            .status()
-            .is_ok_and(|s| s.success());
-    if !ok {
-        eprintln!("Download or extract failed.");
+    if let Err(e) = fetch_and_unpack(SOLOIST_URL, &staging) {
+        eprintln!("{e}");
         return 1;
     }
     let found = walk_find(&staging, config::SOLOIST_EXE);
@@ -222,6 +202,17 @@ fn update_soloist(cfg: &Config) -> i32 {
     let _ = Command::new(&target).arg("--version").status();
     println!("Installed {}", target.display());
     0
+}
+
+/// Download `url` into `staging` (emptied first) and unpack it there.
+pub(crate) fn fetch_and_unpack(url: &str, staging: &std::path::Path) -> Result<(), String> {
+    let _ = fs::remove_dir_all(staging);
+    fs::create_dir_all(staging).map_err(|e| format!("{}: {e}", staging.display()))?;
+    let archive = staging.join(url.rsplit('/').next().unwrap_or("download"));
+    let ok = Command::new("curl").args(["-fL", "--progress-bar", "-o"]).arg(&archive).arg(url).status().is_ok_and(|s| s.success())
+        // tar detects gzip or zip itself (GNU tar, macOS bsdtar and Windows' tar.exe alike)
+        && Command::new("tar").arg("-xf").arg(&archive).arg("-C").arg(staging).status().is_ok_and(|s| s.success());
+    if ok { Ok(()) } else { Err(format!("Download or extract of {url} failed.")) }
 }
 
 pub(crate) fn walk_find(dir: &std::path::Path, name: &str) -> Option<std::path::PathBuf> {
@@ -818,6 +809,9 @@ async fn restart_soloist(app: &mut App, opts: &mut SoloistOpts, cfg: &Config, en
     audio::write_soloist_prefs(&opts.data_dir, &app.session.username(), app.audio.crossfade_s, cfg.bitrate);
     match engine::start_soloist(opts, eng_tx.clone()).await {
         Ok(e) => app.finish_restart(e, resume),
-        Err(e) => app.status = format!("Couldn't restart Soloist: {e}"),
+        Err(e) => {
+            app.playing = false;
+            app.status = format!("Couldn't restart Soloist: {e}");
+        }
     }
 }
