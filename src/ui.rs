@@ -438,6 +438,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("a", "add to queue"),
         ("A", "add to / remove from a playlist"),
         ("D D", "remove from the open playlist"),
+        ("y  Y", "copy link: highlighted · open list"),
     ]),
     ("Browse", &[
         ("↑↓  jk", "move (PgUp/PgDn, g/G jump)"),

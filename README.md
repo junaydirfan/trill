@@ -257,6 +257,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search | | `R` | reload the current list |
 | `P` | play everything in the list | | `?` | key help |
+| `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
 ## Details
@@ -325,7 +326,7 @@ art = on               # off = no album art (and no terminal capability query)
 
 Playlists, liked songs, albums and artists all use librespot's own connection, so the public Web API's limits don't apply to them. Search, however, uses the Web API.
 
-Without your own app, search borrows librespot's shared token, which every librespot app uses, so Spotify rate-limits it most of the time. To keep search fast either way, trill always runs a tracks-only search alongside the Web API one (about 0.3 s), and after one rate-limit error it stops asking the Web API for 2 minutes.
+Without your own app, search borrows librespot's shared token, which every librespot app uses, so Spotify rate-limits it most of the time. To keep search fast either way, trill always runs a basic search alongside the Web API one (about 0.3 s), and after one rate-limit error it stops asking the Web API for 2 minutes. The basic search finds songs, plus the albums and artists of those songs, but no playlists.
 
 For reliable full search (tracks, albums, playlists and artists):
 
@@ -333,7 +334,7 @@ For reliable full search (tracks, albums, playlists and artists):
 2. Add the redirect URI `http://127.0.0.1:8898/login`.
 3. Put the Client ID in the config as `client_id = …`. On the next start, trill asks you to log in once more, for search only.
 
-The status line shows which search path answered: `web api` (your app), `web api*` (the shared token), or "tracks only" (the fallback).
+The status line shows which search path answered: `web api` (your app), `web api*` (the shared token), or "no playlists" (the basic search).
 </details>
 
 <details>

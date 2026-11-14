@@ -607,7 +607,7 @@ impl App {
                 match rows {
                     Ok((rows, via)) => {
                         self.lyrics_open = false; // results replace whatever covers the list
-                        let via = if via == "basic" { "tracks only: set client_id for albums, playlists, artists" } else { via };
+                        let via = if via == "basic" { "no playlists: set client_id for those" } else { via };
                         self.status = format!("{} results for “{query}” ({via})", rows.len());
                         self.search_title = format!("Search: {query}");
                         self.search_rows = Arc::new(rows);
@@ -1444,6 +1444,8 @@ impl App {
             KeyCode::Char('P') => self.play_all(),
             KeyCode::Char('w') => self.jump_to_now(),
             KeyCode::Char('A') => self.open_chooser(),
+            KeyCode::Char('y') => self.copy_link(false),
+            KeyCode::Char('Y') => self.copy_link(true),
             KeyCode::Char('D') => self.remove_from_playlist(),
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),

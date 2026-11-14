@@ -477,18 +477,22 @@ async fn followed_artist_rows(session: &Session) -> Res<Vec<Row>> {
     Ok(entities::<PArtist>(session, &uris, ExtensionKind::ARTIST_V4)
         .await
         .into_iter()
-        .map(|(uri, a)| Row {
-            uri,
-            title: a.name().to_string(),
-            artist: String::new(),
-            album: String::new(),
-            duration_ms: 0,
-            kind: Kind::Artist,
-            art: None,
-            added_at: 0,
-            members: String::new(),
-        })
+        .map(|(uri, a)| artist_row(uri, a.name()))
         .collect())
+}
+
+fn artist_row(uri: String, name: &str) -> Row {
+    Row {
+        uri,
+        title: name.to_string(),
+        artist: String::new(),
+        album: String::new(),
+        duration_ms: 0,
+        kind: Kind::Artist,
+        art: None,
+        added_at: 0,
+        members: String::new(),
+    }
 }
 
 /// Turn track URIs into display rows, keeping order. Batched + 4 requests in flight.
@@ -698,8 +702,42 @@ async fn rich_search(session: &Session, own: Option<Arc<Mutex<WebToken>>>, q: &s
     }
 }
 
+/// Search without the Web API: context-resolve gives up to 50 matching tracks, and their
+/// own metadata names the albums and artists, so those come at no extra request.
+/// shortcut: no playlists; they need the Web API (`client_id`).
+async fn basic_search(session: &Session, q: &str) -> Res<Vec<Row>> {
+    let mut uris = context_track_uris(session, &format!("spotify:search:{}", pct(q))).await?;
+    uris.truncate(50);
+    let tracks = entities::<PTrack>(session, &uris, ExtensionKind::TRACK_V4).await;
+    Ok(search_rows(&tracks))
+}
+
+/// The tracks, then up to 10 albums and 10 artists, each in the order the tracks first name it.
+fn search_rows(tracks: &[(String, PTrack)]) -> Vec<Row> {
+    let mut seen = std::collections::HashSet::new();
+    let mut rows: Vec<Row> = tracks.iter().map(|(u, t)| track_row(u, t)).collect();
+    let albums: Vec<Row> = tracks
+        .iter()
+        .filter_map(|(_, t)| Some((gid_uri("album", t.album.as_ref()?.gid())?, t.album.as_ref()?)))
+        .filter(|(u, _)| seen.insert(u.clone()))
+        .take(10)
+        .map(|(u, a)| album_row(u, a))
+        .collect();
+    let artists: Vec<Row> = tracks
+        .iter()
+        .flat_map(|(_, t)| &t.artist)
+        .filter_map(|a| Some((gid_uri("artist", a.gid())?, a.name())))
+        .filter(|(u, _)| seen.insert(u.clone()))
+        .take(10)
+        .map(|(u, name)| artist_row(u, name))
+        .collect();
+    rows.extend(albums);
+    rows.extend(artists);
+    rows
+}
+
 /// Search: the Web API (own app if configured, else the session token) gives tracks,
-/// albums, artists and playlists; context-resolve search gives tracks only but needs no
+/// albums, artists and playlists; context-resolve search gives tracks, albums and artists but needs no
 /// token and isn't rate limited. Both run at once; the richer one wins if it's quick.
 pub async fn search(
     session: &Session,
@@ -709,12 +747,7 @@ pub async fn search(
     // Once basic results are in, the Web API only gets this much longer.
     const GRACE: Duration = Duration::from_millis(250);
     let rich = tokio::time::timeout(WEB_BUDGET, rich_search(session, own, q));
-    let basic = async {
-        let uri = format!("spotify:search:{}", pct(q));
-        let mut uris = context_track_uris(session, &uri).await?;
-        uris.truncate(50);
-        Ok::<_, String>((track_rows(session, uris).await, "basic"))
-    };
+    let basic = async { Ok::<_, String>((basic_search(session, q).await?, "basic")) };
     tokio::pin!(rich, basic);
     let (rich, basic) = tokio::select! {
         r = &mut rich => (r, basic.await),
@@ -779,6 +812,35 @@ mod tests {
         assert_eq!(url_decode("%C3%A9t%C3%A9"), "été");
         assert_eq!(url_decode("100%"), "100%");
         assert_eq!(url_decode(&pct("AC/DC & co")), "AC/DC & co");
+    }
+
+    #[test]
+    fn basic_search_lists_each_album_and_artist_once() {
+        let track = |name: &str, album: u8, artists: &[u8]| {
+            let mut t = PTrack::new();
+            t.set_name(name.into());
+            let mut a = PAlbum::new();
+            a.set_gid(vec![album; 16]);
+            a.set_name(format!("album {album}"));
+            t.album = Some(a).into();
+            t.artist = artists
+                .iter()
+                .map(|&x| {
+                    let mut p = PArtist::new();
+                    p.set_gid(vec![x; 16]);
+                    p.set_name(format!("artist {x}"));
+                    p
+                })
+                .collect();
+            (format!("spotify:track:{name}"), t)
+        };
+        let rows = search_rows(&[track("a", 1, &[7]), track("b", 2, &[7, 8]), track("c", 1, &[8])]);
+        let got: Vec<_> = rows.iter().map(|r| (r.kind, r.title.as_str())).collect();
+        assert_eq!(got, [
+            (Kind::Track, "a"), (Kind::Track, "b"), (Kind::Track, "c"),
+            (Kind::Album, "album 1"), (Kind::Album, "album 2"),
+            (Kind::Artist, "artist 7"), (Kind::Artist, "artist 8"),
+        ]);
     }
 
     #[test]

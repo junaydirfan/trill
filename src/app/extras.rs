@@ -161,6 +161,37 @@ impl App {
         }
     }
 
+    // ---------------------------------------------------------------- links
+
+    /// `y`: copy the link of the highlighted song, album, playlist or artist (else the song
+    /// playing); `Y`: of the open list. OSC 52, so it also works over SSH.
+    pub(super) fn copy_link(&mut self, open_list: bool) {
+        let (uri, name) = if open_list {
+            (Some(self.view.uri.clone()), self.view.title.clone())
+        } else {
+            let hit = match self.focus {
+                Focus::Side => self.side_state.selected().and_then(|i| self.side.get(i)).map(|s| (s.uri.clone(), s.name.clone())),
+                Focus::Main if !self.lyrics_open => {
+                    self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| (r.uri.clone(), r.title.clone()))
+                }
+                _ => None,
+            };
+            match hit.or_else(|| self.now.as_ref().map(|r| (r.uri.clone(), r.title.clone()))) {
+                Some((u, n)) => (Some(u), n),
+                None => (None, String::new()),
+            }
+        };
+        let Some(url) = uri.as_deref().and_then(web_link) else {
+            self.status = "No Spotify link for this.".into();
+            return;
+        };
+        let copied = crossterm::execute!(std::io::stdout(), crossterm::clipboard::CopyToClipboard::to_clipboard_from(&url));
+        self.status = match copied {
+            Ok(()) => format!("Copied link to “{name}”"),
+            Err(e) => format!("Couldn't copy: {e}"),
+        };
+    }
+
     // ---------------------------------------------------------------- liking
 
     /// `f`: like a song, save an album or follow an artist (the highlighted one, else the song playing).
@@ -587,4 +618,21 @@ impl App {
             _ => {}
         }
     }
+}
+
+/// `spotify:album:ID` → `https://open.spotify.com/album/ID`; None for Liked Songs, local files
+/// and trill's own views, which have no public page.
+fn web_link(uri: &str) -> Option<String> {
+    let mut p = uri.split(':');
+    let (Some("spotify"), Some(kind), Some(id), None) = (p.next(), p.next(), p.next(), p.next()) else { return None };
+    matches!(kind, "track" | "album" | "playlist" | "artist" | "episode" | "show").then(|| format!("https://open.spotify.com/{kind}/{id}"))
+}
+
+#[test]
+fn web_links() {
+    assert_eq!(web_link("spotify:track:4uLU6hMCjMI75M1A2tKUQC").as_deref(), Some("https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC"));
+    assert_eq!(web_link("spotify:playlist:37i9dQZF1DXcBWIGoYBM5M").as_deref(), Some("https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M"));
+    assert_eq!(web_link("spotify:user:me:collection"), None);
+    assert_eq!(web_link("spotify:local:a:b:c:180"), None);
+    assert_eq!(web_link("trill:search"), None);
 }
