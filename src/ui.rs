@@ -112,12 +112,6 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let hl = if app.focus == Focus::Side { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);
-    if let (Some(area), Some(proto)) = (art_area, app.art.as_ref().and_then(|a| a.proto.as_ref())) {
-        let sz = proto.size();
-        let x = area.x + area.width.saturating_sub(sz.width) / 2;
-        f.render_widget(Image::new(proto), Rect { x, y: area.y, width: sz.width.min(area.width), height: sz.height.min(area.height) });
-    }
-
     if app.lyrics_open {
         draw_lyrics(f, app, main);
     } else {
@@ -125,14 +119,19 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     }
     draw_now(f, app, now);
 
-    if let Some(band) = app.eq_panel {
-        draw_eq(f, app, band);
-    }
-    if app.chooser.is_some() {
-        draw_chooser(f, app);
-    }
-    if app.help_open {
-        draw_help(f);
+    let popups = [
+        app.eq_panel.map(|band| draw_eq(f, app, band)),
+        draw_chooser(f, app),
+        app.help_open.then(|| draw_help(f)),
+    ];
+    // Terminal graphics (kitty placeholders in Ghostty at least) drop every image row that
+    // anything else is drawn across, so a popup over the cover hides it whole instead.
+    if let (Some(area), Some(proto)) = (art_area, app.art.as_ref().and_then(|a| a.proto.as_ref()))
+        && !popups.iter().flatten().any(|p| p.intersects(area))
+    {
+        let sz = proto.size();
+        let x = area.x + area.width.saturating_sub(sz.width) / 2;
+        f.render_widget(Image::new(proto), Rect { x, y: area.y, width: sz.width.min(area.width), height: sz.height.min(area.height) });
     }
 
     // bottom line: search input or status
@@ -396,8 +395,8 @@ fn draw_lyrics(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(lines), inner);
 }
 
-fn draw_chooser(f: &mut Frame, app: &App) {
-    let Some(c) = app.chooser.as_ref() else { return };
+fn draw_chooser(f: &mut Frame, app: &App) -> Option<Rect> {
+    let c = app.chooser.as_ref()?;
     let area = f.area();
     let w = 50.min(area.width.saturating_sub(2));
     let h = 18.min(area.height.saturating_sub(2));
@@ -418,6 +417,7 @@ fn draw_chooser(f: &mut Frame, app: &App) {
     let l = if matches.is_empty() { List::new(vec![ListItem::new(" no matching playlists").dim()]) } else { List::new(items) };
     f.render_stateful_widget(l.highlight_style(Style::new().fg(on_accent()).bg(accent())), list, &mut st);
     f.render_widget(Paragraph::new(" type to filter · ⏎ add / remove ✓ · Esc done").dim(), help);
+    Some(rect)
 }
 
 
@@ -476,7 +476,7 @@ fn help_lines(groups: &[(&str, &[(&str, &str)])]) -> Vec<Line<'static>> {
 }
 
 /// `?`: all the keys in a centred pane, two columns when there's room.
-fn draw_help(f: &mut Frame) {
+fn draw_help(f: &mut Frame) -> Rect {
     let area = f.area();
     let two = area.width >= 100;
     let (left, right) = if two { (help_lines(&HELP[..2]), help_lines(&HELP[2..])) } else { (help_lines(&HELP), Vec::new()) };
@@ -494,9 +494,10 @@ fn draw_help(f: &mut Frame) {
     } else {
         f.render_widget(Paragraph::new(left), inner);
     }
+    rect
 }
 
-fn draw_eq(f: &mut Frame, app: &App, sel: usize) {
+fn draw_eq(f: &mut Frame, app: &App, sel: usize) -> Rect {
     let area = f.area();
     let w = 62.min(area.width.saturating_sub(2));
     let h = (BANDS.len() as u16 + 7).min(area.height.saturating_sub(2));
@@ -550,6 +551,7 @@ fn draw_eq(f: &mut Frame, app: &App, sel: usize) {
     lines.push(Line::from(" ↑↓ band  ←→ ±1 dB  0 reset band  p/P preset  f flat").dim());
     lines.push(Line::from(" x crossfade  space play/pause  Esc close").dim());
     f.render_widget(Paragraph::new(lines), inner);
+    rect
 }
 
 #[cfg(test)]
@@ -591,7 +593,7 @@ mod tests {
     fn help_shows_every_key() {
         for (w, h) in [(120, 40), (60, 40)] {
             let mut t = ratatui::Terminal::new(ratatui::backend::TestBackend::new(w, h)).unwrap();
-            t.draw(super::draw_help).unwrap();
+            t.draw(|f| { super::draw_help(f); }).unwrap();
             let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
             for (_, keys) in super::HELP {
                 for (_, what) in keys {
