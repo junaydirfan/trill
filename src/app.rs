@@ -36,6 +36,8 @@ pub enum Msg {
     Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
     NextArt { url: String, bytes: bytes::Bytes },
     Private { on: bool, was: u64, res: Result<(), String> },
+    /// `u` / `U`: the album or artist to open (uri, title).
+    Home(Result<(String, String), String>),
     /// The pause around `I` has had time to reach Discord; `apply`: switch private on now.
     PrivateGo { apply: bool },
     /// Accent colour picked from a cover (`None`: black-and-white cover).
@@ -1501,6 +1503,8 @@ impl App {
             KeyCode::Char('I') => self.toggle_private(),
             KeyCode::Char('y') => self.copy_link(false),
             KeyCode::Char('Y') => self.copy_link(true),
+            KeyCode::Char('u') => self.open_home(false),
+            KeyCode::Char('U') => self.open_home(true),
             KeyCode::Char('D') => self.remove_from_playlist(),
             KeyCode::Char('L') => self.toggle_lyrics(),
             KeyCode::Char('i') => self.toggle_art(),

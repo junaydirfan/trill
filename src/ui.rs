@@ -461,6 +461,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("o  O", "next / previous sort order"),
         ("c", "show the queue"),
         ("w", "jump to the playing song"),
+        ("u  U", "open the song's album · artist"),
         ("R", "reload the current list"),
     ]),
     ("View", &[
@@ -468,8 +469,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("i", "album art on / off"),
         ("t", "next colour theme"),
         ("e  E", "next EQ preset / EQ panel"),
-        ("?", "this help"),
-        ("q  Ctrl-C", "quit"),
+        ("?  q", "this help · quit (also Ctrl-C)"),
     ]),
 ];
 

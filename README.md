@@ -12,7 +12,7 @@
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/hero-gif.gif" width="880" alt="trill playing a song: library with pinned playlists and album art on the left, the track list on the right, the progress bar along the bottom">
+  <img src="assets/screenshots/Timeline.gif" width="880" alt="trill playing a song: library with pinned playlists and album art on the left, the track list on the right, the progress bar along the bottom">
 </p>
 
 <p align="center">
@@ -294,7 +294,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `/` | search | | `R` | reload the current list |
 | `P` | play everything in the list | | `?` | key help |
 | `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
-| `I` | private session ⊘ on / off | | | |
+| `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
 ## Details
@@ -307,6 +307,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 - **Albums and Artists:** the two entries under Liked Songs list your saved albums and the artists you follow, most recent first, and sort like playlists. Opening an artist shows their top tracks, then their albums, singles, EPs and compilations, newest first.
 - **Liking, saving, following:** `f` likes or unlikes the highlighted song, saves or unsaves the highlighted album, and follows or unfollows the highlighted artist. With nothing highlighted, it likes the song playing. Everything in your library shows a ♥, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
 - **Smart shuffle:** `s` steps through off, shuffle and smart shuffle. Smart shuffle plays your list shuffled with a song Spotify recommends after every three, marked ✦ in the now-playing line and the queue (`c`). They come from the list's Spotify radio (playlists, albums, artists), or the playing song's radio for Liked Songs and search results. Like in Spotify, they're only played, not added. To keep one, press `w`: it shows the recommendation at the top of the queue, where `f` likes it and `A` adds it (the picker starts on the playlist it was picked for, so `w` `A` `Enter` adds it there).
+- **Album and artist of a song:** `u` opens the album of the highlighted song (or the one playing), `U` its artist (the first one, for songs with several). `Esc` comes back.
 - **Jump to the playing song:** `w` opens the list it's playing from and highlights it. A song that isn't in that list (a smart-shuffle recommendation, or one started from your phone) is shown at the top of the queue instead, where `f` likes it and `A` adds it.
 - **Play all:** `P` plays every track in the open list, opening the albums and playlists in it. On an artist page that's the whole discography, top tracks first, without repeats (about 1 s for ~100 songs).
 - **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. A ✓ marks the ones that already have the song. `Enter` adds it, or removes it from a ✓ playlist, and the picker stays open for more until `Esc`. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.

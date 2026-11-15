@@ -288,6 +288,23 @@ impl App {
         };
     }
 
+    /// `u` / `U`: open the album / artist of the highlighted song, else of the one playing.
+    pub(super) fn open_home(&mut self, artist: bool) {
+        let hit = match self.focus {
+            Focus::Main if !self.lyrics_open => self.view.state.selected().and_then(|i| self.view.rows.get(i)).filter(|r| r.kind == Kind::Track),
+            _ => None,
+        };
+        let Some(uri) = hit.or(self.now.as_ref()).map(|r| r.uri.clone()) else {
+            self.status = "No song to open the album or artist of.".into();
+            return;
+        };
+        self.status = format!("Opening the {}…", if artist { "artist" } else { "album" });
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            let _ = tx.send(Msg::Home(api::track_home(&s, &uri, artist).await));
+        });
+    }
+
     // ---------------------------------------------------------------- liking
 
     /// `f`: like a song, save an album or follow an artist (the highlighted one, else the song playing).
@@ -672,6 +689,8 @@ impl App {
                     }
                 }
             }
+            Msg::Home(Ok((uri, title))) => self.open(uri, title, true, false),
+            Msg::Home(Err(e)) => self.status = format!("Couldn't open it: {e}"),
             Msg::Private { res: Ok(()), .. } => {}
             Msg::Private { on, was, res: Err(e) } => {
                 self.set_private_until(was);

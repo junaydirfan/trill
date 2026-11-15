@@ -376,6 +376,22 @@ async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, 
         .collect()
 }
 
+/// Where a song lives: its album (uri, "Album — Artist") or, with `artist`, its first
+/// artist (uri, name).
+pub async fn track_home(session: &Session, uri: &str, artist: bool) -> Res<(String, String)> {
+    let bytes = ext_meta(session, &[uri.to_string()], ExtensionKind::TRACK_V4).await.remove(uri).ok_or("Spotify has no details for this song")?;
+    let t = PTrack::parse_from_bytes(&bytes).map_err(e)?;
+    let first = t.artist.first();
+    if artist {
+        let a = first.ok_or("this song has no artist")?;
+        return Ok((gid_uri("artist", a.gid()).ok_or("bad artist id")?, a.name().to_string()));
+    }
+    let al = t.album.as_ref().ok_or("this song has no album")?;
+    let by = al.artist.first().or(first).map(|a| a.name()).unwrap_or_default();
+    let title = if by.is_empty() { al.name().to_string() } else { format!("{} — {by}", al.name()) };
+    Ok((gid_uri("album", al.gid()).ok_or("bad album id")?, title))
+}
+
 fn gid_uri(kind: &str, gid: &[u8]) -> Option<String> {
     let id = SpotifyId::from_raw(gid).ok()?.to_base62().ok()?;
     Some(format!("spotify:{kind}:{id}"))
