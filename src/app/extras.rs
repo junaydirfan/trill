@@ -151,6 +151,9 @@ impl App {
     fn edit_cached(&mut self, uri: &str, f: impl FnOnce(&mut Vec<Row>)) {
         let Some(rows) = self.cache.get_mut(uri) else { return };
         f(Arc::make_mut(rows));
+        if let Some(d) = self.cache_dir.as_deref() {
+            api::write_list_cache(d, uri, rows);
+        }
         if self.view.uri == uri {
             let sel = self.view.state.selected();
             let (u, t, rows) = (self.view.uri.clone(), self.view.title.clone(), rows.clone());
@@ -159,6 +162,20 @@ impl App {
             self.view.reselect(sel);
             *self.view.state.offset_mut() = offset;
         }
+    }
+
+    /// Swap the open list's rows for a fresh copy, keeping the highlighted song (by uri, as
+    /// rows may have moved) and the scroll position.
+    pub(super) fn replace_view_rows(&mut self, rows: api::Rows) {
+        let keep = self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| r.uri.clone());
+        let (sel, offset) = (self.view.state.selected(), self.view.state.offset());
+        let (u, t) = (self.view.uri.clone(), self.view.title.clone());
+        self.show(u, t, rows);
+        match keep.and_then(|k| self.view.rows.iter().position(|r| r.uri == k)) {
+            Some(i) => self.view.state.select(Some(i)),
+            None => self.view.reselect(sel),
+        }
+        *self.view.state.offset_mut() = offset;
     }
 
     // ---------------------------------------------------------------- links
@@ -480,7 +497,9 @@ impl App {
         if same.is_some_and(|a| a.busy) {
             return; // the next draw after it finishes picks up the newest size
         }
-        let bytes = same.and_then(|a| a.bytes.clone());
+        let bytes = same
+            .and_then(|a| a.bytes.clone())
+            .or_else(|| self.next_art.take().filter(|(u, _)| *u == url).map(|(_, b)| b));
         // Keep showing the old cover until the new one is ready (no flicker); the url
         // check in on_extra_msg drops results that arrive after another change.
         let keep = self.art.take().and_then(|a| a.proto);
@@ -502,6 +521,21 @@ impl App {
                 (proto, bytes)
             });
             let _ = tx.send(Msg::Art { url, size, res });
+        });
+    }
+
+    /// Download the next song's cover ahead of time (it's queued ~8 s before this one ends),
+    /// so the switch shows it at once instead of ~0.2 s later.
+    pub(super) fn prefetch_art(&mut self, next: &Row) {
+        let Some(url) = next.art.clone() else { return };
+        if !self.art_on || self.img_picker.is_none() || self.art.as_ref().is_some_and(|a| a.url == url) {
+            return;
+        }
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            if let Ok(bytes) = s.spclient().request_url(&url).await {
+                let _ = tx.send(Msg::NextArt { url, bytes });
+            }
         });
     }
 
@@ -545,6 +579,7 @@ impl App {
                     self.tint = Some((url, tint));
                 }
             }
+            Msg::NextArt { url, bytes } => self.next_art = Some((url, bytes)),
             Msg::Art { url, size, res } => {
                 if let Some(a) = self.art.as_mut()
                     && a.url == url

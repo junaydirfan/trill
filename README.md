@@ -49,7 +49,8 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 | | |
 |---|---|
 | Launch to library on screen | ~30 ms (usable after login, ~0.35–0.6 s) |
-| Open Liked Songs (3,852 tracks), first time | ~0.55 s; afterwards ~25 ms |
+| Open Liked Songs (3,901 tracks), very first time | ~0.45–0.7 s |
+| Open it again, also after a restart | ~2 ms from disk, then refreshed in the background (~0.25 s) |
 | Search | ~0.35 s |
 | Key press to redraw | ~2 ms |
 | Press play to playing | ~0.2 s |
@@ -70,9 +71,10 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 - Track info is fetched 300 tracks per request, with up to 16 requests in parallel, instead of one request per song.
 - Each frame builds only the table rows that fit on screen.
 - The playlist list is cached, so the sidebar fills on the first frame and refreshes in the background.
+- Every list you open is saved to `~/.cache/trill/lists`, so it opens instantly next time, even after a restart. A fresh copy loads in the background and replaces it only if something changed, keeping your place. That refresh, and `R`, only fetch details for songs added since.
 - Spotify login and Soloist startup run at the same time. With a saved login, the library is drawn from cache before the login finishes, and keys you type meanwhile wait their turn.
 - Freed heap goes back to the OS after big lists load (`malloc_trim`), and glibc is limited to 2 malloc arenas.
-- Album art is decoded and resized once per song, off the UI thread.
+- Album art is decoded and resized once per song, off the UI thread. The next song's cover is downloaded while the current one ends, so it changes with the song.
 
 ## Get started
 
@@ -326,7 +328,7 @@ art = on               # off = no album art (and no terminal capability query)
 
 Playlists, liked songs, albums and artists all use librespot's own connection, so the public Web API's limits don't apply to them. Search, however, uses the Web API.
 
-Without your own app, search borrows librespot's shared token, which every librespot app uses, so Spotify rate-limits it most of the time. To keep search fast either way, trill always runs a basic search alongside the Web API one (about 0.3 s), and after one rate-limit error it stops asking the Web API for 2 minutes. The basic search finds songs, plus the albums and artists of those songs, but no playlists.
+Without your own app, search borrows librespot's shared token, which every librespot app uses, so Spotify rate-limits it most of the time. To keep search fast either way, trill always runs a basic search alongside the Web API one (about 0.3 s), and after a rate-limit error it stops asking the Web API for 2 minutes, doubling with each further error up to 32 minutes. The basic search finds songs, plus the albums and artists of those songs, but no playlists.
 
 For reliable full search (tracks, albums, playlists and artists):
 

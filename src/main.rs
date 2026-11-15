@@ -487,7 +487,7 @@ async fn run(cfg: Config) -> i32 {
                 Ok(())
             }
             Some("pins") => library::pins(&session).await.map(|p| p.iter().for_each(|u| eprintln!("{u}"))),
-            Some("all") => match api::context_rows(&session, &a[1]).await {
+            Some("all") => match api::context_rows(&session, &a[1], &[]).await {
                 Ok(rows) => {
                     let all = api::expand(&session, &rows).await;
                     eprintln!("{} tracks; first: {:?}", all.len(), all.iter().take(12).map(|r| r.title.as_str()).collect::<Vec<_>>());
@@ -495,7 +495,7 @@ async fn run(cfg: Config) -> i32 {
                 }
                 Err(e) => Err(e),
             },
-            Some("rows") => api::context_rows(&session, &a[1]).await.map(|rows| {
+            Some("rows") => api::context_rows(&session, &a[1], &[]).await.map(|rows| {
                 eprintln!("{} rows", rows.len());
                 rows.iter().take(40).for_each(|r| eprintln!("{:?} {} | {} | {} | {}", r.kind, r.title, r.artist, r.album, r.uri));
             }),

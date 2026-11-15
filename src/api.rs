@@ -540,7 +540,9 @@ fn station_uris(v: &Value) -> Vec<String> {
 }
 
 /// Rows in the context's own order (playlist order, album order…), with `added_at` set.
-pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
+/// `known`: rows this list had before (from the disk cache or memory); their tracks' details
+/// are reused, so a refresh only fetches metadata for songs added since.
+pub async fn context_rows(session: &Session, uri: &str, known: &[Row]) -> Res<Vec<Row>> {
     if uri.starts_with("spotify:folder:") {
         return folder_rows(session, uri).await;
     }
@@ -556,17 +558,99 @@ pub async fn context_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
         return followed_artist_rows(session).await;
     }
     let tracks = context_tracks(session, uri).await?;
-    let uris = tracks.iter().map(|t| t.uri.clone()).collect();
-    let mut extra: HashMap<String, (u64, String)> =
-        tracks.into_iter().map(|t| (t.uri, (t.added, t.members))).collect();
-    let mut rows = track_rows(session, uris).await;
-    for r in &mut rows {
-        if let Some((added, members)) = extra.get_mut(&r.uri) {
-            r.added_at = *added;
-            r.members = std::mem::take(members);
-        }
+    let have: HashMap<&str, &Row> = known.iter().filter(|r| r.kind == Kind::Track).map(|r| (r.uri.as_str(), r)).collect();
+    let mut missing: Vec<String> = tracks.iter().filter(|t| !have.contains_key(t.uri.as_str())).map(|t| t.uri.clone()).collect();
+    missing.dedup();
+    let fetched: HashMap<String, Row> = track_rows(session, missing).await.into_iter().map(|r| (r.uri.clone(), r)).collect();
+    // tracks with no metadata are region-locked/removed; they stay dropped
+    Ok(tracks
+        .into_iter()
+        .filter_map(|t| {
+            let mut r = have.get(t.uri.as_str()).map(|r| (*r).clone()).or_else(|| fetched.get(&t.uri).cloned())?;
+            r.added_at = t.added;
+            r.members = t.members;
+            Some(r)
+        })
+        .collect())
+}
+
+/// Lists as last loaded, one file each, so they show instantly after a restart while a fresh
+/// copy loads in the background. Tab-separated like the playlist cache; a header names the format.
+/// shortcut: files are never pruned (~3 KB per album, ~0.6 MB for 4k liked songs); add an
+/// age-based sweep if the folder ever gets big.
+const LIST_FORMAT: &str = "trill-list 1";
+
+fn list_path(dir: &std::path::Path, uri: &str) -> std::path::PathBuf {
+    dir.join("lists").join(uri.replace([':', '/', '\\'], "_"))
+}
+
+pub fn read_list_cache(dir: &std::path::Path, uri: &str) -> Option<Vec<Row>> {
+    let text = std::fs::read_to_string(list_path(dir, uri)).ok()?;
+    let mut lines = text.lines();
+    if lines.next() != Some(LIST_FORMAT) {
+        return None;
     }
-    Ok(rows)
+    Some(lines.filter_map(parse_list_line).collect())
+}
+
+fn parse_list_line(l: &str) -> Option<Row> {
+    let mut f = l.split('\t');
+    let mut next = || f.next();
+    let (uri, title, artist, album) = (next()?, next()?, next()?, next()?);
+    let (duration_ms, kind, art, added_at, members) = (next()?.parse().ok()?, next()?, next()?, next()?.parse().ok()?, next()?);
+    let kind = match kind {
+        "t" => Kind::Track,
+        "a" => Kind::Album,
+        "p" => Kind::Playlist,
+        "r" => Kind::Artist,
+        _ => return None,
+    };
+    Some(Row {
+        uri: uri.into(),
+        title: title.into(),
+        artist: artist.into(),
+        album: album.into(),
+        duration_ms,
+        kind,
+        art: (!art.is_empty()).then(|| art.into()),
+        added_at,
+        members: members.into(),
+    })
+}
+
+pub fn write_list_cache(dir: &std::path::Path, uri: &str, rows: &[Row]) {
+    use std::fmt::Write as _;
+    let clean = |s: &str| s.replace(['\t', '\n', '\r'], " ");
+    let mut text = String::with_capacity(rows.len() * 160 + 16);
+    text.push_str(LIST_FORMAT);
+    text.push('\n');
+    for r in rows {
+        let kind = match r.kind {
+            Kind::Track => "t",
+            Kind::Album => "a",
+            Kind::Playlist => "p",
+            Kind::Artist => "r",
+        };
+        let _ = writeln!(
+            text,
+            "{}\t{}\t{}\t{}\t{}\t{kind}\t{}\t{}\t{}",
+            r.uri,
+            clean(&r.title),
+            clean(&r.artist),
+            clean(&r.album),
+            r.duration_ms,
+            r.art.as_deref().unwrap_or(""),
+            r.added_at,
+            clean(&r.members)
+        );
+    }
+    let path = list_path(dir, uri);
+    let mut tmp = path.clone().into_os_string();
+    tmp.push(".tmp"); // not with_extension: user ids in the name can contain dots
+    let tmp = std::path::PathBuf::from(tmp);
+    if std::fs::create_dir_all(dir.join("lists")).is_ok() && std::fs::write(&tmp, text).is_ok() {
+        let _ = std::fs::rename(&tmp, &path);
+    }
 }
 
 fn pct(s: &str) -> String {
@@ -666,8 +750,20 @@ async fn web_search(session: &Session, token: &str, q: &str) -> Res<Vec<Row>> {
 /// The session-token Web API search shares librespot's client id with every other
 /// librespot app, so it is rate limited (429) most of the time. After a failure we stop
 /// asking for a while instead of paying for it on every search.
-static SESSION_WEB_BLOCKED: std::sync::Mutex<Option<Instant>> = std::sync::Mutex::new(None);
-const WEB_BACKOFF: Duration = Duration::from_secs(120);
+/// (blocked until, failures in a row): the pause doubles per failure, 2 min up to 32 min,
+/// since a token that's rate limited now usually still is a few minutes later.
+static SESSION_WEB_BLOCKED: std::sync::Mutex<(Option<Instant>, u32)> = std::sync::Mutex::new((None, 0));
+
+fn web_backoff(failures: u32) -> Duration {
+    Duration::from_secs(120 << failures.saturating_sub(1).min(4))
+}
+
+fn session_web_failed() {
+    if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
+        b.1 += 1;
+        b.0 = Some(Instant::now() + web_backoff(b.1));
+    }
+}
 /// How long a Web API search may take before we settle for the basic results.
 const WEB_BUDGET: Duration = Duration::from_millis(1500);
 
@@ -682,7 +778,7 @@ async fn rich_search(session: &Session, own: Option<Arc<Mutex<WebToken>>>, q: &s
             Err(err) => log::warn!("own-client token failed: {err}"),
         }
     }
-    let blocked = SESSION_WEB_BLOCKED.lock().ok()?.is_some_and(|t| t > Instant::now());
+    let blocked = SESSION_WEB_BLOCKED.lock().ok()?.0.is_some_and(|t| t > Instant::now());
     if blocked {
         return None;
     }
@@ -691,12 +787,15 @@ async fn rich_search(session: &Session, own: Option<Arc<Mutex<WebToken>>>, q: &s
         Err(err) => Err(err.to_string()),
     };
     match res {
-        Ok(r) => Some((r, "web api*")),
+        Ok(r) => {
+            if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
+                *b = (None, 0);
+            }
+            Some((r, "web api*"))
+        }
         Err(err) => {
             log::warn!("session-token search failed: {err}");
-            if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
-                *b = Some(Instant::now() + WEB_BACKOFF);
-            }
+            session_web_failed();
             None
         }
     }
@@ -758,9 +857,7 @@ pub async fn search(
         Ok(_) => basic,
         Err(_) => {
             log::warn!("web search too slow, using basic results");
-            if let Ok(mut b) = SESSION_WEB_BLOCKED.lock() {
-                *b = Some(Instant::now() + WEB_BACKOFF);
-            }
+            session_web_failed();
             basic
         }
     }
@@ -812,6 +909,49 @@ mod tests {
         assert_eq!(url_decode("%C3%A9t%C3%A9"), "été");
         assert_eq!(url_decode("100%"), "100%");
         assert_eq!(url_decode(&pct("AC/DC & co")), "AC/DC & co");
+    }
+
+    #[test]
+    fn list_cache_round_trips() {
+        let dir = std::env::temp_dir().join(format!("trill-list-test-{}", std::process::id()));
+        let row = |uri: &str, title: &str, kind, art: Option<&str>| Row {
+            uri: uri.into(),
+            title: title.into(),
+            artist: "A, B".into(),
+            album: "2001 · single".into(),
+            duration_ms: 123_456,
+            kind,
+            art: art.map(String::from),
+            added_at: 1_700_000_000_000,
+            members: "jj, Cube".into(),
+        };
+        let rows = vec![
+            row("spotify:track:1", "tab\there", Kind::Track, Some("https://i.scdn.co/image/ab")),
+            row("spotify:album:2", "no art", Kind::Album, None),
+            row("spotify:playlist:3", "p", Kind::Playlist, None),
+            row("spotify:artist:4", "r", Kind::Artist, None),
+        ];
+        let uri = "spotify:user:a.b.c:collection";
+        write_list_cache(&dir, uri, &rows);
+        let back = read_list_cache(&dir, uri).expect("cached");
+        assert_eq!(back.len(), 4);
+        assert_eq!(back[0].title, "tab here"); // tabs would break the format
+        for (a, b) in back.iter().zip(&rows).skip(1) {
+            assert_eq!(
+                (&a.uri, &a.title, &a.artist, &a.album, a.duration_ms, a.kind, &a.art, a.added_at, &a.members),
+                (&b.uri, &b.title, &b.artist, &b.album, b.duration_ms, b.kind, &b.art, b.added_at, &b.members)
+            );
+        }
+        // another format version is ignored, not misread
+        std::fs::write(list_path(&dir, uri), "trill-list 0\nx").unwrap();
+        assert!(read_list_cache(&dir, uri).is_none());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn search_backoff_doubles_to_a_cap() {
+        let mins: Vec<u64> = (1..=7).map(|n| web_backoff(n).as_secs() / 60).collect();
+        assert_eq!(mins, [2, 4, 8, 16, 32, 32, 32]);
     }
 
     #[test]

@@ -34,6 +34,7 @@ pub enum Msg {
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
     Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
+    NextArt { url: String, bytes: bytes::Bytes },
     /// Accent colour picked from a cover (`None`: black-and-white cover).
     Tint { url: String, tint: Option<[u8; 3]> },
     /// A newer trill release is out (its tag).
@@ -107,6 +108,11 @@ impl Sort {
 /// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
 /// Sorts are stable, so ties keep the playlist's order.
 /// "10 tracks · 7 albums" for the status line.
+/// Same songs in the same order, added at the same times.
+fn same_rows(a: &[Row], b: &[Row]) -> bool {
+    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.uri == y.uri && x.added_at == y.added_at)
+}
+
 fn count(rows: &[Row]) -> String {
     let parts: Vec<String> = [(Kind::Track, "track"), (Kind::Album, "album"), (Kind::Playlist, "playlist"), (Kind::Artist, "artist")]
         .into_iter()
@@ -274,6 +280,8 @@ pub struct App {
     /// (cover url, its colour) for the `cover` theme.
     pub tint: Option<(String, Option<[u8; 3]>)>,
     pub art: Option<Art>,
+    /// The next song's cover (url, bytes), fetched while this one ends so it shows at once.
+    next_art: Option<(String, bytes::Bytes)>,
     /// Cell size the UI has room for (set while drawing).
     pub art_want: Option<(u16, u16)>,
     /// "Add to playlist" popup.
@@ -377,6 +385,7 @@ impl App {
             theme,
             tint,
             art: None,
+            next_art: None,
             art_want: None,
             chooser: None,
             confirm_remove: None,
@@ -424,6 +433,19 @@ impl App {
             self.show(uri, title, rows);
             return;
         }
+        // Loaded in an earlier run: show that copy now; a fresh one replaces it if it changed.
+        if !force && let Some(rows) = self.cache_dir.as_deref().and_then(|d| api::read_list_cache(d, &uri)) {
+            let rows: Rows = Arc::new(rows);
+            if rows.len() > 500 {
+                crate::trim_heap();
+            }
+            self.cache.insert(uri.clone(), rows.clone());
+            self.status = format!("{title}: {}", count(&rows));
+            self.show(uri.clone(), title.clone(), rows.clone());
+            self.fetch_rows(uri, title, rows);
+            return;
+        }
+        let known = self.cache.get(&uri).cloned().unwrap_or_default();
         self.view.uri = uri.clone();
         self.view.title = title.clone();
         self.view.rows = Arc::new(Vec::new());
@@ -431,9 +453,14 @@ impl App {
         self.loading = true;
         self.status = format!("Loading {title}…");
         self.pending = Some(uri.clone());
+        self.fetch_rows(uri, title, known);
+    }
+
+    /// Load a list; `known` rows (an older copy) spare re-fetching their songs' details.
+    fn fetch_rows(&self, uri: String, title: String, known: Rows) {
         let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
-            let rows = api::context_rows(&s, &uri).await;
+            let rows = api::context_rows(&s, &uri, &known).await;
             let _ = tx.send(Msg::Rows { uri, title, rows });
         });
     }
@@ -583,7 +610,11 @@ impl App {
                         if uri == self.liked_uri() {
                             self.liked = rows.iter().map(|r| r.uri.clone()).collect();
                         }
-                        self.cache.insert(uri.clone(), rows.clone());
+                        let old = self.cache.insert(uri.clone(), rows.clone());
+                        let changed = !old.as_deref().is_some_and(|o| same_rows(o, &rows));
+                        if changed && let Some(d) = self.cache_dir.as_deref() {
+                            api::write_list_cache(d, &uri, &rows);
+                        }
                         if big {
                             // Loading a big list decodes megabytes of protobuf that is freed
                             // right away; hand those pages back to the OS instead of keeping them.
@@ -592,6 +623,10 @@ impl App {
                         if is_current {
                             self.status = format!("{title}: {}", count(&rows));
                             self.show(uri, title, rows);
+                        } else if changed && self.view.uri == uri {
+                            // The copy on screen came from disk; this is the fresh one.
+                            self.status = format!("{title}: {} (updated)", count(&rows));
+                            self.replace_view_rows(rows);
                         }
                     }
                     Err(e) if is_current => self.status = format!("Couldn't load {title}: {e}"),
@@ -921,6 +956,7 @@ impl App {
             && let Some(r) = self.peek_next()
         {
             self.engine.add_to_queue(&r.uri);
+            self.prefetch_art(&r);
             self.ahead = Some(r.uri);
         }
     }
