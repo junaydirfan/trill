@@ -278,6 +278,13 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 
 ## Keys
 
+<p align="center">
+  <img src="assets/readme/keys.svg" width="880" alt="Every key, grouped as in trill's help (press ? in trill). The same keys are listed as text below.">
+</p>
+
+<details>
+<summary><strong>Keys as text</strong></summary>
+
 | key | action | | key | action |
 |---|---|---|---|---|
 | `↑↓` `jk` `PgUp/PgDn` `g/G` | move | | `f` | like a song · save an album · follow an artist |
@@ -296,6 +303,7 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
 | `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
+</details>
 
 ## Details
 
