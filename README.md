@@ -393,6 +393,21 @@ trill --debug-play [spotify:track:…] # play one track headless, print engine e
 Soloist's own output goes to `~/.cache/trill/soloist.log`.
 </details>
 
+## Troubleshooting
+
+- **"trill is not recognized" or "command not found":** open a new terminal window after installing.
+- **"cargo is not recognized":** you only need Rust to build trill yourself. Use the download in step 1.
+- **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't saved in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`), or step 4 hasn't been run.
+- **Album art looks pixelated or blocky:** your terminal can't display images, so trill draws the cover with coloured blocks. This is always the case in Apple's Terminal, Alacritty and the old Windows console. Use Ghostty, kitty, WezTerm, iTerm2 or Windows Terminal for the real cover.
+- **Your phone doesn't list trill:** run `trill --pair` again with the phone on the same Wi-Fi, and allow the firewall prompt.
+- **Anything else:** run `TRILL_LOG=debug trill` (on Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then in `~/.cache/trill/trill.log`, and Soloist's in `~/.cache/trill/soloist.log`.
+
+> [!NOTE]
+> macOS and Windows support is new. If something doesn't work there, an issue with the log helps.
+
+> [!TIP]
+> Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
+
 ## FAQ
 
 **Why not just librespot?**
