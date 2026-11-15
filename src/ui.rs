@@ -277,26 +277,36 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     f.render_stateful_widget(table, main, &mut window_state);
 }
 
-fn draw_now(f: &mut Frame, app: &App, now: Rect) {
-    let [line1, line2] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(now);
-    let mut flags = format!("vol {}%", app.volume_pct());
+/// The right side of the now-playing line: what has a value as short text (only when it
+/// matters), then the toggles as fixed icons, lit when on and dimmed when off, so each one's
+/// state is always visible: ⇄ shuffle (⇄✦ smart), ↻ repeat (↻1 one), ⊘ private session.
+fn now_flags(app: &App) -> Line<'static> {
+    let info = Style::new().dim();
+    let mut s = Vec::new();
     if app.eq.is_some() && !app.audio.is_flat() {
-        flags.push_str(&format!("  eq {}", app.audio.preset_name().to_lowercase()));
+        s.push(Span::styled(format!("eq {}  ", app.audio.preset_name().to_lowercase()), info));
     }
     if app.audio.crossfade_s > 0 {
-        flags.push_str(&format!("  xfade {}s", app.audio.crossfade_s));
-    }
-    if app.shuffle {
-        flags.push_str(if app.smart { "  smart shuffle" } else { "  shuffle" });
-    }
-    match app.repeat {
-        Repeat::All => flags.push_str("  repeat"),
-        Repeat::One => flags.push_str("  repeat-1"),
-        Repeat::Off => {}
+        s.push(Span::styled(format!("xfade {}s  ", app.audio.crossfade_s), info));
     }
     if !app.queue.is_empty() {
-        flags.push_str(&format!("  queue {}", app.queue.len()));
+        s.push(Span::styled(format!("queue {}  ", app.queue.len()), info));
     }
+    s.push(Span::styled(format!("vol {}%  ", app.volume_pct()), info));
+    // on: a solid accent pill; off: the same cell, dim, so nothing shifts when it toggles
+    let flag = |lit: bool, icon: &str| {
+        let style = if lit { Style::new().fg(Color::Black).bg(accent()).bold() } else { Style::new().fg(Color::DarkGray) };
+        Span::styled(format!(" {icon} "), style)
+    };
+    s.push(flag(app.shuffle, if app.shuffle && app.smart { "⇄✦" } else { "⇄" }));
+    s.push(flag(app.repeat != Repeat::Off, if app.repeat == Repeat::One { "↻1" } else { "↻" }));
+    s.push(flag(app.private_on(), "⊘"));
+    Line::from(s)
+}
+
+fn draw_now(f: &mut Frame, app: &App, now: Rect) {
+    let [line1, line2] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(now);
+    let flags = now_flags(app);
     match &app.now {
         Some(r) => {
             let icon = if app.playing { "▶" } else { "⏸" };
@@ -305,7 +315,8 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
                 (false, true) => " ✦",
                 _ => "",
             };
-            let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length((flags.len() as u16 + 1).min(line1.width / 3))]).areas(line1);
+            // the flags keep their full width; the title gives way first
+            let [l, rt] = Layout::horizontal([Constraint::Min(10), Constraint::Length((flags.width() as u16).min(line1.width / 2))]).areas(line1);
             f.render_widget(
                 Paragraph::new(Line::from(vec![
                     Span::styled(format!(" {icon} "), Style::new().fg(accent()).bold()),
@@ -316,7 +327,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
                 ])),
                 l,
             );
-            f.render_widget(Paragraph::new(flags.as_str()).dim().right_aligned(), rt);
+            f.render_widget(Paragraph::new(flags).right_aligned(), rt);
             let pos = app.position_ms().min(r.duration_ms);
             let ratio = if r.duration_ms > 0 { pos as f64 / r.duration_ms as f64 } else { 0.0 };
             // " 1:23 ██████████▌░░░░░░░ 3:45 ": solid bar, 1/8-cell precision, gradient fill
@@ -339,7 +350,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
         }
         None => {
             f.render_widget(Paragraph::new(Line::from(vec![Span::raw(" ■ Nothing playing").dim()])), line1);
-            f.render_widget(Paragraph::new(flags.as_str()).dim().right_aligned(), line1);
+            f.render_widget(Paragraph::new(flags).right_aligned(), line1);
         }
     }
 }
@@ -428,8 +439,8 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("n  p", "next / previous"),
         ("← →  , .", "seek ±10 s"),
         ("+  -", "volume ±5%"),
-        ("s", "shuffle: off → on → smart"),
-        ("r", "repeat: off → all → one"),
+        ("s", "shuffle ⇄: off → on → smart ⇄✦"),
+        ("r", "repeat ↻: off → all → one ↻1"),
         ("x", "crossfade off / 3 / 5 / 8 / 12 s"),
         ("P", "play everything in the list"),
     ]),
@@ -439,6 +450,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("A", "add to / remove from a playlist"),
         ("D D", "remove from the open playlist"),
         ("y  Y", "copy link: highlighted · open list"),
+        ("I", "private session ⊘ on / off (6 h)"),
     ]),
     ("Browse", &[
         ("↑↓  jk", "move (PgUp/PgDn, g/G jump)"),

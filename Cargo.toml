@@ -12,7 +12,7 @@ librespot-protocol = "0.8"
 protobuf = "3"
 ratatui = { version = "0.30", default-features = false, features = ["crossterm"] }
 crossterm = { version = "0.29", features = ["osc52"] }
-tokio = { version = "1", features = ["rt", "macros", "sync", "time", "signal"] }
+tokio = { version = "1", features = ["rt", "macros", "sync", "time", "signal", "net", "io-util"] }
 futures-util = { version = "0.3", default-features = false, features = ["std", "sink"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -27,6 +27,15 @@ image = { version = "0.25", default-features = false, features = ["jpeg"] }
 
 [target.'cfg(target_os = "linux")'.dependencies]
 mpris-server = { version = "0.11", default-features = false, features = ["tokio"] }
+# Private mode's relay (src/relay.rs). All already compiled in through librespot.
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["client-legacy", "http1", "tokio"] }
+hyper-tls = "0.6"
+http-body-util = "0.1"
+native-tls = "0.2"
+tokio-native-tls = "0.3"
+openssl = "0.10"
+flate2 = "1"
 librespot-playback = { version = "0.8", default-features = false, features = ["native-tls", "pulseaudio-backend"] }
 
 [target.'cfg(not(target_os = "linux"))'.dependencies]

@@ -229,6 +229,8 @@ pub struct SoloistOpts {
     /// PipeWire node to play into (the EQ), instead of the default output.
     pub pipewire_device: Option<String>,
     pub initial_volume: Option<u32>,
+    /// Extra environment (private mode's relay, see relay.rs).
+    pub env: Vec<(String, String)>,
 }
 
 impl SoloistOpts {
@@ -251,6 +253,7 @@ impl SoloistOpts {
         if std::env::var_os("TRILL_SOLOIST_VERBOSE").is_some() {
             c.arg("-v");
         }
+        c.envs(self.env.iter().map(|(k, v)| (k, v)));
         c
     }
 }

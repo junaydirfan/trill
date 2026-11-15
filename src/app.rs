@@ -35,6 +35,9 @@ pub enum Msg {
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
     Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
     NextArt { url: String, bytes: bytes::Bytes },
+    Private { on: bool, was: u64, res: Result<(), String> },
+    /// The pause around `I` has had time to reach Discord; `apply`: switch private on now.
+    PrivateGo { apply: bool },
     /// Accent colour picked from a cover (`None`: black-and-white cover).
     Tint { url: String, tint: Option<[u8; 3]> },
     /// A newer trill release is out (its tag).
@@ -108,6 +111,10 @@ impl Sort {
 /// Apply the sort mode to playlists and liked songs (albums/artists keep their order).
 /// Sorts are stable, so ties keep the playlist's order.
 /// "10 tracks · 7 albums" for the status line.
+pub fn unix_now() -> u64 {
+    SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0)
+}
+
 /// Same songs in the same order, added at the same times.
 fn same_rows(a: &[Row], b: &[Row]) -> bool {
     a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.uri == y.uri && x.added_at == y.added_at)
@@ -224,6 +231,13 @@ pub struct App {
     pub help_open: bool,
     /// When to restart Soloist to apply a crossfade change (debounced).
     pub restart_at: Option<Instant>,
+    /// End of the private session (unix seconds), shared with the relay that hides Soloist.
+    pub private_shared: Arc<std::sync::atomic::AtomicU64>,
+    /// Soloist runs through the relay; `want_relay` asks the main loop to start it.
+    pub relay_on: bool,
+    pub want_relay: bool,
+    /// `I` paused playback and waits for `Msg::PrivateGo` to resume it.
+    going_private: bool,
     /// After a restart: the position to resume at, and until when to keep correcting
     /// Soloist if it reports playing well before it (a fresh Soloist can start the track
     /// from 0 after accepting our seek). A track change or seek by the user cancels it.
@@ -348,6 +362,10 @@ impl App {
             help_open: false,
             soloist_missing: None,
             restart_at: None,
+            private_shared: Arc::default(),
+            relay_on: false,
+            want_relay: false,
+            going_private: false,
             pending_seek: None,
             reload_at: None,
             quiet_until: Instant::now(),
@@ -1480,6 +1498,7 @@ impl App {
             KeyCode::Char('P') => self.play_all(),
             KeyCode::Char('w') => self.jump_to_now(),
             KeyCode::Char('A') => self.open_chooser(),
+            KeyCode::Char('I') => self.toggle_private(),
             KeyCode::Char('y') => self.copy_link(false),
             KeyCode::Char('Y') => self.copy_link(true),
             KeyCode::Char('D') => self.remove_from_playlist(),

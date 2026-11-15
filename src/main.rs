@@ -17,6 +17,8 @@ mod engine;
 mod library;
 mod theme;
 mod mpris;
+#[cfg(target_os = "linux")]
+mod relay;
 mod ui;
 mod update;
 
@@ -176,6 +178,7 @@ fn soloist_opts(cfg: &Config) -> Result<SoloistOpts, String> {
         ws: cfg.soloist_ws.clone(),
         pipewire_device: None,
         initial_volume: None,
+        env: Vec::new(),
     })
 }
 
@@ -343,6 +346,22 @@ async fn run(cfg: Config) -> i32 {
                 eprintln!("{e}");
                 return 1;
             }
+        }
+    }
+    // Private mode: a session still running from last time starts Soloist through the relay.
+    let private_until = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(audio_settings.private_until));
+    #[cfg(target_os = "linux")]
+    let mut relay = None;
+    #[cfg(target_os = "linux")]
+    if let Some(o) = soloist_cfg.as_mut()
+        && audio_settings.private_until > app::unix_now()
+    {
+        match relay::Relay::start(&cfg.data_dir, private_until.clone()).await {
+            Ok(r) => {
+                o.env = r.env();
+                relay = Some(r);
+            }
+            Err(e) => log::warn!("private-mode relay: {e}"),
         }
     }
     // Ask the terminal which image protocol it speaks (kitty / sixel / iTerm2, else
@@ -656,6 +675,11 @@ async fn run(cfg: Config) -> i32 {
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
     app.eq_allowed = cfg.eq;
+    app.private_shared = private_until;
+    #[cfg(target_os = "linux")]
+    {
+        app.relay_on = relay.is_some();
+    }
     app.soloist_missing = cfg.soloist_missing();
     app.cache_dir = Some(cfg.cache_dir.clone());
     app.art_on = img_picker.is_some() && app.audio.art;
@@ -707,6 +731,23 @@ async fn run(cfg: Config) -> i32 {
         if app.quit {
             app.save_prefs(); // keeps the last cover colour for the next start
             break;
+        }
+        // Private mode turned on: start the relay and restart Soloist through it (once).
+        #[cfg(target_os = "linux")]
+        if std::mem::take(&mut app.want_relay)
+            && relay.is_none()
+            && let Some(opts) = soloist.as_mut()
+        {
+            match relay::Relay::start(&cfg.data_dir, app.private_shared.clone()).await {
+                Ok(r) => {
+                    opts.env = r.env();
+                    relay = Some(r);
+                    app.relay_on = true;
+                    app.restart_at = Some(std::time::Instant::now());
+                }
+                Err(e) => app.status = format!("Private session on, but Discord can still see Soloist: {e}"),
+            }
+            dirty = true;
         }
         if app.restart_due() {
             if let Some(opts) = soloist.as_mut() {

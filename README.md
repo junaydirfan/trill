@@ -40,6 +40,8 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **Smart shuffle.** Like Spotify's: a recommended song (✦) after every three of yours, picked from the list's own Spotify radio.
 - **Edit as you listen.** Like and unlike, add to your playlists and remove from them; a ✓ shows which playlists already have the song. Every change is safe against edits made on your phone.
 - **Desktop native.** On Linux, MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect. On macOS, the media keys, Control Center and the lock screen control trill.
+- **Private session.** `I` starts Spotify's private session for your whole account, the same switch as in the official apps: Friend Activity, your profile, recommendations and Wrapped don't see what you play. It ends by itself after 6 hours. On Linux with Soloist it also hides the song from Discord and anything else watching your Spotify devices. Soloist doesn't support a private session, so trill passes its connection to Spotify through a small local relay that marks it private. The relay uses a local certificate that only works for spotify.com, is readable only by you, and is used only by Soloist. Soloist restarts once (~3 s) the first time you turn private on. Mid-song, the music pauses for about 1.5 s either way, so Discord notices the change.
+- **Status at a glance.** The now-playing line ends in ` ⇄ ` shuffle (` ⇄✦ ` smart), ` ↻ ` repeat (` ↻1 ` one song) and ` ⊘ ` private session, lit when on and dim when off.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
 
 ## Numbers
@@ -252,14 +254,15 @@ When a song ends, Soloist would normally play its own autoplay "radio" pick. To 
 | `Esc` `Backspace` | back | | `L` | lyrics |
 | `Space` | play / pause | | `i` | album art on / off |
 | `n` / `p` | next / previous | | `t` | next colour theme |
-| `w` | jump to the playing song | | `s` | shuffle: off → on → smart |
-| `←→` or `,` `.` | seek ±10 s | | `r` | repeat: off → all → one |
+| `w` | jump to the playing song | | `s` | shuffle ⇄: off → on → smart ⇄✦ |
+| `←→` or `,` `.` | seek ±10 s | | `r` | repeat ↻: off → all → one ↻1 |
 | `+` / `-` | volume ±5% | | `o` / `O` | next / previous sort order |
 | `a` | add to queue | | `e` / `E` | next EQ preset / EQ panel |
 | `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
 | `/` | search | | `R` | reload the current list |
 | `P` | play everything in the list | | `?` | key help |
 | `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
+| `I` | private session ⊘ on / off | | | |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
 ## Details

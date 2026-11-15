@@ -178,6 +178,85 @@ impl App {
         *self.view.state.offset_mut() = offset;
     }
 
+    // ---------------------------------------------------------------- private session
+
+    /// A private session trill started, until Spotify ends it (it can't read the real state).
+    pub fn private_on(&self) -> bool {
+        self.audio.private_until > super::unix_now()
+    }
+
+    /// `I`: the account's private session on / off. Optimistic, undone if Spotify says no.
+    /// On Linux with Soloist it also hides Soloist from Discord and other Connect observers:
+    /// the first time by restarting Soloist through the relay (relay.rs), after that by just
+    /// flipping the shared flag and nudging Soloist to announce itself again.
+    pub(super) fn toggle_private(&mut self) {
+        if self.going_private {
+            return;
+        }
+        let on = !self.private_on();
+        let hide = cfg!(target_os = "linux") && self.engine.is_soloist();
+        // Discord only notices a change of song or a pause: mid-song it would keep showing the
+        // song after going private (once marked, nothing reaches it) and keep hiding it after
+        // coming back. So pause while the flag says what Discord should see, then resume.
+        if hide && self.playing && (on || self.relay_on) {
+            if !on {
+                self.apply_private();
+            }
+            self.going_private = true;
+            self.engine.pause();
+            if on {
+                self.status = "Going private…".into();
+            }
+            let tx = self.tx.clone();
+            tokio::spawn(async move {
+                tokio::time::sleep(std::time::Duration::from_millis(1500)).await;
+                let _ = tx.send(Msg::PrivateGo { apply: on });
+            });
+            return;
+        }
+        self.apply_private();
+    }
+
+    /// The private-session switch itself (after the pause, see `toggle_private`).
+    pub(super) fn apply_private(&mut self) {
+        let (on, was) = (!self.private_on(), self.audio.private_until);
+        self.set_private_until(if on { super::unix_now() + library::PRIVATE_SECS } else { 0 });
+        let hide = cfg!(target_os = "linux") && self.engine.is_soloist();
+        self.status = match (on, hide, self.relay_on) {
+            (true, true, false) => {
+                self.want_relay = true;
+                "Private session on for 6 h, hidden from friends and Discord (Soloist restarts once, ~3 s).".into()
+            }
+            (true, true, true) => "Private session on for 6 h, hidden from friends and Discord.".into(),
+            (true, false, _) => "Private session on for 6 h, hidden from friends (Discord can still see this player).".into(),
+            (false, ..) => "Private session off.".into(),
+        };
+        if hide && self.relay_on {
+            self.nudge_soloist();
+        }
+        let (s, tx) = (self.session.clone(), self.tx.clone());
+        tokio::spawn(async move {
+            let res = library::set_private_session(&s, on).await;
+            let _ = tx.send(Msg::Private { on, was, res });
+        });
+    }
+
+    fn set_private_until(&mut self, until: u64) {
+        self.audio.private_until = until;
+        self.private_shared.store(until, std::sync::atomic::Ordering::Relaxed);
+        self.audio.save();
+    }
+
+    /// Make Soloist announce its Connect state now, so the relay's flag (or its absence)
+    /// reaches Discord without waiting for the next play / pause / song change. A seek to
+    /// where it already is changes nothing you can hear.
+    fn nudge_soloist(&mut self) {
+        if self.now.is_some() {
+            let at = self.position_ms();
+            self.seek_to(at);
+        }
+    }
+
     // ---------------------------------------------------------------- links
 
     /// `y`: copy the link of the highlighted song, album, playlist or artist (else the song
@@ -580,6 +659,27 @@ impl App {
                 }
             }
             Msg::NextArt { url, bytes } => self.next_art = Some((url, bytes)),
+            Msg::PrivateGo { apply } => {
+                self.going_private = false;
+                if apply {
+                    self.apply_private();
+                }
+                if !self.playing && self.now.is_some() {
+                    if self.want_relay {
+                        self.playing = true; // the restart through the relay resumes it playing
+                    } else {
+                        self.engine.resume();
+                    }
+                }
+            }
+            Msg::Private { res: Ok(()), .. } => {}
+            Msg::Private { on, was, res: Err(e) } => {
+                self.set_private_until(was);
+                if self.relay_on {
+                    self.nudge_soloist();
+                }
+                self.status = format!("Couldn't turn the private session {}: {e}", if on { "on" } else { "off" });
+            }
             Msg::Art { url, size, res } => {
                 if let Some(a) = self.art.as_mut()
                     && a.url == url

@@ -60,6 +60,8 @@ pub struct AudioSettings {
     pub theme: usize,
     /// Last cover colour, so the `cover` theme starts in it instead of the default green.
     pub tint: Option<[u8; 3]>,
+    /// When the private session trill turned on ends (unix seconds; 0 = none).
+    pub private_until: u64,
     path: PathBuf,
 }
 
@@ -76,6 +78,7 @@ impl AudioSettings {
             art: true,
             theme: 0,
             tint: None,
+            private_until: 0,
             path: dir.join("audio_settings"),
         };
         let Ok(text) = fs::read_to_string(&s.path) else { return s };
@@ -101,6 +104,7 @@ impl AudioSettings {
                 "sort" => s.sort = SORTS.iter().position(|n| *n == v.trim()).unwrap_or(0) as u8,
                 "art" => s.art = v.trim() != "off",
                 "theme" => s.theme = crate::theme::by_name(v.trim()),
+                "private" => s.private_until = v.trim().parse().unwrap_or(0),
                 "tint" => {
                     let c: Vec<u8> = v.split(',').filter_map(|c| c.trim().parse().ok()).collect();
                     s.tint = <[u8; 3]>::try_from(c).ok();
@@ -124,10 +128,13 @@ impl AudioSettings {
             on(self.art),
             crate::theme::name(self.theme),
         );
-        let text = match self.tint {
+        let mut text = match self.tint {
             Some([r, g, b]) => format!("{text}tint={r},{g},{b}\n"),
             None => text,
         };
+        if self.private_until > crate::app::unix_now() {
+            text.push_str(&format!("private={}\n", self.private_until));
+        }
         if let Some(d) = self.path.parent() {
             let _ = fs::create_dir_all(d);
         }

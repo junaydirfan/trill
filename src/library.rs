@@ -140,6 +140,44 @@ pub async fn collection(session: &Session, set: &str) -> Res<Vec<String>> {
     Ok(items.into_iter().map(|(_, u)| u).collect())
 }
 
+// ---------------------------------------------------------------- private session
+
+/// How long a private session lasts; Spotify ends it by itself after this.
+pub const PRIVATE_SECS: u64 = 6 * 3600;
+
+/// clientsettings PutRequest { 1: key, 2: Value { 4: string } }, byte for byte what the desktop
+/// app sends: "private-session-duration" = seconds ("21600" on, "0" off).
+fn private_session_body(on: bool) -> Res<Vec<u8>> {
+    let mut value = Vec::new();
+    {
+        let mut os = CodedOutputStream::vec(&mut value);
+        os.write_string(4, if on { "21600" } else { "0" }).map_err(e)?;
+        os.flush().map_err(e)?;
+    }
+    let mut body = Vec::new();
+    {
+        let mut os = CodedOutputStream::vec(&mut body);
+        os.write_string(1, "private-session-duration").map_err(e)?;
+        os.write_bytes(2, &value).map_err(e)?;
+        os.flush().map_err(e)?;
+    }
+    Ok(body)
+}
+
+/// The account's private session, switched the way the official apps do it. It's one
+/// account-wide setting, so it also covers what Soloist plays: Friend Activity, the profile,
+/// recommendations and Wrapped don't see it. Spotify only returns the setting to its own
+/// apps, so trill can set it but not read it back.
+pub async fn set_private_session(session: &Session, on: bool) -> Res<()> {
+    let body = private_session_body(on)?;
+    session
+        .spclient()
+        .request(&Method::PUT, "/clientsettings/api/v1/", Some(proto_headers("application/x-protobuf")), Some(&body))
+        .await
+        .map_err(e)?;
+    Ok(())
+}
+
 // ---------------------------------------------------------------- playlists
 
 fn playlist_id(uri: &str) -> Res<SpotifyId> {
@@ -298,6 +336,14 @@ pub async fn lyrics(session: &Session, track_uri: &str) -> Res<Option<Lyrics>> {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn private_session_body_matches_the_desktop_app() {
+        let hex = |b: Vec<u8>| b.iter().map(|x| format!("{x:02x}")).collect::<String>();
+        // captured from Spotify desktop 1.3.8 turning private session on and off
+        assert_eq!(hex(private_session_body(true).unwrap()), "0a18707269766174652d73657373696f6e2d6475726174696f6e120722053231363030");
+        assert_eq!(hex(private_session_body(false).unwrap()), "0a18707269766174652d73657373696f6e2d6475726174696f6e1203220130");
+    }
+
     use super::*;
 
     #[test]
