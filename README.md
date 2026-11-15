@@ -1,9 +1,5 @@
 <p align="center">
-  <img src="assets/logo.svg" width="300" alt="trill">
-</p>
-
-<p align="center">
-  <em>Spotify in your terminal. Lighter than the tab you'd open to look it up.</em>
+  <img src="assets/readme/hero.svg" width="880" alt="trill: Spotify in your terminal. Lighter than the tab you'd open to look it up. About 20 MB of RAM, 0% CPU while idle, about 2 ms from key press to frame, about 30 ms from launch to library.">
 </p>
 
 <p align="center">
@@ -20,15 +16,23 @@
 </p>
 
 <p align="center">
-  <strong>~17 MB RAM &middot; 0% CPU idle &middot; ~2 ms key to frame &middot; ~30 ms launch to library</strong><br>
-  <sub>With a 3,852-song Liked Songs open, on an i9-14900HX. Full numbers in <a href="#numbers">Numbers</a>.</sub>
+  <a href="#get-started"><strong>Get started</strong></a> &nbsp;·&nbsp;
+  <a href="#features"><strong>Features</strong></a> &nbsp;·&nbsp;
+  <a href="#numbers"><strong>Numbers</strong></a> &nbsp;·&nbsp;
+  <a href="#keys"><strong>Keys</strong></a> &nbsp;·&nbsp;
+  <a href="#faq"><strong>FAQ</strong></a>
 </p>
-
----
 
 trill is a terminal Spotify client that does one thing and does it cheaply. It plays through **Soloist**, Spotify's own headless player, so audio keeps working on the accounts where librespot gets refused. It browses through librespot's private connection, so no Web API limits apply to your library. One async thread does the UI and the networking. It redraws only when something changes, and it never polls.
 
 ## Features
+
+<p align="center">
+  <img src="assets/readme/features.svg" width="880" alt="What trill does, by key: L synced lyrics, i album art, e 10-band EQ, s smart shuffle, x crossfade, I private session, f like, save and follow, A playlists, / search, y copy link. Plus media keys, the lock screen, the KDE media widget and your phone through Spotify Connect.">
+</p>
+
+<details>
+<summary><strong>Every feature in a sentence</strong></summary>
 
 - **Your library.** Playlists, Liked Songs, saved albums and followed artists. Pinned playlists and folders sit at the top, like in the official app.
 - **Artist pages.** Top tracks, then every album, single and EP, newest first. `P` plays the whole discography.
@@ -43,8 +47,19 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **Private session.** `I` starts Spotify's private session for your whole account, the same switch as in the official apps: Friend Activity, your profile, recommendations and Wrapped don't see what you play. It ends by itself after 6 hours. On Linux with Soloist it also hides the song from Discord and anything else watching your Spotify devices. Soloist doesn't support a private session, so trill passes its connection to Spotify through a small local relay that marks it private. The relay uses a local certificate that only works for spotify.com, is readable only by you, and is used only by Soloist. Soloist restarts once (~3 s) the first time you turn private on. Mid-song, the music pauses for about 1.5 s either way, so Discord notices the change.
 - **Status at a glance.** The now-playing line ends in ` ⇄ ` shuffle (` ⇄✦ ` smart), ` ↻ ` repeat (` ↻1 ` one song) and ` ⊘ ` private session, lit when on and dim when off.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
+</details>
 
 ## Numbers
+
+<p align="center">
+  <img src="assets/readme/speed.svg" width="880" alt="Speed, on a log scale: key press to redraw 2 ms; reopening Liked Songs (3,901 songs) 2 ms from disk; launch to library on screen 30 ms; press play to playing 0.2 s; search 0.35 s; first open of Liked Songs 0.45 to 0.7 s.">
+</p>
+<p align="center">
+  <img src="assets/readme/footprint.svg" width="880" alt="Memory (PSS): trill 22 MB, Soloist 54 MB, its crash reporter 8 MB, the EQ 4 MB when on. CPU: trill 0% idle and 0.1 to 0.3% playing, Soloist about 2.5% playing. One 9 MB binary.">
+</p>
+
+<details>
+<summary><strong>Every measurement</strong></summary>
 
 Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 150 ms.
 
@@ -58,12 +73,16 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 | Press play to playing | ~0.2 s |
 | trill RAM at start (♥ set + cover loaded) | ~14 MB PSS |
 | trill RAM, Liked Songs open | ~17 MB PSS |
+| trill RAM after a while, private session relay on | ~22 MB PSS |
 | trill CPU while idle | 0 |
 | trill CPU while playing | ~0.1–0.3% of one core (also with lyrics open) |
-| Soloist while playing | ~2.5% of one core, ~48 MB (+ ~11 MB crash reporter) |
+| Soloist while playing | ~2.5% of one core, ~48–54 MB (+ ~8–11 MB crash reporter) |
 | EQ, when not on Flat | ~1.7% of one core, ~4 MB |
+| The binary | ~9 MB, nothing else to install besides Soloist |
+</details>
 
-### Why it's light
+<details>
+<summary><strong>Why it's light</strong></summary>
 
 - One async thread runs the UI and networking. librespot's player runtime is capped to one worker thread instead of one per CPU core.
 - Terminal input sits on one blocking thread, so it uses no CPU while idle.
@@ -77,8 +96,21 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
 - Spotify login and Soloist startup run at the same time. With a saved login, the library is drawn from cache before the login finishes, and keys you type meanwhile wait their turn.
 - Freed heap goes back to the OS after big lists load (`malloc_trim`), and glibc is limited to 2 malloc arenas.
 - Album art is decoded and resized once per song, off the UI thread. The next song's cover is downloaded while the current one ends, so it changes with the song.
+</details>
+
+## How it works
+
+<p align="center">
+  <img src="assets/readme/how-it-works.svg" width="880" alt="How it works: trill runs its UI and networking on one async thread. It browses Spotify through a librespot session with no Web API limits, drives Soloist, Spotify's own player, over a local WebSocket, and talks to your desktop over MPRIS. Soloist streams from Spotify and plays through PipeWire, with the EQ filter when it's on.">
+</p>
+
+trill holds two connections to Spotify. Your library, search, lyrics and edits go through librespot's private connection, the same one Spotify's apps use, so the public Web API's rate limits don't apply. Audio comes from **Soloist**, Spotify's own headless player, which trill starts in the background and drives over a local WebSocket ([why](#why-soloist)). Everything else (queue, shuffle, repeat, the screen) is trill, on a single async thread.
 
 ## Get started
+
+<p align="center">
+  <img src="assets/readme/get-started.svg" width="880" alt="Get started in six steps, about ten minutes, once: install, get a Soloist key, save it, run trill --update-soloist, run trill --pair, then run trill.">
+</p>
 
 You need **Spotify Premium** and about 10 minutes. Each step only happens once.
 
@@ -351,7 +383,7 @@ The status line shows which search path answered: `web api` (your app), `web api
 - **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song and its cover. Windows has no media-key support yet. Every key inside trill works everywhere, and your phone can control it through Spotify Connect.
 - **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal can't draw images, so there the cover is coloured half-blocks and looks blurry and blocky; use one of the others on a Mac for a sharp cover. The old Windows console also uses half-blocks.
 - **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically). Run `pkill soloist` on a Mac or `taskkill /IM soloist.exe /F` on Windows if that happens.
-- The [Numbers](#numbers) were measured on Linux. The glibc memory tricks in [Why it's light](#why-its-light) only apply on Linux.
+- The [Numbers](#numbers) were measured on Linux. The glibc memory tricks under *Why it's light* in [Numbers](#numbers) only apply on Linux.
 </details>
 
 <details>
