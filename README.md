@@ -104,7 +104,22 @@ Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 
   <img src="assets/readme/how-it-works.svg" width="880" alt="How it works: trill runs its UI and networking on one async thread. It browses Spotify through a librespot session with no Web API limits, drives Soloist, Spotify's own player, over a local WebSocket, and talks to your desktop over MPRIS. Soloist streams from Spotify and plays through PipeWire, with the EQ filter when it's on.">
 </p>
 
-trill holds two connections to Spotify. Your library, search, lyrics and edits go through librespot's private connection, the same one Spotify's apps use, so the public Web API's rate limits don't apply. Audio comes from **Soloist**, Spotify's own headless player, which trill starts in the background and drives over a local WebSocket ([why](#why-soloist)). Everything else (queue, shuffle, repeat, the screen) is trill, on a single async thread.
+trill holds two connections to Spotify. Your library, search, lyrics and edits go through librespot's private connection, the same one Spotify's apps use, so the public Web API's rate limits don't apply. Audio comes from **Soloist**, Spotify's own headless player, which trill starts in the background and drives over a local WebSocket. Everything else (queue, shuffle, repeat, the screen) is trill, on a single async thread.
+
+### Why Soloist
+
+Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
+
+trill uses Soloist automatically once the key and Soloist are both in place, and librespot otherwise. To force one, set `backend = soloist` or `backend = librespot` in the [config](#details).
+
+> [!NOTE]
+> Soloist only accepts the API key as a command-line argument. While it runs, anything that can list processes on this machine (`/proc/<pid>/cmdline`) can see the key. That's fine on a single-user desktop, but keep it in mind on a shared machine.
+
+<details>
+<summary><strong>How song transitions work</strong></summary>
+
+When a song ends, Soloist would normally play its own autoplay "radio" pick. To prevent that, trill puts your next song into Soloist's queue about 8 s before the end, so the switch is native and gapless. Soloist's queue can't be edited. If you pick a different song during those last 8 s, the queued song is skipped first, and you may hear a split second of it (about 0.15 s).
+</details>
 
 ## Get started
 
@@ -246,35 +261,7 @@ Built it yourself? Run `cargo install --git https://github.com/junaydirfan/trill
 
 Soloist updates separately: when trill says your Soloist build has expired (Spotify's builds last 90 days), run `trill --update-soloist`.
 
-### If something's wrong
-
-- **"trill is not recognized" or "command not found":** open a new terminal window after installing.
-- **"cargo is not recognized":** you only need Rust to build trill yourself. Use the download in step 1.
-- **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't saved in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`), or step 4 hasn't been run.
-- **Album art looks pixelated or blocky:** your terminal can't display images, so trill draws the cover with coloured blocks. This is always the case in Apple's Terminal, Alacritty and the old Windows console. Use Ghostty, kitty, WezTerm, iTerm2 or Windows Terminal for the real cover.
-- **Your phone doesn't list trill:** run `trill --pair` again with the phone on the same Wi-Fi, and allow the firewall prompt.
-- **Anything else:** run `TRILL_LOG=debug trill` (on Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then in `~/.cache/trill/trill.log`, and Soloist's in `~/.cache/trill/soloist.log`.
-
-> [!NOTE]
-> macOS and Windows support is new. If something doesn't work there, an issue with the log helps.
-
-> [!TIP]
-> Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
-
-### Why Soloist
-
-Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
-
-trill uses Soloist automatically once the key and Soloist are both in place, and librespot otherwise. To force one, set `backend = soloist` or `backend = librespot` in the [config](#details).
-
-> [!NOTE]
-> Soloist only accepts the API key as a command-line argument. While it runs, anything that can list processes on this machine (`/proc/<pid>/cmdline`) can see the key. That's fine on a single-user desktop, but keep it in mind on a shared machine.
-
-<details>
-<summary><strong>How song transitions work</strong></summary>
-
-When a song ends, Soloist would normally play its own autoplay "radio" pick. To prevent that, trill puts your next song into Soloist's queue about 8 s before the end, so the switch is native and gapless. Soloist's queue can't be edited. If you pick a different song during those last 8 s, the queued song is skipped first, and you may hear a split second of it (about 0.15 s).
-</details>
+Stuck? See [Troubleshooting](#troubleshooting).
 
 ## Keys
 
