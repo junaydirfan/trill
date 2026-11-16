@@ -36,6 +36,7 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 
 - **Your library.** Playlists, Liked Songs, saved albums and followed artists. Pinned playlists and folders sit at the top, like in the official app.
 - **Artist pages.** Top tracks, then every album, single and EP, newest first. `P` plays the whole discography.
+- **Play counts.** Album pages and an artist's top tracks show each song's all-time plays, the same numbers as the official app.
 - **Synced lyrics.** The current line lights up and stays in view, and the screen redraws exactly when the next line starts.
 - **Real album art.** It uses kitty, Ghostty, WezTerm, foot, iTerm2 or Konsole graphics when the terminal has them, and colour half-blocks everywhere else.
 - **10-band EQ** (Linux) with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.

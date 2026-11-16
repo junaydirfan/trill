@@ -619,8 +619,6 @@ mod tests {
         fn tzset();
     }
 
-    // Windows' C runtime has no tzset and doesn't know zone names like America/Toronto.
-    #[cfg(unix)]
     #[test]
     fn formats_plays() {
         assert_eq!(super::fmt_plays(0), "0");
@@ -629,6 +627,8 @@ mod tests {
         assert_eq!(super::fmt_plays(1_204_589_367), "1,204,589,367");
     }
 
+    // Windows' C runtime has no tzset and doesn't know zone names like America/Toronto.
+    #[cfg(unix)]
     #[test]
     fn formats_dates() {
         // SAFETY: test-only; no other threads read TZ here.
