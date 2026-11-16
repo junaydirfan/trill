@@ -335,7 +335,11 @@ async fn run(cfg: Config) -> i32 {
 
     // Soloist doesn't need our librespot session, so start it while we log in (~0.4 s saved).
     let mut soloist_cfg = None;
-    if cfg.use_soloist() {
+    // Hidden: `trill --preview <track uri> [<list uri> <title>]` shows the UI with that song as "now playing" but
+    // plays nothing, starts no Soloist and claims no MPRIS name, so it can run beside a real
+    // trill (for screenshots and layout checks).
+    let preview = env::args().position(|a| a == "--preview").map(|i| env::args().nth(i + 1).unwrap_or_default());
+    if cfg.use_soloist() && preview.is_none() {
         match soloist_opts(&cfg) {
             Ok(mut o) => {
                 o.pipewire_device = eq_sink.clone();
@@ -688,7 +692,18 @@ async fn run(cfg: Config) -> i32 {
     app.load_liked();
     app.check_update();
     let (remote_tx, mut remote_rx) = mpsc::unbounded_channel();
-    let mut desktop = mpris::Mpris::new(remote_tx).await;
+    let mut desktop = None;
+    match &preview {
+        Some(uri) => {
+            app.now = api::track_rows(&app.session, vec![uri.clone()]).await.into_iter().next();
+            // optional: a list to open, and its title (`--preview <track> <list uri> <title>`)
+            let mut rest = env::args().skip_while(|a| a != "--preview").skip(2);
+            if let (Some(list), Some(title)) = (rest.next(), rest.next()) {
+                app.open(list, title, false, false);
+            }
+        }
+        None => desktop = mpris::Mpris::new(remote_tx).await,
+    }
 
     // Closing the terminal window (SIGHUP), `kill` (SIGTERM) or closing the Windows console
     // quits like `q`: playback stops first, so Spotify (and Discord) don't think it's still playing.

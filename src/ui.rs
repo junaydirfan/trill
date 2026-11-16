@@ -12,7 +12,7 @@ use ratatui::layout::Rect;
 use ratatui_image::Image;
 
 use crate::{
-    api::Kind,
+    api::{self, Kind},
     app::{App, Focus, LyricsState, Repeat},
     theme::{self, accent, grad, on_accent},
     audio::{BANDS, MAX_DB},
@@ -22,6 +22,19 @@ use crate::{
 fn fmt_ms(ms: u32) -> String {
     let s = ms / 1000;
     format!("{}:{:02}", s / 60, s % 60)
+}
+
+/// 1204589367 -> "1,204,589,367", as Spotify shows play counts.
+fn fmt_plays(n: u64) -> String {
+    let d = n.to_string();
+    let mut out = String::with_capacity(d.len() + d.len() / 3);
+    for (i, c) in d.chars().enumerate() {
+        if i > 0 && (d.len() - i).is_multiple_of(3) {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// ms since epoch -> "YYYY-MM-DD" in the local timezone.
@@ -201,30 +214,57 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     *app.view.state.offset_mut() = off;
     let end = (off + visible).min(rows.len());
     let mut window_state = TableState::default().with_selected((!rows.is_empty()).then_some(sel - off));
-    // Columns drop out as the pane narrows: dates/blend members, then album, then artist
-    // (which then trails the title).
+    // Columns drop out as the pane narrows: dates/blend members, then album, then plays, then
+    // artist (which then trails the title). A column that only repeats what the title bar
+    // already says (an album's own name and artist) isn't shown at all.
     let w = main.width;
-    let (show_artist, show_album, show_extra) = (w >= 45, w >= 75, w >= 100);
+    let repeats_title = |col: fn(&api::Row) -> &str| {
+        let first = rows.first().map_or("", col);
+        !first.is_empty() && app.view.title.contains(first) && rows.iter().all(|r| col(r) == first)
+    };
+    let shown = &rows[off..end];
+    let show_artist = w >= 45 && !repeats_title(|r| &r.artist);
+    let show_album = w >= 75 && !repeats_title(|r| &r.album);
+    let show_extra = w >= 100;
+    let plays_w = if w >= 60 { shown.iter().map(|r| r.plays).max().filter(|&n| n > 0).map_or(0, |n| fmt_plays(n).len() as u16) } else { 0 };
     // Blends: who each song is for (instead of "Added", which is the same for every song there).
-    let for_w = if show_extra { rows[off..end].iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16 } else { 0 };
-    let show_added = show_extra && for_w == 0 && rows[off..end].iter().any(|r| r.added_at > 0);
+    let for_w = if show_extra { shown.iter().map(|r| r.members.chars().count()).max().unwrap_or(0).min(28) as u16 } else { 0 };
+    let show_added = show_extra && for_w == 0 && shown.iter().any(|r| r.added_at > 0);
+    let time_w = if shown.iter().any(|r| r.duration_ms >= 6_000_000) { 6 } else { 5 }; // "100:00" vs "4:03"
     let in_queue = app.view.uri == "trill:queue";
-    let trows = rows[off..end].iter().map(|r| {
-        let (tag, tag_color) = match r.kind {
-            // smart-shuffle recommendations, kept out of the row so likes and adds get the plain title
-            Kind::Track if in_queue && app.is_rec(&r.uri) => ("✦ ", accent()),
-            Kind::Track => ("", Color::Reset),
-            Kind::Album => ("album ", Color::Cyan),
-            Kind::Playlist => ("playlist ", Color::Magenta),
-            Kind::Artist => ("artist ", Color::Yellow),
-        };
-        let heart = if app.liked.contains(&r.uri) { "♥ " } else { "" };
-        let title = Line::from(vec![
-            Span::styled(heart, Style::new().fg(accent())),
-            Span::styled(tag, Style::new().fg(tag_color)),
-            Span::raw(r.title.as_str()),
-            Span::styled(if show_artist || r.artist.is_empty() { String::new() } else { format!(" · {}", r.artist) }, Style::new().dim()),
-        ]);
+    let titles: Vec<Line> = shown
+        .iter()
+        .map(|r| {
+            let (tag, tag_color) = match r.kind {
+                // smart-shuffle recommendations, kept out of the row so likes and adds get the plain title
+                Kind::Track if in_queue && app.is_rec(&r.uri) => ("✦ ", accent()),
+                Kind::Track => ("", Color::Reset),
+                Kind::Album => ("album ", Color::Cyan),
+                Kind::Playlist => ("playlist ", Color::Magenta),
+                Kind::Artist => ("artist ", Color::Yellow),
+            };
+            let heart = if app.liked.contains(&r.uri) { "♥ " } else { "" };
+            Line::from(vec![
+                Span::styled(heart, Style::new().fg(accent())),
+                Span::styled(tag, Style::new().fg(tag_color)),
+                Span::raw(r.title.as_str()),
+                Span::styled(if show_artist || r.artist.is_empty() { String::new() } else { format!(" · {}", r.artist) }, Style::new().dim()),
+            ])
+        })
+        .collect();
+
+    // Text columns are as wide as their longest value (artist and album at most 30% of the
+    // room each), and what's left over sits between them and the dates/numbers on the right,
+    // so a wide window doesn't push each column into a gap of its own.
+    let need = |col: fn(&api::Row) -> &str, head: usize| shown.iter().map(|r| col(r).chars().count()).max().unwrap_or(0).max(head) as u16;
+    let fixed = [(show_added, 10), (for_w > 0, for_w.max(3)), (plays_w > 0, plays_w.max(5)), (true, time_w)];
+    let cols = 3 + show_artist as u16 + show_album as u16 + fixed.iter().filter(|c| c.0).count() as u16; // + title, spacer
+    let free = w.saturating_sub(2 + (cols - 1) + fixed.iter().filter(|c| c.0).map(|c| c.1).sum::<u16>());
+    let artist_w = if show_artist { need(|r| &r.artist, 6).min(free * 3 / 10) } else { 0 };
+    let album_w = if show_album { need(|r| &r.album, 5).min(free * 3 / 10) } else { 0 };
+    let title_w = (titles.iter().map(Line::width).max().unwrap_or(0) as u16).max(5).min(free.saturating_sub(artist_w + album_w));
+
+    let trows = shown.iter().zip(titles).map(|(r, title)| {
         let dur = if r.duration_ms > 0 { fmt_ms(r.duration_ms) } else { String::new() };
         let mut cells = vec![Cell::from(title)];
         if show_artist {
@@ -233,11 +273,15 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         if show_album {
             cells.push(Cell::from(r.album.as_str()));
         }
+        cells.push(Cell::from(""));
         if show_added {
             cells.push(Cell::from(if r.added_at > 0 { fmt_date(r.added_at) } else { String::new() }).style(Style::new().dim()));
         }
         if for_w > 0 {
             cells.push(Cell::from(r.members.as_str()).style(Style::new().fg(Color::Magenta)));
+        }
+        if plays_w > 0 {
+            cells.push(Cell::from(Line::from(if r.plays > 0 { fmt_plays(r.plays) } else { String::new() }).right_aligned()).style(Style::new().dim()));
         }
         cells.push(Cell::from(Line::from(dur).right_aligned()));
         let mut row = TRow::new(cells);
@@ -255,18 +299,20 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
     if app.loading {
         title.push_str(" (loading…)");
     }
-    let mut widths = vec![Constraint::Fill(4)];
-    let mut header = vec!["Title"];
+    let mut widths = vec![Constraint::Length(title_w)];
+    let mut header = vec![Cell::from("Title")];
     for (on, wd, h) in [
-        (show_artist, Constraint::Fill(3), "Artist"),
-        (show_album, Constraint::Fill(3), "Album"),
-        (show_added, Constraint::Length(10), "Added"),
-        (for_w > 0, Constraint::Length(for_w.max(3)), "For"),
-        (true, Constraint::Length(6), "  Time"),
+        (show_artist, Constraint::Length(artist_w), Line::from("Artist")),
+        (show_album, Constraint::Length(album_w), Line::from("Album")),
+        (true, Constraint::Fill(1), Line::default()),
+        (show_added, Constraint::Length(10), Line::from("Added")),
+        (for_w > 0, Constraint::Length(for_w.max(3)), Line::from("For")),
+        (plays_w > 0, Constraint::Length(plays_w.max(5)), Line::from("Plays").right_aligned()),
+        (true, Constraint::Length(time_w), Line::from("Time").right_aligned()),
     ] {
         if on {
             widths.push(wd);
-            header.push(h);
+            header.push(Cell::from(h));
         }
     }
     let table = Table::new(trows, widths)
@@ -575,6 +621,14 @@ mod tests {
 
     // Windows' C runtime has no tzset and doesn't know zone names like America/Toronto.
     #[cfg(unix)]
+    #[test]
+    fn formats_plays() {
+        assert_eq!(super::fmt_plays(0), "0");
+        assert_eq!(super::fmt_plays(999), "999");
+        assert_eq!(super::fmt_plays(1000), "1,000");
+        assert_eq!(super::fmt_plays(1_204_589_367), "1,204,589,367");
+    }
+
     #[test]
     fn formats_dates() {
         // SAFETY: test-only; no other threads read TZ here.

@@ -57,6 +57,8 @@ pub struct Row {
     pub added_at: u64,
     /// Blend playlists: the members this song was picked for ("jj, Cube"); else empty.
     pub members: String,
+    /// All-time plays as Spotify shows them on album and artist pages; 0 = unknown.
+    pub plays: u64,
 }
 
 pub type Rows = Arc<Vec<Row>>;
@@ -140,6 +142,7 @@ pub async fn folder_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
             art: None,
             added_at: 0,
             members: String::new(),
+            plays: 0,
         })
         .collect())
 }
@@ -338,6 +341,7 @@ fn track_row(uri: &str, t: &PTrack) -> Row {
         art: t.album.as_ref().and_then(cover_url),
         added_at: 0,
         members: String::new(),
+        plays: 0,
     }
 }
 
@@ -366,6 +370,86 @@ async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> Ha
         }
     }
     map
+}
+
+/// Spotify's web-player GraphQL ("pathfinder"), the only place play counts come from.
+/// shortcut: the persisted-query hashes are copied from open.spotify.com's bundle (2026-11);
+/// when Spotify retires one the request fails and plays just stay hidden. Re-copy them then.
+const GQL_ALBUM: (&str, &str) = ("getAlbum", "0b6ce3511e1b02e4a40fa95440f992acbe85080eb308af9194322d708fc1914f");
+const GQL_ARTIST: (&str, &str) = ("queryArtistOverview", "eafb1620d783ece118e72fbfede2b0064483e029d3c1aafafa1c2de0e25a89e7");
+
+async fn gql(session: &Session, (op, hash): (&str, &str), vars: Value) -> Res<Value> {
+    let token = session.login5().auth_token().await.map_err(e)?.access_token;
+    let client = session.spclient().client_token().await.map_err(e)?;
+    let body = serde_json::json!({
+        "variables": vars,
+        "operationName": op,
+        "extensions": { "persistedQuery": { "version": 1, "sha256Hash": hash } },
+    });
+    let req = http::Request::post("https://api-partner.spotify.com/pathfinder/v2/query")
+        .header("Authorization", format!("Bearer {token}"))
+        .header("client-token", client)
+        .header("Content-Type", "application/json")
+        .header("Accept", "application/json")
+        .body(Bytes::from(body.to_string()))
+        .map_err(e)?;
+    let body = tokio::time::timeout(Duration::from_secs(8), session.http_client().request_body(req))
+        .await
+        .map_err(|_| "timed out".to_string())?
+        .map_err(e)?;
+    serde_json::from_slice(&body).map_err(e)
+}
+
+/// Play count per track uri, from a list of GraphQL track items. Relinked tracks are listed
+/// under both uris, since the list may hold either.
+fn plays_of(items: &Value, out: &mut HashMap<String, u64>) {
+    for it in items.as_array().into_iter().flatten() {
+        let t = &it["track"];
+        let Some(n) = t["playcount"].as_str().and_then(|p| p.parse().ok()) else { continue };
+        for u in [&t["uri"], &t["relinkingInformation"]["linkedTrack"]["uri"]] {
+            if let Some(u) = u.as_str() {
+                out.insert(u.to_string(), n);
+            }
+        }
+    }
+}
+
+/// Play counts for an album's tracks, or an artist's top tracks.
+async fn play_counts(session: &Session, uri: &str) -> HashMap<String, u64> {
+    let mut out = HashMap::new();
+    let res = if uri.starts_with("spotify:artist:") {
+        gql(session, GQL_ARTIST, serde_json::json!({ "uri": uri, "locale": "", "includePrerelease": false }))
+            .await
+            .map(|v| plays_of(&v["data"]["artistUnion"]["discography"]["topTracks"]["items"], &mut out))
+    } else {
+        // albums hold at most a few hundred tracks; 300 per page covers nearly all in one request
+        let mut offset = 0;
+        loop {
+            let v = match gql(session, GQL_ALBUM, serde_json::json!({ "uri": uri, "locale": "", "offset": offset, "limit": 300 })).await {
+                Ok(v) => v,
+                Err(err) => break Err(err),
+            };
+            let tracks = &v["data"]["albumUnion"]["tracksV2"];
+            let n = tracks["items"].as_array().map_or(0, Vec::len);
+            plays_of(&tracks["items"], &mut out);
+            offset += n;
+            if n == 0 || offset as u64 >= tracks["totalCount"].as_u64().unwrap_or(0) {
+                break Ok(());
+            }
+        }
+    };
+    if let Err(err) = res {
+        log::warn!("play counts for {uri}: {err}");
+    }
+    out
+}
+
+fn set_plays(rows: &mut [Row], plays: &HashMap<String, u64>) {
+    for r in rows {
+        if let Some(&n) = plays.get(&r.uri) {
+            r.plays = n;
+        }
+    }
 }
 
 async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, Row> {
@@ -431,6 +515,7 @@ fn album_row(uri: String, a: &PAlbum) -> Row {
         art: cover_url(a),
         added_at: 0,
         members: String::new(),
+        plays: 0,
     }
 }
 
@@ -459,7 +544,8 @@ pub async fn artist_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
         .filter_map(|g| g.album.first())
         .filter_map(|al| gid_uri("album", al.gid()))
         .collect();
-    let (mut rows, albums) = tokio::join!(track_rows(session, top), album_rows(session, &releases));
+    let (mut rows, albums, plays) = tokio::join!(track_rows(session, top), album_rows(session, &releases), play_counts(session, uri));
+    set_plays(&mut rows, &plays);
     rows.extend(albums);
     Ok(rows)
 }
@@ -508,6 +594,7 @@ fn artist_row(uri: String, name: &str) -> Row {
         art: None,
         added_at: 0,
         members: String::new(),
+        plays: 0,
     }
 }
 
@@ -573,13 +660,17 @@ pub async fn context_rows(session: &Session, uri: &str, known: &[Row]) -> Res<Ve
     if uri == FOLLOWED_ARTISTS {
         return followed_artist_rows(session).await;
     }
-    let tracks = context_tracks(session, uri).await?;
+    let album = uri.starts_with("spotify:album:");
+    let (tracks, plays) = tokio::join!(context_tracks(session, uri), async {
+        if album { play_counts(session, uri).await } else { HashMap::new() }
+    });
+    let tracks = tracks?;
     let have: HashMap<&str, &Row> = known.iter().filter(|r| r.kind == Kind::Track).map(|r| (r.uri.as_str(), r)).collect();
     let mut missing: Vec<String> = tracks.iter().filter(|t| !have.contains_key(t.uri.as_str())).map(|t| t.uri.clone()).collect();
     missing.dedup();
     let fetched: HashMap<String, Row> = track_rows(session, missing).await.into_iter().map(|r| (r.uri.clone(), r)).collect();
     // tracks with no metadata are region-locked/removed; they stay dropped
-    Ok(tracks
+    let mut rows: Vec<Row> = tracks
         .into_iter()
         .filter_map(|t| {
             let mut r = have.get(t.uri.as_str()).map(|r| (*r).clone()).or_else(|| fetched.get(&t.uri).cloned())?;
@@ -587,7 +678,9 @@ pub async fn context_rows(session: &Session, uri: &str, known: &[Row]) -> Res<Ve
             r.members = t.members;
             Some(r)
         })
-        .collect())
+        .collect();
+    set_plays(&mut rows, &plays);
+    Ok(rows)
 }
 
 /// Lists as last loaded, one file each, so they show instantly after a restart while a fresh
@@ -614,6 +707,7 @@ fn parse_list_line(l: &str) -> Option<Row> {
     let mut next = || f.next();
     let (uri, title, artist, album) = (next()?, next()?, next()?, next()?);
     let (duration_ms, kind, art, added_at, members) = (next()?.parse().ok()?, next()?, next()?, next()?.parse().ok()?, next()?);
+    let plays = next().and_then(|p| p.parse().ok()).unwrap_or(0); // absent in files from before 0.3.8
     let kind = match kind {
         "t" => Kind::Track,
         "a" => Kind::Album,
@@ -631,6 +725,7 @@ fn parse_list_line(l: &str) -> Option<Row> {
         art: (!art.is_empty()).then(|| art.into()),
         added_at,
         members: members.into(),
+        plays,
     })
 }
 
@@ -649,7 +744,7 @@ pub fn write_list_cache(dir: &std::path::Path, uri: &str, rows: &[Row]) {
         };
         let _ = writeln!(
             text,
-            "{}\t{}\t{}\t{}\t{}\t{kind}\t{}\t{}\t{}",
+            "{}\t{}\t{}\t{}\t{}\t{kind}\t{}\t{}\t{}\t{}",
             r.uri,
             clean(&r.title),
             clean(&r.artist),
@@ -657,7 +752,8 @@ pub fn write_list_cache(dir: &std::path::Path, uri: &str, rows: &[Row]) {
             r.duration_ms,
             r.art.as_deref().unwrap_or(""),
             r.added_at,
-            clean(&r.members)
+            clean(&r.members),
+            r.plays
         );
     }
     let path = list_path(dir, uri);
@@ -712,6 +808,7 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 art: image(&t["album"]["images"]),
                 added_at: 0,
                 members: String::new(),
+                plays: 0,
             });
         }
     }
@@ -727,6 +824,7 @@ fn parse_search(v: &Value) -> Vec<Row> {
                 art: image(&x["images"]),
                 added_at: 0,
                 members: String::new(),
+                plays: 0,
             });
         }
     };
@@ -940,6 +1038,7 @@ mod tests {
             art: art.map(String::from),
             added_at: 1_700_000_000_000,
             members: "jj, Cube".into(),
+            plays: 1_204_589_367,
         };
         let rows = vec![
             row("spotify:track:1", "tab\there", Kind::Track, Some("https://i.scdn.co/image/ab")),
@@ -954,10 +1053,13 @@ mod tests {
         assert_eq!(back[0].title, "tab here"); // tabs would break the format
         for (a, b) in back.iter().zip(&rows).skip(1) {
             assert_eq!(
-                (&a.uri, &a.title, &a.artist, &a.album, a.duration_ms, a.kind, &a.art, a.added_at, &a.members),
-                (&b.uri, &b.title, &b.artist, &b.album, b.duration_ms, b.kind, &b.art, b.added_at, &b.members)
+                (&a.uri, &a.title, &a.artist, &a.album, a.duration_ms, a.kind, &a.art, a.added_at, &a.members, a.plays),
+                (&b.uri, &b.title, &b.artist, &b.album, b.duration_ms, b.kind, &b.art, b.added_at, &b.members, b.plays)
             );
         }
+        // lines written before play counts existed still load, with none
+        let old = parse_list_line("spotify:track:9\tt\ta\tal\t1000\tt\t\t0\t").expect("old line");
+        assert_eq!(old.plays, 0);
         // another format version is ignored, not misread
         std::fs::write(list_path(&dir, uri), "trill-list 0\nx").unwrap();
         assert!(read_list_cache(&dir, uri).is_none());

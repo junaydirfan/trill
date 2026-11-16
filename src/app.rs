@@ -437,7 +437,7 @@ impl App {
         self.side_state.select(Some(i.min(self.side.len() - 1)));
     }
 
-    fn open(&mut self, uri: String, title: String, push_back: bool, force: bool) {
+    pub(crate) fn open(&mut self, uri: String, title: String, push_back: bool, force: bool) {
         self.lyrics_open = false; // the lyrics view would hide the list being opened
         if push_back && !self.view.uri.is_empty() {
             let prev = std::mem::replace(
@@ -1540,6 +1540,7 @@ mod tests {
             art: None,
             added_at: added,
             members: String::new(),
+            plays: 0,
         }
     }
 
