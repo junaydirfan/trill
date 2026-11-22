@@ -779,7 +779,7 @@ impl App {
 fn web_link(uri: &str) -> Option<String> {
     let mut p = uri.split(':');
     let (Some("spotify"), Some(kind), Some(id), None) = (p.next(), p.next(), p.next(), p.next()) else { return None };
-    matches!(kind, "track" | "album" | "playlist" | "artist" | "episode" | "show").then(|| format!("https://open.spotify.com/{kind}/{id}"))
+    matches!(kind, "track" | "album" | "playlist" | "artist").then(|| format!("https://open.spotify.com/{kind}/{id}"))
 }
 
 #[test]
