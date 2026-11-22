@@ -291,6 +291,8 @@ Stuck? See [Troubleshooting](#troubleshooting).
 | `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
 | `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
+
+**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Hold `Shift` while dragging to select text in the terminal.
 </details>
 
 ## Details

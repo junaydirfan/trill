@@ -24,7 +24,7 @@ mod update;
 
 use std::{env, fs, process::Command, sync::Arc, time::Duration};
 
-use crossterm::event::Event;
+use crossterm::event::{DisableMouseCapture, EnableMouseCapture, Event};
 use librespot_core::{Session, SessionConfig, cache::Cache};
 use librespot_playback::{
     audio_backend,
@@ -676,6 +676,13 @@ async fn run(cfg: Config) -> i32 {
 
     // reuse the startup frame's terminal unless the login fallback had to put it away
     let mut term = term.filter(|_| crossterm::terminal::is_raw_mode_enabled().unwrap_or(false)).unwrap_or_else(ratatui::init);
+    let _ = crossterm::execute!(std::io::stdout(), EnableMouseCapture);
+    // ratatui's panic hook restores the terminal but not mouse reporting, which would leak into the shell
+    let hook = std::panic::take_hook();
+    std::panic::set_hook(Box::new(move |p| {
+        let _ = crossterm::execute!(std::io::stdout(), DisableMouseCapture);
+        hook(p)
+    }));
     let (tx, mut rx) = mpsc::unbounded_channel();
     let mut app = App::new(session, engine, saved_vol, web, tx, audio_settings, eq);
     app.eq_allowed = cfg.eq;
@@ -796,6 +803,7 @@ async fn run(cfg: Config) -> i32 {
             Some(ev) = key_rx.recv() => match ev {
                 Event::Key(k) => { app.on_key(k); dirty = true; }
                 Event::Resize(..) => { app.on_resize(); dirty = true; }
+                Event::Mouse(m) => dirty |= app.on_mouse(m),
                 _ => {}
             },
             Some(ev) = eng_rx.recv() => dirty |= app.on_engine(ev),
@@ -846,6 +854,7 @@ async fn run(cfg: Config) -> i32 {
         eq.stop();
     }
     app.session.shutdown();
+    let _ = crossterm::execute!(std::io::stdout(), DisableMouseCapture);
     ratatui::restore();
     0
 }

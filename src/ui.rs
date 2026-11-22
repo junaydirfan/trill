@@ -125,6 +125,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let hl = if app.focus == Focus::Side { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);
+    (app.side_area, app.main_area) = (side, main);
     if app.lyrics_open {
         draw_lyrics(f, app, main);
     } else {
@@ -350,7 +351,8 @@ fn now_flags(app: &App) -> Line<'static> {
     Line::from(s)
 }
 
-fn draw_now(f: &mut Frame, app: &App, now: Rect) {
+fn draw_now(f: &mut Frame, app: &mut App, now: Rect) {
+    app.bar_area = Rect::default();
     let [line1, line2] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(now);
     let flags = now_flags(app);
     match &app.now {
@@ -379,6 +381,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
             // " 1:23 ██████████▌░░░░░░░ 3:45 ": solid bar, 1/8-cell precision, gradient fill
             let (ta, tb) = (format!(" {} ", fmt_ms(pos)), format!(" {} ", fmt_ms(r.duration_ms)));
             let bar = (line2.width as usize).saturating_sub(ta.len() + tb.len());
+            app.bar_area = Rect { x: line2.x + ta.len() as u16, width: bar as u16, ..line2 };
             let eighths = (ratio.clamp(0.0, 1.0) * (bar * 8) as f64) as usize;
             let track = Color::Rgb(55, 55, 60);
             let n = bar.max(2) as f32 - 1.0;

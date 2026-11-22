@@ -7,12 +7,15 @@ pub use extras::{Art, Chooser, LyricsSlot, LyricsState};
 use std::{
     collections::{HashMap, HashSet, VecDeque},
     sync::Arc,
-    time::{Instant, SystemTime},
+    time::{Duration, Instant, SystemTime},
 };
 
-use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers};
+use crossterm::event::{KeyCode, KeyEvent, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use librespot_core::Session;
-use ratatui::widgets::{ListState, TableState};
+use ratatui::{
+    layout::{Position, Rect},
+    widgets::{ListState, TableState},
+};
 use tokio::sync::{Mutex, mpsc::UnboundedSender};
 
 use crate::{
@@ -300,6 +303,12 @@ pub struct App {
     next_art: Option<(String, bytes::Bytes)>,
     /// Cell size the UI has room for (set while drawing).
     pub art_want: Option<(u16, u16)>,
+    /// Where the last frame drew the sidebar list, the track table and the progress bar (for clicks).
+    pub side_area: Rect,
+    pub main_area: Rect,
+    pub bar_area: Rect,
+    /// Last click on a table row (when, row), to spot a double-click.
+    last_click: Option<(Instant, usize)>,
     /// "Add to playlist" popup.
     pub chooser: Option<Chooser>,
     /// First `D` press: (track uri, when) — the second press within a few seconds removes.
@@ -407,6 +416,10 @@ impl App {
             art: None,
             next_art: None,
             art_want: None,
+            side_area: Rect::default(),
+            main_area: Rect::default(),
+            bar_area: Rect::default(),
+            last_click: None,
             chooser: None,
             confirm_remove: None,
         }
@@ -1368,6 +1381,60 @@ impl App {
         }
     }
 
+    /// Click a sidebar entry to open it, a row to select it (double-click plays), the progress
+    /// bar to seek; the wheel scrolls the pane under the pointer. Returns whether to redraw,
+    /// so pointer moves (sent on every motion while mouse capture is on) cost no frame.
+    pub fn on_mouse(&mut self, m: MouseEvent) -> bool {
+        let pos = (m.column, m.row);
+        let modal = self.help_open || self.eq_panel.is_some() || self.chooser.is_some();
+        match m.kind {
+            MouseEventKind::ScrollDown | MouseEventKind::ScrollUp => {
+                if self.help_open {
+                    return false;
+                }
+                if !modal && self.focus != Focus::Input {
+                    if self.side_area.contains(pos.into()) {
+                        self.focus = Focus::Side;
+                    } else if self.main_area.contains(pos.into()) {
+                        self.focus = Focus::Main;
+                    }
+                }
+                // as arrow keys, so popups and the lyrics view scroll the way they already do
+                let code = if m.kind == MouseEventKind::ScrollDown { KeyCode::Down } else { KeyCode::Up };
+                self.on_key(KeyEvent::new(code, KeyModifiers::NONE));
+            }
+            MouseEventKind::Down(MouseButton::Left) => {
+                if self.help_open {
+                    self.help_open = false;
+                } else if modal || self.focus == Focus::Input {
+                    return false;
+                } else if let Some(i) = row_at(self.side_area, 1, self.side_state.offset(), self.side.len(), pos) {
+                    self.side_state.select(Some(i));
+                    self.open_side();
+                } else if let Some(i) = row_at(self.main_area, 2, self.view.state.offset(), self.view.rows.len(), pos)
+                    && !self.lyrics_open
+                {
+                    self.focus = Focus::Main;
+                    self.view.state.select(Some(i));
+                    let double = self.last_click.is_some_and(|(t, j)| j == i && t.elapsed() < Duration::from_millis(400));
+                    self.last_click = (!double).then(|| (Instant::now(), i));
+                    if double {
+                        self.activate();
+                    }
+                } else if let Some(len) = self.now.as_ref().map(|r| r.duration_ms)
+                    && self.bar_area.contains(Position::from(pos))
+                {
+                    let ms = (pos.0 - self.bar_area.x) as u64 * len as u64 / self.bar_area.width as u64;
+                    self.seek_to(ms as u32);
+                } else {
+                    return false;
+                }
+            }
+            _ => return false,
+        }
+        true
+    }
+
     pub fn on_key(&mut self, k: KeyEvent) {
         if k.kind == KeyEventKind::Release {
             return;
@@ -1514,9 +1581,30 @@ impl App {
     }
 }
 
+/// The list row under `pos` in a bordered pane whose rows start `top` lines down, scrolled by `offset`.
+fn row_at(area: Rect, top: u16, offset: usize, len: usize, (x, y): (u16, u16)) -> Option<usize> {
+    if x <= area.x || x + 1 >= area.right() || y < area.y + top || y + 1 >= area.bottom() {
+        return None;
+    }
+    let i = offset + (y - area.y - top) as usize;
+    (i < len).then_some(i)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn clicks_map_to_rows() {
+        let area = Rect::new(10, 5, 20, 10); // rows at y 7..14, x 11..29
+        assert_eq!(row_at(area, 2, 0, 50, (15, 7)), Some(0));
+        assert_eq!(row_at(area, 2, 30, 50, (15, 13)), Some(36));
+        assert_eq!(row_at(area, 2, 0, 50, (15, 6)), None, "header");
+        assert_eq!(row_at(area, 2, 0, 50, (15, 14)), None, "bottom border");
+        assert_eq!(row_at(area, 2, 0, 50, (10, 8)), None, "left border");
+        assert_eq!(row_at(area, 2, 0, 3, (15, 10)), None, "past the last row");
+        assert_eq!(row_at(Rect::default(), 1, 0, 5, (0, 1)), None, "hidden pane");
+    }
 
     #[test]
     fn smart_shuffle_mixes_after_the_cursor() {
