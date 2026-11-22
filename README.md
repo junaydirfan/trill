@@ -292,7 +292,7 @@ Stuck? See [Troubleshooting](#troubleshooting).
 | `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
-**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle shuffle, repeat or private session. Hold `Shift` while dragging to select text in the terminal, or set `mouse = off` in the config.
+**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle shuffle, repeat or private session. To select text in the terminal, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in macOS Terminal), or set `mouse = off` in the config.
 </details>
 
 ## Details
