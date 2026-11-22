@@ -309,6 +309,9 @@ pub struct App {
     pub bar_area: Rect,
     /// The ⇄ ↻ ⊘ icons on the now-playing line, clicked like their keys.
     pub flag_areas: [Rect; 3],
+    /// The open EQ panel or playlist picker: its whole box, and its list rows with their scroll.
+    pub popup_area: Rect,
+    pub popup_rows: (Rect, usize),
     /// Last click on a table row (when, row), to spot a double-click.
     last_click: Option<(Instant, usize)>,
     /// "Add to playlist" popup.
@@ -422,6 +425,8 @@ impl App {
             main_area: Rect::default(),
             bar_area: Rect::default(),
             flag_areas: [Rect::default(); 3],
+            popup_area: Rect::default(),
+            popup_rows: (Rect::default(), 0),
             last_click: None,
             chooser: None,
             confirm_remove: None,
@@ -1409,7 +1414,26 @@ impl App {
             MouseEventKind::Down(MouseButton::Left) => {
                 if self.help_open {
                     self.help_open = false;
-                } else if modal || self.focus == Focus::Input {
+                } else if modal && !self.popup_area.contains(pos.into()) {
+                    // a click outside the EQ panel or playlist picker closes it, like Esc
+                    self.on_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+                } else if modal {
+                    let len = match &self.chooser {
+                        Some(c) => c.matches(self).len(),
+                        None => BANDS.len(),
+                    };
+                    let Some(i) = popup_row(self.popup_rows, len, pos) else { return false };
+                    if self.eq_panel.is_some() {
+                        self.eq_panel = Some(i);
+                    } else {
+                        if let Some(c) = self.chooser.as_mut() {
+                            c.sel = i;
+                        }
+                        if self.double_click(i) {
+                            self.on_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
+                        }
+                    }
+                } else if self.focus == Focus::Input {
                     return false;
                 } else if let Some(i) = row_at(self.side_area, 1, self.side_state.offset(), self.side.len(), pos) {
                     self.side_state.select(Some(i));
@@ -1419,9 +1443,7 @@ impl App {
                 {
                     self.focus = Focus::Main;
                     self.view.state.select(Some(i));
-                    let double = self.last_click.is_some_and(|(t, j)| j == i && t.elapsed() < Duration::from_millis(400));
-                    self.last_click = (!double).then(|| (Instant::now(), i));
-                    if double {
+                    if self.double_click(i) {
                         self.activate();
                     }
                 } else if let Some(len) = self.now.as_ref().map(|r| r.duration_ms)
@@ -1438,6 +1460,13 @@ impl App {
             _ => return false,
         }
         true
+    }
+
+    /// Whether this click on row `i` follows one on the same row moments ago.
+    fn double_click(&mut self, i: usize) -> bool {
+        let double = self.last_click.is_some_and(|(t, j)| j == i && t.elapsed() < Duration::from_millis(400));
+        self.last_click = (!double).then(|| (Instant::now(), i));
+        double
     }
 
     pub fn on_key(&mut self, k: KeyEvent) {
@@ -1595,9 +1624,27 @@ fn row_at(area: Rect, top: u16, offset: usize, len: usize, (x, y): (u16, u16)) -
     (i < len).then_some(i)
 }
 
+/// The row under `pos` in a popup's list (no border), given its area and scroll offset.
+fn popup_row((area, offset): (Rect, usize), len: usize, pos: (u16, u16)) -> Option<usize> {
+    let i = offset + pos.1.checked_sub(area.y)? as usize;
+    (area.contains(pos.into()) && i < len).then_some(i)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn popup_clicks_map_to_rows() {
+        let rows = (Rect::new(20, 8, 30, 5), 4); // 5 visible rows, scrolled by 4
+        assert_eq!(popup_row(rows, 20, (25, 8)), Some(4));
+        assert_eq!(popup_row(rows, 20, (25, 12)), Some(8));
+        assert_eq!(popup_row(rows, 20, (25, 13)), None, "below the list");
+        assert_eq!(popup_row(rows, 20, (25, 7)), None, "above the list");
+        assert_eq!(popup_row(rows, 20, (19, 9)), None, "left of it");
+        assert_eq!(popup_row(rows, 6, (25, 11)), None, "past the last match");
+        assert_eq!(popup_row((Rect::default(), 0), 5, (0, 0)), None, "nothing drawn");
+    }
 
     #[test]
     fn clicks_map_to_rows() {
