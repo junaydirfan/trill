@@ -93,13 +93,17 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let side_w = if f.area().width < 70 && app.focus != Focus::Side { 0 } else { (f.area().width / 4).clamp(18, 32) };
     let [side, main] = Layout::horizontal([Constraint::Length(side_w), Constraint::Min(20)]).areas(body);
 
-    // sidebar, with the cover under it when there's room
+    // sidebar, with the cover under it when there's room, framed like the panels so its
+    // edges line up with theirs (a picture can't start mid-cell the way a border line does)
     let art_rows = art_rows(app, side);
-    app.art_want = art_rows.map(|r| (side.width, r));
+    app.art_want = art_rows.map(|r| (side.width - 2, r));
     let (side, art_area) = match art_rows {
         Some(r) => {
-            let [s, a] = Layout::vertical([Constraint::Min(6), Constraint::Length(r)]).areas(side);
-            (s, Some(a))
+            let [s, a] = Layout::vertical([Constraint::Min(6), Constraint::Length(r + 2)]).areas(side);
+            let frame = Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim());
+            let inner = frame.inner(a);
+            f.render_widget(frame, a);
+            (s, Some(inner))
         }
         None => (side, None),
     };
@@ -186,16 +190,18 @@ pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
     f.render_widget(Paragraph::new(" Connecting…").dim(), bottom);
 }
 
-/// Height (in rows) for a square cover the width of the sidebar, if the sidebar is tall
-/// enough to still show a useful list above it.
+/// Rows for a square cover inside a frame the width of the sidebar (rounded, so the cover
+/// fills it with the least cropped), if the sidebar is tall enough to still show a useful
+/// list above it.
 fn art_rows(app: &App, side: Rect) -> Option<u16> {
     let picker = app.img_picker.as_ref()?;
-    if !app.art_on || app.now.as_ref()?.art.is_none() {
+    if !app.art_on || app.now.as_ref()?.art.is_none() || side.width < 3 {
         return None;
     }
     let fs = picker.font_size();
-    let rows = (side.width as u32 * fs.width as u32 / fs.height.max(1) as u32) as u16;
-    (rows >= 4 && side.height >= rows + 10).then_some(rows)
+    let (w, fh) = ((side.width - 2) as u32 * fs.width as u32, fs.height.max(1) as u32);
+    let rows = ((w + fh / 2) / fh) as u16;
+    (rows >= 4 && side.height >= rows + 12).then_some(rows)
 }
 
 fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
