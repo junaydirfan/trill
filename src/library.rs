@@ -72,11 +72,13 @@ pub async fn set_liked(session: &Session, uri: &str, liked: bool) -> Res<()> {
     Ok(())
 }
 
-/// Items pinned to the top of Your Library (playlists, albums, artists, Liked Songs…),
-/// most recently pinned first. Set "ylpin" is read-only for us: writes to it are accepted
-/// but ignored, so pinning stays in the apps.
+/// Items pinned to the top of Your Library (playlists, albums, artists, Liked Songs…), in the
+/// order the apps show them: oldest pin first. Set "ylpin" is read-only for us: writes to it
+/// are accepted but ignored, so pinning stays in the apps.
 pub async fn pins(session: &Session) -> Res<Vec<String>> {
-    collection(session, "ylpin").await
+    let mut pins = collection(session, "ylpin").await?;
+    pins.reverse();
+    Ok(pins)
 }
 
 /// Every uri in a collection2v2 set, newest first: "collection" (liked songs and saved
