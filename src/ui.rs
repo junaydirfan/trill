@@ -125,6 +125,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let hl = if app.focus == Focus::Side { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);
+    (app.side_area, app.main_area) = (side, main);
     if app.lyrics_open {
         draw_lyrics(f, app, main);
     } else {
@@ -350,7 +351,23 @@ fn now_flags(app: &App) -> Line<'static> {
     Line::from(s)
 }
 
-fn draw_now(f: &mut Frame, app: &App, now: Rect) {
+/// Where the last three spans of `flags` (the ⇄ ↻ ⊘ icons) land when right-aligned in `area`.
+/// shortcut: none when the flags don't fit (narrow terminals); clicks there do nothing.
+fn flag_areas(flags: &Line, area: Rect) -> [Rect; 3] {
+    let mut out = [Rect::default(); 3];
+    if flags.width() <= area.width as usize {
+        let mut x = area.right();
+        for (r, s) in out.iter_mut().rev().zip(flags.spans.iter().rev()) {
+            let w = s.width() as u16;
+            x -= w;
+            *r = Rect { x, width: w, height: 1, ..area };
+        }
+    }
+    out
+}
+
+fn draw_now(f: &mut Frame, app: &mut App, now: Rect) {
+    app.bar_area = Rect::default();
     let [line1, line2] = Layout::vertical([Constraint::Length(1), Constraint::Length(1)]).areas(now);
     let flags = now_flags(app);
     match &app.now {
@@ -373,12 +390,14 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
                 ])),
                 l,
             );
+            app.flag_areas = flag_areas(&flags, rt);
             f.render_widget(Paragraph::new(flags).right_aligned(), rt);
             let pos = app.position_ms().min(r.duration_ms);
             let ratio = if r.duration_ms > 0 { pos as f64 / r.duration_ms as f64 } else { 0.0 };
             // " 1:23 ██████████▌░░░░░░░ 3:45 ": solid bar, 1/8-cell precision, gradient fill
             let (ta, tb) = (format!(" {} ", fmt_ms(pos)), format!(" {} ", fmt_ms(r.duration_ms)));
             let bar = (line2.width as usize).saturating_sub(ta.len() + tb.len());
+            app.bar_area = Rect { x: line2.x + ta.len() as u16, width: bar as u16, ..line2 };
             let eighths = (ratio.clamp(0.0, 1.0) * (bar * 8) as f64) as usize;
             let track = Color::Rgb(55, 55, 60);
             let n = bar.max(2) as f32 - 1.0;
@@ -396,6 +415,7 @@ fn draw_now(f: &mut Frame, app: &App, now: Rect) {
         }
         None => {
             f.render_widget(Paragraph::new(Line::from(vec![Span::raw(" ■ Nothing playing").dim()])), line1);
+            app.flag_areas = flag_areas(&flags, line1);
             f.render_widget(Paragraph::new(flags).right_aligned(), line1);
         }
     }
@@ -653,6 +673,15 @@ mod tests {
         t.draw(|f| super::draw_splash(f, &["Mix".into()])).unwrap();
         let screen: String = t.backend().buffer().content().iter().map(|c| c.symbol()).collect();
         assert!(screen.contains(super::LOGO[1].trim()));
+    }
+
+    #[test]
+    fn flag_icons_are_clickable_where_drawn() {
+        use super::{Line, Rect, Span};
+        let flags = Line::from(vec![Span::raw("vol 50%  "), Span::raw(" ⇄ "), Span::raw(" ↻1 "), Span::raw(" ⊘ ")]);
+        let [sh, rp, pv] = super::flag_areas(&flags, Rect::new(0, 3, 40, 1));
+        assert_eq!((sh.x, sh.width, rp.x, rp.width, pv.x, pv.width, pv.y), (30, 3, 33, 4, 37, 3, 3));
+        assert_eq!(super::flag_areas(&flags, Rect::new(0, 3, 10, 1)), [Rect::default(); 3], "doesn't fit");
     }
 
     #[test]

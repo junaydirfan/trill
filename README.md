@@ -291,6 +291,8 @@ Stuck? See [Troubleshooting](#troubleshooting).
 | `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
 | `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
+
+**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle shuffle, repeat or private session. To select text in the terminal, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in macOS Terminal), or set `mouse = off` in the config.
 </details>
 
 ## Details
@@ -352,6 +354,7 @@ soloist_cache_mb = 200
 soloist_ws =           # host:port of a Soloist you already run, instead of spawning one
 eq = on                # off = never run the EQ process
 art = on               # off = no album art (and no terminal capability query)
+mouse = on             # off = no clicks or wheel; the terminal keeps its own text selection
 ```
 </details>
 
