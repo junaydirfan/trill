@@ -133,11 +133,11 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     }
     draw_now(f, app, now);
 
-    let popups = [
-        app.eq_panel.map(|band| draw_eq(f, app, band)),
-        draw_chooser(f, app),
-        app.help_open.then(|| draw_help(f)),
-    ];
+    app.popup_rows = (Rect::default(), 0);
+    let eq = app.eq_panel.map(|band| draw_eq(f, app, band));
+    let chooser = draw_chooser(f, app);
+    app.popup_area = chooser.or(eq).unwrap_or_default();
+    let popups = [eq, chooser, app.help_open.then(|| draw_help(f))];
     // Terminal graphics (kitty placeholders in Ghostty at least) drop every image row that
     // anything else is drawn across, so a popup over the cover hides it whole instead.
     if let (Some(area), Some(proto)) = (art_area, app.art.as_ref().and_then(|a| a.proto.as_ref()))
@@ -472,7 +472,7 @@ fn draw_lyrics(f: &mut Frame, app: &App, area: Rect) {
     f.render_widget(Paragraph::new(lines), inner);
 }
 
-fn draw_chooser(f: &mut Frame, app: &App) -> Option<Rect> {
+fn draw_chooser(f: &mut Frame, app: &mut App) -> Option<Rect> {
     let c = app.chooser.as_ref()?;
     let area = f.area();
     let w = 50.min(area.width.saturating_sub(2));
@@ -493,6 +493,7 @@ fn draw_chooser(f: &mut Frame, app: &App) -> Option<Rect> {
     let mut st = ratatui::widgets::ListState::default().with_selected((!matches.is_empty()).then_some(c.sel - off));
     let l = if matches.is_empty() { List::new(vec![ListItem::new(" no matching playlists").dim()]) } else { List::new(items) };
     f.render_stateful_widget(l.highlight_style(Style::new().fg(on_accent()).bg(accent())), list, &mut st);
+    app.popup_rows = (list, off);
     f.render_widget(Paragraph::new(" type to filter · ⏎ add / remove ✓ · Esc done").dim(), help);
     Some(rect)
 }
@@ -575,7 +576,7 @@ fn draw_help(f: &mut Frame) -> Rect {
     rect
 }
 
-fn draw_eq(f: &mut Frame, app: &App, sel: usize) -> Rect {
+fn draw_eq(f: &mut Frame, app: &mut App, sel: usize) -> Rect {
     let area = f.area();
     let w = 62.min(area.width.saturating_sub(2));
     let h = (BANDS.len() as u16 + 7).min(area.height.saturating_sub(2));
@@ -604,6 +605,8 @@ fn draw_eq(f: &mut Frame, app: &App, sel: usize) -> Rect {
     } else if app.eq.is_none() && !app.audio.is_flat() {
         lines.push(Line::from(" Starting EQ… (the player restarts once)").fg(Color::Yellow));
     }
+    let first = inner.y + lines.len() as u16;
+    app.popup_rows = (Rect { y: first, height: BANDS.len() as u16, ..inner }.intersection(inner), 0);
     for (i, (&hz, &g)) in BANDS.iter().zip(gains.iter()).enumerate() {
         let label = if hz >= 1000 { format!("{}k", hz / 1000) } else { hz.to_string() };
         let fill = ((g / MAX_DB) * half as f32).round() as i32;
