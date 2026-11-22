@@ -47,6 +47,7 @@ trill is a terminal Spotify client that does one thing and does it cheaply. It p
 - **Desktop native.** On Linux, MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect. On macOS, the media keys, Control Center and the lock screen control trill.
 - **Private session.** `I` starts Spotify's private session for your whole account, the same switch as in the official apps: Friend Activity, your profile, recommendations and Wrapped don't see what you play. It ends by itself after 6 hours. On Linux with Soloist it also hides the song from Discord and anything else watching your Spotify devices. Soloist doesn't support a private session, so trill passes its connection to Spotify through a small local relay that marks it private. The relay uses a local certificate that only works for spotify.com, is readable only by you, and is used only by Soloist. Soloist restarts once (~3 s) the first time you turn private on. Mid-song, the music pauses for about 1.5 s either way, so Discord notices the change.
 - **Status at a glance.** The now-playing line ends in ` ⇄ ` shuffle (` ⇄✦ ` smart), ` ↻ ` repeat (` ↻1 ` one song) and ` ⊘ ` private session, lit when on and dim when off.
+- **Mouse too.** Click to open, select and seek, double-click to play, and scroll with the wheel. The keyboard still does everything.
 - **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
 </details>
 
