@@ -78,10 +78,11 @@ fn now_ms() -> u64 {
 fn encode_art(picker: &Picker, bytes: &[u8], size: (u16, u16)) -> Result<(Protocol, Option<[u8; 3]>), String> {
     let img = image::load_from_memory(bytes).map_err(|e| e.to_string())?;
     let tint = Some(theme::cover_tint(&img));
-    // Shrink with a cheap filter first: the cover is 640 px, the target is ~a few hundred.
+    // Fill the cells exactly (cropping the few pixels the cell grid isn't square by), so the
+    // cover meets its frame on every side instead of leaving a gap on one.
     let fs = picker.font_size();
     let (w, h) = (size.0 as u32 * fs.width as u32, size.1 as u32 * fs.height as u32);
-    let img = if img.width() > w * 2 || img.height() > h * 2 { img.thumbnail(w * 2, h * 2) } else { img };
+    let img = img.resize_to_fill(w.max(1), h.max(1), image::imageops::FilterType::Triangle);
     picker
         .new_protocol(img, Size::new(size.0, size.1), Resize::Fit(Some(FilterType::Triangle)))
         .map(|p| (p, tint))
