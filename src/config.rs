@@ -49,6 +49,8 @@ pub struct Config {
     pub eq: bool,
     /// Album art in the terminal (default on; `art = off` to hide it).
     pub art: bool,
+    /// Clicks and the wheel (default on; `mouse = off` keeps the terminal's own text selection).
+    pub mouse: bool,
     pub cache_dir: PathBuf,
     pub config_dir: PathBuf,
 }
@@ -90,6 +92,7 @@ impl Config {
             normalise: false,
             eq: cfg!(target_os = "linux"), // PipeWire filter-chain; there is none on macOS
             art: true,
+            mouse: true,
             cache_dir,
             config_dir,
         };
@@ -114,6 +117,7 @@ impl Config {
                 "normalise" | "normalize" => cfg.normalise = v == "true",
                 "eq" => cfg.eq = !matches!(v, "off" | "false" | "no" | "0"),
                 "art" => cfg.art = !matches!(v, "off" | "false" | "no" | "0"),
+                "mouse" => cfg.mouse = !matches!(v, "off" | "false" | "no" | "0"),
                 "backend" => {
                     cfg.backend = match v {
                         "soloist" => Backend::Soloist,
@@ -236,6 +240,7 @@ mod tests {
             normalise: false,
             eq: false,
             art: false,
+            mouse: false,
             cache_dir: dir.clone(),
             config_dir: dir.clone(),
         };

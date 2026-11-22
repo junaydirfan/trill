@@ -292,7 +292,7 @@ Stuck? See [Troubleshooting](#troubleshooting).
 | `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
-**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Hold `Shift` while dragging to select text in the terminal.
+**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle shuffle, repeat or private session. Hold `Shift` while dragging to select text in the terminal, or set `mouse = off` in the config.
 </details>
 
 ## Details
@@ -354,6 +354,7 @@ soloist_cache_mb = 200
 soloist_ws =           # host:port of a Soloist you already run, instead of spawning one
 eq = on                # off = never run the EQ process
 art = on               # off = no album art (and no terminal capability query)
+mouse = on             # off = no clicks or wheel; the terminal keeps its own text selection
 ```
 </details>
 

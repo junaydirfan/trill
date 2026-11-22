@@ -307,6 +307,8 @@ pub struct App {
     pub side_area: Rect,
     pub main_area: Rect,
     pub bar_area: Rect,
+    /// The ⇄ ↻ ⊘ icons on the now-playing line, clicked like their keys.
+    pub flag_areas: [Rect; 3],
     /// Last click on a table row (when, row), to spot a double-click.
     last_click: Option<(Instant, usize)>,
     /// "Add to playlist" popup.
@@ -419,6 +421,7 @@ impl App {
             side_area: Rect::default(),
             main_area: Rect::default(),
             bar_area: Rect::default(),
+            flag_areas: [Rect::default(); 3],
             last_click: None,
             chooser: None,
             confirm_remove: None,
@@ -1426,6 +1429,8 @@ impl App {
                 {
                     let ms = (pos.0 - self.bar_area.x) as u64 * len as u64 / self.bar_area.width as u64;
                     self.seek_to(ms as u32);
+                } else if let Some(i) = self.flag_areas.iter().position(|r| r.contains(pos.into())) {
+                    self.on_key(KeyEvent::new(KeyCode::Char(['s', 'r', 'I'][i]), KeyModifiers::NONE));
                 } else {
                     return false;
                 }
