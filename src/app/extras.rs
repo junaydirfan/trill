@@ -549,7 +549,10 @@ impl App {
         np.set_protocol_type(p.protocol_type());
         self.img_picker = Some(np);
         if let Some(a) = self.art.as_mut() {
-            a.size = (0, 0); // no longer matches art_want, so refresh_media re-encodes (old cover stays up meanwhile)
+            a.size = (0, 0); // no longer matches art_want, so refresh_media re-encodes
+            // The old picture is sized in old pixels: it would spill over the borders (zoom out) or
+            // sit small in the corner (zoom in) and leave bits behind, so show none until the new one.
+            a.proto = None;
         }
     }
 
