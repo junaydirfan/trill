@@ -122,7 +122,7 @@ fn main() {
     // Hidden diagnostics: which image protocol / font size this terminal reports.
     if has("--debug-term") {
         let t0 = std::time::Instant::now();
-        match query_terminal_images() {
+        match query_terminal_images(&cfg.cache_dir) {
             Some(p) => eprintln!("{:?} font {:?} in {} ms", p.protocol_type(), p.font_size(), t0.elapsed().as_millis()),
             None => eprintln!("no picker in {} ms", t0.elapsed().as_millis()),
         }
@@ -131,10 +131,13 @@ fn main() {
 
     // Every helper thread gets its own malloc arena that is never handed back; with a few
     // short-lived DNS/file threads that's megabytes of RSS for nothing. Two arenas is plenty.
+    // A fixed mmap threshold also stops glibc raising it (and the trim threshold with it) after
+    // each decoded cover is freed, which left ~7 MB of free heap resident in the second arena.
     // SAFETY: called before any other threads exist.
     #[cfg(target_os = "linux")]
     unsafe {
         libc::mallopt(libc::M_ARENA_MAX, 2);
+        libc::mallopt(libc::M_MMAP_THRESHOLD, 256 * 1024);
     }
     let go = move || {
         let rt = tokio::runtime::Builder::new_current_thread()
@@ -260,40 +263,79 @@ fn pair_soloist(cfg: &Config) -> i32 {
     }
 }
 
+/// Which terminal this is, as far as the environment tells: the key under which a terminal that
+/// didn't answer the image query is remembered.
+fn terminal_id() -> String {
+    let get = |k: &str| env::var(k).unwrap_or_default();
+    let has = |k: &'static str| if env::var_os(k).is_some_and(|v| !v.is_empty()) { k } else { "" };
+    [get("TERM"), get("TERM_PROGRAM"), get("TERM_PROGRAM_VERSION"), get("LC_TERMINAL"), get("KONSOLE_VERSION"), get("VTE_VERSION")]
+        .into_iter()
+        .chain(["TMUX", "WT_SESSION", "KITTY_WINDOW_ID", "WEZTERM_EXECUTABLE", "ITERM_SESSION_ID", "GHOSTTY_RESOURCES_DIR"].map(|k| has(k).to_string()))
+        .collect::<Vec<_>>()
+        .join("|")
+}
+
+/// Terminals that didn't answer the image query, one `terminal_id` per line. Re-asked after a
+/// week, in case one learns to answer (or tmux gets attached from a terminal that does).
+fn silent_terminals(cache: &std::path::Path) -> (std::path::PathBuf, String) {
+    let file = cache.join("silent_terminals");
+    let fresh = fs::metadata(&file).and_then(|m| m.modified()).is_ok_and(|t| t.elapsed().is_ok_and(|d| d < Duration::from_secs(7 * 86400)));
+    let text = if fresh { fs::read_to_string(&file).unwrap_or_default() } else { String::new() };
+    (file, text)
+}
+
 /// Which image protocol the terminal supports. Terminals answer in a few ms; if one doesn't,
 /// ratatui-image gives up but leaves a thread blocked reading stdin, which would eat the
 /// first keypresses. A Device Status Report query (which every terminal, and tmux itself,
 /// answers) completes that read so the thread exits before we start reading keys.
-fn query_terminal_images() -> Option<ratatui_image::picker::Picker> {
-    use ratatui_image::picker::{Picker, cap_parser::QueryStdioOptions};
+/// A terminal that didn't answer is remembered, so the next start skips the ~0.5 s wait and
+/// goes straight to what the timeout would have given.
+fn query_terminal_images(cache: &std::path::Path) -> Option<ratatui_image::picker::Picker> {
+    use ratatui_image::picker::{Picker, ProtocolType, cap_parser::QueryStdioOptions};
     use std::io::Write;
     const TIMEOUT: Duration = Duration::from_millis(400);
     let t0 = std::time::Instant::now();
-    let mut picker = Picker::from_query_stdio_with_options(QueryStdioOptions { timeout: TIMEOUT, ..Default::default() }).ok();
+    let id = terminal_id();
+    let (file, silent) = silent_terminals(cache);
+    let mut picker = if silent.lines().any(|l| l == id) {
+        // ratatui-image's own fallback: the font size from the window's pixel size, if known
+        #[allow(deprecated)]
+        Some(match crossterm::terminal::window_size() {
+            Ok(w) if w.width > 0 && w.height > 0 && w.columns > 0 && w.rows > 0 => {
+                Picker::from_fontsize(ratatui_image::FontSize::new(w.width / w.columns, w.height / w.rows))
+            }
+            _ => Picker::halfblocks(),
+        })
+    } else {
+        let p = Picker::from_query_stdio_with_options(QueryStdioOptions { timeout: TIMEOUT, ..Default::default() }).ok();
+        if t0.elapsed() >= TIMEOUT {
+            let mut out = std::io::stdout();
+            let _ = out.write_all(b"\x1b[5n");
+            let _ = out.flush();
+            std::thread::sleep(Duration::from_millis(100));
+            let _ = fs::create_dir_all(cache);
+            let _ = fs::write(&file, format!("{silent}{id}\n"));
+        }
+        p
+    };
     // Konsole draws iTerm2 inline images (its sixel/kitty support is buggy, so ratatui-image
     // rules those out) but has no env var announcing it, so ratatui-image falls back to
     // half-blocks. Use iTerm2 there (not through tmux, which would need passthrough).
     if let Some(p) = picker.as_mut()
         && env::var_os("KONSOLE_VERSION").is_some()
         && !p.tmux_detected()
-        && p.protocol_type() == ratatui_image::picker::ProtocolType::Halfblocks
+        && p.protocol_type() == ProtocolType::Halfblocks
     {
-        p.set_protocol_type(ratatui_image::picker::ProtocolType::Iterm2);
+        p.set_protocol_type(ProtocolType::Iterm2);
     }
     // VS Code is guessed to be iTerm2 from TERM_PROGRAM alone, but it only draws images with
     // `terminal.integrated.enableImages` on, and then it also answers the query with sixel.
     // A guess that the query didn't back up would draw nothing, so use half-blocks there.
     if let Some(p) = picker.as_mut()
         && env::var("TERM_PROGRAM").is_ok_and(|t| t == "vscode")
-        && p.protocol_type() == ratatui_image::picker::ProtocolType::Iterm2
+        && p.protocol_type() == ProtocolType::Iterm2
     {
-        p.set_protocol_type(ratatui_image::picker::ProtocolType::Halfblocks);
-    }
-    if t0.elapsed() >= TIMEOUT {
-        let mut out = std::io::stdout();
-        let _ = out.write_all(b"\x1b[5n");
-        let _ = out.flush();
-        std::thread::sleep(Duration::from_millis(100));
+        p.set_protocol_type(ProtocolType::Halfblocks);
     }
     picker
 }
@@ -371,9 +413,8 @@ async fn run(cfg: Config) -> i32 {
     // Ask the terminal which image protocol it speaks (kitty / sixel / iTerm2, else
     // half-block characters) while we log in. Must finish before we read key events.
     let mut picker_query = (cfg.art && std::io::IsTerminal::is_terminal(&std::io::stdout())).then(|| {
-        std::thread::Builder::new()
-            .name("term-query".into())
-            .spawn(query_terminal_images)
+        let dir = cfg.cache_dir.clone();
+        std::thread::Builder::new().name("term-query".into()).spawn(move || query_terminal_images(&dir))
     });
     let session = Session::new(session_cfg.clone(), Some(cache.clone()));
     let cached_user = cache.credentials().and_then(|c| c.username);
@@ -512,7 +553,7 @@ async fn run(cfg: Config) -> i32 {
             Some("pins") => library::pins(&session).await.map(|p| p.iter().for_each(|u| eprintln!("{u}"))),
             Some("all") => match api::context_rows(&session, &a[1], &[]).await {
                 Ok(rows) => {
-                    let all = api::expand(&session, &rows).await;
+                    let all = api::expand(&session, &rows).await.unwrap_or_default();
                     eprintln!("{} tracks; first: {:?}", all.len(), all.iter().take(12).map(|r| r.title.as_str()).collect::<Vec<_>>());
                     Ok(())
                 }
@@ -648,7 +689,7 @@ async fn run(cfg: Config) -> i32 {
             {
                 seek_end = false;
                 // duration comes from our own metadata so it works on both engines
-                let rows = api::track_rows(&session, vec![uri.clone()]).await;
+                let rows = api::track_rows(&session, vec![uri.clone()]).await.unwrap_or_default();
                 if let Some(r) = rows.first() {
                     tokio::time::sleep(Duration::from_secs(2)).await;
                     let lead = seek_lead.unwrap_or(6000);
@@ -704,7 +745,7 @@ async fn run(cfg: Config) -> i32 {
     let mut desktop = None;
     match &preview {
         Some(uri) => {
-            app.now = api::track_rows(&app.session, vec![uri.clone()]).await.into_iter().next();
+            app.now = api::track_rows(&app.session, vec![uri.clone()]).await.ok().and_then(|r| r.into_iter().next());
             // optional: a list to open, and its title (`--preview <track> <list uri> <title>`)
             let mut rest = env::args().skip_while(|a| a != "--preview").skip(2);
             if let (Some(list), Some(title)) = (rest.next(), rest.next()) {
@@ -738,8 +779,8 @@ async fn run(cfg: Config) -> i32 {
 
     let mut tick = interval(Duration::from_secs(1));
     tick.set_missed_tick_behavior(MissedTickBehavior::Skip);
-    let mut health = interval(Duration::from_secs(15));
-    health.set_missed_tick_behavior(MissedTickBehavior::Skip);
+    // When the last reconnect was tried (one try per 15 s at most).
+    let mut reconnect_at: Option<std::time::Instant> = None;
     let mut dirty = true;
 
     loop {
@@ -815,25 +856,26 @@ async fn run(cfg: Config) -> i32 {
                 app.check_resume();
                 dirty = true;
             }
-            _ = health.tick() => {
-                if app.session.is_invalid() {
-                    app.status = "Connection lost, reconnecting…".into();
-                    let _ = term.draw(|f| ui::draw(f, &mut app));
-                    let s = Session::new(session_cfg.clone(), Some(cache.clone()));
-                    match timeout(Duration::from_secs(10), auth::reconnect(&s, &cache)).await {
-                        Ok(Ok(())) => {
-                            if let Engine::Librespot { player, .. } = &app.engine {
-                                player.set_session(s.clone());
-                            }
-                            app.session = s;
-                            app.status = "Reconnected.".into();
-                        }
-                        Ok(Err(e)) => app.status = format!("Reconnect failed: {e} (retrying)"),
-                        Err(_) => app.status = "Reconnect timed out (retrying)".into(),
+        }
+        // A lost connection is noticed on the next key, event or second of playback rather
+        // than by a timer, so an idle trill never wakes up just to check.
+        if !app.quit && app.session.is_invalid() && reconnect_at.is_none_or(|t| t.elapsed() >= Duration::from_secs(15)) {
+            reconnect_at = Some(std::time::Instant::now());
+            app.status = "Connection lost, reconnecting…".into();
+            let _ = term.draw(|f| ui::draw(f, &mut app));
+            let s = Session::new(session_cfg.clone(), Some(cache.clone()));
+            match timeout(Duration::from_secs(10), auth::reconnect(&s, &cache)).await {
+                Ok(Ok(())) => {
+                    if let Engine::Librespot { player, .. } = &app.engine {
+                        player.set_session(s.clone());
                     }
-                    dirty = true;
+                    app.session = s;
+                    app.status = "Reconnected.".into();
                 }
+                Ok(Err(e)) => app.status = format!("Reconnect failed: {e} (retrying)"),
+                Err(_) => app.status = "Reconnect timed out (retrying)".into(),
             }
+            dirty = true;
         }
     }
 

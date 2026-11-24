@@ -12,7 +12,7 @@ use std::{
     time::Instant,
 };
 
-use librespot_core::{Session, SessionConfig, authentication::Credentials, cache::Cache};
+use librespot_core::{Session, SessionConfig, authentication::Credentials, cache::Cache, error::ErrorKind};
 use librespot_oauth::{OAuthClient, OAuthClientBuilder};
 
 const SESSION_REDIRECT: &str = "http://127.0.0.1:5588/login";
@@ -44,6 +44,10 @@ pub async fn connect(session: &Session, cache: &Cache) -> Result<(), String> {
     if let Some(creds) = cache.credentials() {
         match session.connect(creds, true).await {
             Ok(()) => return Ok(()),
+            // Offline or Spotify unreachable: the saved login is fine, so don't ask for a new one.
+            Err(e) if !matches!(e.kind, ErrorKind::PermissionDenied | ErrorKind::Unauthenticated) => {
+                return Err(format!("can't reach Spotify ({e}). Your saved login is kept; check the connection and start trill again."));
+            }
             Err(e) => {
                 if crossterm::terminal::is_raw_mode_enabled().unwrap_or(false) {
                     ratatui::restore();

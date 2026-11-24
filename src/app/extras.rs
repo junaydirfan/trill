@@ -392,7 +392,7 @@ impl App {
         }
         // A song playing outside its list (a recommendation, say) most likely belongs in that list.
         let mut c = Chooser { track, filter: String::new(), sel: 0, holding, checking };
-        if !self.ctx[..self.base].iter().any(|r| r.uri == c.track.uri)
+        if !self.ctx.iter().any(|r| r.uri == c.track.uri)
             && let Some(i) = c.matches(self).iter().position(|(u, _)| *u == self.ctx_src.0)
         {
             c.sel = i;
@@ -654,8 +654,9 @@ impl App {
                 self.status = format!("Couldn't update your library: {e}");
             }
             Msg::LikeDone { .. } => {}
-            Msg::PlayAll(rows) if rows.is_empty() => self.status = "Nothing to play here.".into(),
-            Msg::PlayAll(rows) => {
+            Msg::PlayAll(Ok(rows)) if rows.is_empty() => self.status = "Nothing to play here.".into(),
+            Msg::PlayAll(Err(e)) => self.status = format!("Couldn't load everything: {e}"),
+            Msg::PlayAll(Ok(rows)) => {
                 let n = rows.len();
                 self.play_list(&Arc::new(rows), 0);
                 self.status = format!("Playing all {n} tracks");
@@ -753,17 +754,17 @@ impl App {
                 }
             },
             Msg::Recs { list, rows } => {
-                if !self.smart || list != self.ctx_src.0 || self.ctx.len() != self.base {
+                if !self.smart || list != self.ctx_src.0 || !self.recs.is_empty() {
                     return;
                 }
                 if rows.is_empty() {
                     self.status = "Spotify has no recommendations for this list.".into();
                     return;
                 }
-                let mut have: HashSet<String> = self.ctx.iter().map(|r| r.uri.clone()).collect();
-                let mut ctx: Vec<Row> = self.ctx.to_vec();
-                ctx.extend(rows.into_iter().filter(|r| have.insert(r.uri.clone())));
-                self.ctx = Arc::new(ctx);
+                let have: HashSet<&str> = self.ctx.iter().map(|r| r.uri.as_str()).collect();
+                let mut seen = HashSet::new();
+                let recs: Vec<Row> = rows.into_iter().filter(|r| !have.contains(r.uri.as_str()) && seen.insert(r.uri.clone())).collect();
+                self.recs = recs;
                 self.weave();
                 self.refresh_queue_view();
             }
