@@ -1,0 +1,1462 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1082 755" width="1082" height="755" role="img" aria-label="trill&#x27;s For You: fifty songs picked from what you play, each with a Why column saying where it came from, such as the radio of a song you play or an artist like one you play.">
+<style>
+@font-face{font-family:tm;font-weight:400;src:url(data:font/woff2;base64,d09GMgABAAAAAA5YAA4AAAAAHKgAAA4CAAJN0wAAAAAAAAAAAAAAAAAAAAAAAAAAGhwbIBwqBmAAgVARCAquNKNHATYCJAOCSguBKAAEIAVWByAbnhWjooSzGgH+eRgbyx7bhKxFOOthq7gxtfVuuOyX8yal9EfXSuFb7cbrCElmfQC39W8Dg8s0Ci7AQpEeGyVRN0KYgaSCVVcR3v0M70eH/OjQ75urqpIM1e/OzAKgOnZ3Cp/v7mSSRTAmsRm7CEKfcMd26X/mtbrVvtedE3TnOlS4SR+MAQdGg/hK4/l8a6mdH9xLadOyQxQSVZWqkLOzkJnbmwDDJq9vr+XgtopANa7AQk0BUaE6d7ZC9dXWRYeMCRzN/soN4F2jo6mTwzo8+oIAMAWrIP16BEpBQIhaEPnPOQl5KABhNDt8yAUfACbA2zDzRFgK8sqmdUYGu7EAElDxySBxEFkAuTuqB2AP35pogZSgARIQ4LUCDyiiodv0UD2MUeHI+/d/AK0CQsK9B0gRmcGGELJBajyIOeoS4XQ+7heiHsG/qL1/CZahAkqoYAOHRjQjgRRW4y76qiRS4glHqRnsHCEkqJrCwLEogiQ6MJTNQ3TeLQs5E/WQr33lHvc+N9+j7r2v37tDznNECZZj1+bgfRzwwAoDjKBRDx3ccIEAMQF1OHhfFriagEEg+1OQwAqgCoDEZoJEnQDZ/5xMDpRnhfImhEH0i7luIsiLg5zKA7kbBeaYZBqy2Nu6VHweL1cwUyDQ36ASeaNRpRrlzvYwRK0zrNfmq+16pLcug+gKB13RW+sYCrtEh1Mx5YaVds51At0xlHqo0DekBrtVbVgppqmgtb29Wg1eehiEMxsiDRKIqYZvhZIO1vbVoi5hGYvixKRwd9R9AKMooYWUwWf6geFbSYIWc04iweRdLYj9nGGF5DwFkJfhybHFJEGde053J7iwP/VASZMiJN4u8cHRyma5XZp8HnwE4gvnnNlCWJMEINwIoGmXCJbBQppymymCN+eXiVgSSYx86+IZPTOh3KXTcxe+TE7pVou9o36TiOfrO9oVluAd7Ltd2DTqe1OSzZGUJRV/cM8jN2c6GQrXZf17i+xox2am1K6++xKat9h3LlTEQiJt8XKfkeXIF1mQpSvqP4HBBaQJ7GncdZwORIib4s6S7oOo18Cv6c3Tp/4eSP0eeF+xph3It4VYHKyPVCyD8qJlnbDcGIfzef+DsnO1oHEhKYEM7sHCZDx+f3PzyxEyzMiw/DIrd/q5pMhJE3gEf4kxOEbAIjenhU0ZYPVPRAodI3mJPrxA8IUxZ4NSRPCQeJYhxqmR3IBwMQarttbpCMOqkrxX0Cm7XDBhrrlLIJbVSoV0cRu12iCrsRnoud7RWoc2mwhJglGEAfbPwlHLsdhuMhELsvPDYuITWIqMOqBy/RhuV9ZNJJyP1chWiHfn3HS/iQKbridnm0ixUCbbSm6rWgaGQU2FzdYh0QqNwKqB2uU39B9hCQmnZMDxhurJ2W/KpzfWDv3xYY92FGzC6zQ2WuI7I2GbbPTTFvubukVFwXlZr80pyxp/jeEIowOcPrAt7RpLtx9njO4UGEipcMQpzzwZ+Y9qVryNDQLDA+7wNSlbGGSV2cz7NkXcFc4VUpJw1mhsrd1XJO3HBs+L2Mry5cj/TGhrJns0SVwu7bYGKeg49lXsQxWvFk08s0WrvmRlU8TbacHY5a0+V466iH5Clen19MXyC+tV/uxY9dVtBSRlkL12RRjllDVtJ4jDcuXrSQua4Dt5MOaL97GTtlq+SZNdkWfXmz1JDAq6/BOc1OvK9HzcyvDj9v9R+7jZYrVO+GnjH1zE5TKN2XSgpwjmAetb25srkTPWRdYWegq/WPFxuk7yKrm/utzfMHneZFKAvv/1wB5DQ6BRBNNGEumuJ+YyV2b6OsUqyewhiRrSB8ZX3T/eWPnIe6Bgpt4t/3Bipj8vz7/b/2jOvBTvjYUU5tBu3pV0dZmjoqW/M77t0rBKr5XJGK1qRLFWZ9GrNBabbi1qBPGBnqgt6jwu6t4IR9F6tVqvp2yU0IDQ2VykdAc0ZR6oT8oUEUOpQRGVq9RH3TG9zaovZex/jiGeuZK1f7zUs5RvZxHO3MwGftawKiMq6esMZYfBa6DiR9nv7+TRvTnDKb5WcOx6nq89SLHH6o6x20NqTK2lRoaSnMFsoWn8foZcLje5cgibM9xOGwtLZluTulW9LdMQqibXZ22qGVrp6u3JsWbdEguBy6x8v3cB30J6yk43xLPe653PUwlPQyyI9vWl69JTRINQSl4b8agpvQmVq9I5aoZWf5NcOdhG8YmThyTrDqnNFi1lrlcfwlVjyev5B7MSww3ZdHS6iYjPoIxZBh/+6K/WYquW9hyLek8xRWszcYvmzEdMpFbWrLPZU58epWL7ZavqduxUGMwqtcGk2IlKQXpdT5TTOo00Za1XSSro+7oLjLNdSbOqpqG5Sku1VMkCSk5qoGQyhpIuvTbdV2iZ7el2tK7qw8TOgf2afXonxIJkR29kFjdLozJpNWqT5vUFo+kefH/feNPaHx+b0VBXNyv42MgPzfePoyMw7lUsruKZ+XOyzVX1iyPMNTvHPGcO//urFruD432MsJpHz5zJoxmzEEtf6Xuyrb33rY0iziba2P9W7MnIKyNta7/YKLLbhRvXfYmJme883bpPfPer8+d/fDfnzRY9E37OUm5kL6zY97L4R7SxFmdNuX3Fctn14o6h2t9mcny629cUT4cDq0Nxst+vqrLrnTq5c1QSl1Q8DruAcmsSRIrLcKPEWmLQo6W8ka7wxZZIV69T+Y9h1Pi3Uk6bqOMUbarGZEQ/Hh1RhgcTZANXxigUarN/4xOU2aBWMMpSjmwYTGByjY12tVwMR7q8lEc7SBBrR7kMlyISbk2hU6GjSMkdFcq/jaOGfyAWRIYH2za3HbEeYVprZM10NFirNZlVUlrUyuUaBzxv2pHH6M1ard7M4K1do+zoALPCZrnIXqRVAx+xH+3C6Bh7ptJXLiVCvF5nrdof6WgZbIl0+dVOeS8ZDom8ydbQjDLmialmilGsU0icoCnD5RNJu1rnjSSC/VyMovR1CtpEt8DPPrb5Flbw+j0sIhnuROrUx223Zt1bmLrwa8dvWGsN+MzfPcgu0JUEiq5noRG5rKRxqqhs4RVETCCSUS7dJd8Vxb/nLf6t+EpbEFqcdyqaRFyK46SoTinOiQ0OtK9PDfTH41icWt+e8UXdaj1DH6ZnqVpliFCpQOOYIdspb6QzbOJZbm2cd8CRP8qr+OLYaK2CF3eXaWM42smW9j6v/FEO8fsXfT39F3pFXIqM27V0oCkZruQqVw6ptQa6BXNzmuKsgxNx1RJpx9J6OvfE3BGtQ2eJrmiQeOIuXWOecJmkQlmmqt83e8/sg864rwkx4wqX3nCePX+GO/MR+5Ehj1w8ymK5INzXG2nhWjQ6s1xBmzUh65OUPxXCyEjf6L9V9LsHOQ9n7ohVIaFLvkXowwyjzLiFg28ii2OGT6jcYmsWxqg16u4ZWG9n1kD66KI7J6U7r0s/I1/yjFffOfmRhemhsfTzFsW3q/nYgNvGPG88z1vd5B14p7LyndhKb3jmODiuZpWEPcQpV5lYiAXdi4KRtUZr9Q6NxTGytRZ1pij1z4un5i2eshh+et5UcOyTqieOtF25es3OSywC3p9538QNyzVGs1prtlAcGR0ZiCWG+6K1igFj/eMvOFgUCRJDvRFOYzJpprDUjwlu1+0PSNjDvlvuDWW3dTdKI8O9ODhq2ye4MTn34SU/3s5dCSHqM5RrDCbVU7FtbDXx4HCiqztRvn4picCcVqnbTVWl8c+vrYiPKYofri5kWhV1Mb1ZnW5Xm92Mx28ymWTC3woP8nbMG+aeftlHbINYYErJVK06kyvGTOLtNQRVSlmgtUpHh7tDrspV7+Uxk+rZJl2fv11mukVhYGQyLFHIjZzK4nUttNum0QpaNK3mL+GxMUXxBbZI16KQxfT16lRKbapPibjXFnmixALhc6XCF4TwPKXP4ZULddWdpmqIzyw7UVJyYtm279KrEhT4dGR/4dnnTl8+/aaBquH/Fq90rfuyS7ou8P+P/pEGelqz14pdl90lqlSzGhCuj+e7bvzNc2bKGQ+OdYVf+bcbsafYQ3uAOEeczBbD94/jZsdNb62r4+QB2maZykx16YNQzc8d+GnctrZlXisoLWQKSwvOHObtHk41J9oTqFqdsaDkChXm32FaCcSzg3s9nr3BkGcPnxkM7fHMDAU9e+/fJNNUJPqLbg5RtiGDYYjnHH02nbT9UvGt+/ZuSHV+sBqY25Bq0Bb3Wyl5sLY2KJcr5b3lyqBUGlT6aoirZQ9R5+ILEV9KZK97C7yZGyeSQaUnFLbzxmRmeX24wSlnKyt8/xBDLonwO9GSxx/9h+uL77/l4P2x1g1XLWSXCj3K/hpm7YWCynSNsuZ6iHcWr8gvYIuL2YL8HgU9W1N7It17QIpQACAHLBlFSmJZ+gqyjXK1DiCmQQTrcSD7JOlZADFDL9qI3+mbmMfnzYQfIMU8ATIEn1hPXI0DnBAjmQEDIJ2vnfz79oena37Lnc77EgR88GVylbtW+9a/lO/1/uO3gsc4EvnAP76yyWCHJmXX7i/OVnPAIaRoTm5CHGEZPJFCOTbDAk4G4eGRzS4op4k5WIpS+KUBB0E0SN83KKcn/Q4RFEhNnvSF0SB74VAJDnUolNI4OOnxcEjzF3bQYKXeI4NXk8dxDwbwAo5jLw7gLwB+Mm2fibl/DAuB//f9fxAEAC9xN7qxg7Kt7fLSSvmoi+XwBatiFjAvIDENs/bhI8/Ndj0H0Y8UOp8tXehBN/ZkkUAbhrIiUs/j4TV7IpBiYwQAAAAA)}
+@font-face{font-family:tm;font-weight:500;src:url(data:font/woff2;base64,d09GMgABAAAAAAJQAA4AAAAABHQAAAH+AAJN0wAAAAAAAAAAAAAAAAAAAAAAAAAAGhwbIBwqBmAATBEICoJMgg8BNgIkAxwLEAAEIAVWByAbNAMAjtRG+YJYxsP3dk+d+7q/MCJX0ICI1o4mXCnfjMim8oU7tUS0zXb8t9tdJAPyEpxlnGDCw71MAw8hIA50Y0Y1jQtrUgJNQAglsRKn6gYbKs48+8IrVeVQFIBA3VjjJWevveq2TWv0NyHO07XxqxLpRLoWF+QobjYzlpOoARZAOn8lPnafTdm//39O9m9M5lXS2PQthisjIUNvmZDzufmoq0qS+6yywaai4IZLiieKx4uHigcFAEIUhQ6ogDaquBp3oY0myIpCsJxnWb3du3ezUWrltz/QvKlVakQjq0crNbROfBk75fs+aDRYREPj5a8aJ7+gHvvrJz6XajSiXT3tO+X+8v4TH8b+jxonP7Dv/eu/feX1qyYtnNxr8+RFrrj+kw2nru9++gZ7LrjumvN+et+w+SPOHv46q8befn9svnDJ8qtuuveW6XdM27h+wcIVS25wxzmXX3bm3Gc9+/QdT/90/U9zBv0y8EUmHWnD0GEbR47cOGzoBmmshIpyupflcAVpctYQSBd9dsnyx7q3dBb/Vu1kp+Gn03dvz+l7j/21+P916b/8VpQlEDyvp2uNVtywEOCVdK3rR6/AEKwiJ/P/CYFKvG2No8oCgJQJ5ObKRF4TenJb0tbTcj2R8vM22eA+q6yy2lprrHW5u9xjs1Vus0EGFHeZiQAAAA==)}
+@font-face{font-family:tm;font-weight:600;src:url(data:font/woff2;base64,d09GMgABAAAAAARUAA4AAAAAB/AAAAQDAAJN0wAAAAAAAAAAAAAAAAAAAAAAAAAAGhwbIBwqBmAAgRwRCAqINIZXATYCJANICyYABCAFVgcgG/gFAB6D426LNsViiOVfv3y8UOIhWMf3Zna/pKMTkRjlKpSqkq9kl3T170/faW+CYqeCE9fcwIuKZ/IPDM7+kvofAL6sT9w7fo1FY3PX+U8o4+h/a6xB/6JoYUABdgF1ge0lsJbwBg5I0m2YZQmHk1cb1TnvsALNgJRCndCgUQg0GjYqjpVUNYGDEioBGPWseVmfy11qcA/4IaFRmSqOCvjkZ1sKTnSPa5AReQBJA6Ub+h4/AuAHjHtW/Nk0Y/kiCafK2bwvGlfbOlGgWyGKqPTxlxzVrtBq3II1x9TTMaIwmrVq12NIJcbNYxq6Vx4644D9+iE22mC9ddZaZUkIa4Wo1EbQafY0+ohdxHcArd8BhTmFsqpVCt2fKLlcJ8K7NbApqN8xsNU7QSeP59bOc8J8Zx7d6aR35mM+nmWxQL40mwkFnmVD3AlWgqAUM4mZViviTrBBomWkhp0zzTGHhbyNKBdjNIGYedWPsIEJkI2IWG9WGFCjb8LLWxSb0UQpklh7O07VWnjWnVBsNo+nLaC5828EpjWAYyknidA5CCnXm4laFI4wb7yZ0AzaJ0w6CWEugZw5GJpqMMSX/Vi4IFMuluFiznjLO1JOKzM5Cg+nRuIRlHXuxkowm8FLC0kimy2FrAq0Lwp7V8gZbn8+iyacw7POwPjTmvub7/d3JYqTPIckSeDCz6tl7TlitjCgWMy0C8qMJpOkuFAaIC4ukphg7aGWHfb8YjZbYCqQ0SOHtLrz5MsKRYxw6MX3DoID+UKZUJ4naMgj++bgS0MTbaiuaTeolscZO9MWhXbwivpVppZek3J4RytiSUmsSlYiziidnxgem9AHmQ2to/qZ+Yzxv1vZYa1cdWfKi0zBH+EC0R9B1p3UTq56WBskNjSPGNIysWXEkOYiJivHmMcoksX/Bcn7dZ1E8dCG66zvZz+ZLF8kkhXAqkP6VcnpifFIe74qW0RS3aZeI9VLiiqzz+s7Isgu2uCcsXWviBXuzcyelTWQPQvqb52jd9G+lw/Q0DTb2Q5DTkrlDVSbuqfLIFqdkblPpIWEBnbwAKPpUgtFeZlZ4jyhukvDDB2Awns+3N397IeNXv7LYYvC119ZcWh5Jq+8Dp1X5/KeQz1EUiU8ftEZMnVAhcsPregHe58bnhog8W3k4tCwxZHWAcNCFwNnVj3qdGQ7QMA5kCuFCwTy1J2DuIk2ukr/O7hy3wL+vW0ZIWu3Tf2Z+68v/5YmALUSBIeKI68ieP+1pX9lujNVoHmiERWQox7VqGPXowkNKEIh9mMQpN8EbH6A0BnHocdYdmuZi0Is7VCI0jHaia9JrTrLSmPmWsp+akC7Lk1369Uj5oZjq8UQXSgDuJR+1WQgAA==)}
+@font-face{font-family:tf;src:url(data:font/woff2;base64,d09GMgABAAAAAAOYAA4AAAAABZwAAANHAAJeuAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbIBxCBlYAVBEMCoQ8hBEBNgIkAw4LDgAEIAWBBAcgG2oEUZQOxiCKLwpjY9rUIxMj4wq5/NpefZa6VicXit7NNuVBGURMHoOo1qqs2T5AhhcSSKFHckj24+07gq6ANOUGLbkDxtqiXv0FG1xru/RmqOzuLSGiEkW9uY5FLJOI9D92//n5v5ze2dg2Jx7z0YiK5gT8cTamWGTHlY5J2dJenGBimbcsGbFUJldyTf9ehACmAICGIOghCGCMK+5Ibn5pLYYogP8A4MhMJxP9JP+u6a5uInuWpkcrNzDdNyKMdk14IrPjgyJgNot6IaIHejF6R0Hc63rdO/o1a9BM9I10hkrTeAXunrlpZX9eL5leNwL89W3/2coxgzH5BAgAoAE6wBYdIqwiEzTFEA1lgNdDH/z7Ipb+A/Sd5S/9Lx9O94HQM1pARF2vA0AfAFPACDgHYgcAuCokKX8/USrJ2NjQ2tGzacVmadlqxXLFWMyqNGN5mnizdoN6FHDvcd3lhe1evRNHb1U3NKAQBDaD34bAbP17MuEGHNawkhwaxher4k8pJwZCggVYrvrvfKtHXbghsqvuGbHJ1YJDw3L2XRXuQ5om7xow6+420pnDYdm4LherQKgOFVl9SICtnrQMYMAleROfT6ujLz3M5sHyT93I0ZG6H9a7FfTkOxssE+Yfz/eX22s+sgJ/1Nm1Z9WA+UIPb1gPm9NSYDNs9PB0c42kGuBgdiBsl+U4urlRLWRDehrZTDa7uwPc/2h63k0R46fzZybHT0dE6HnnvphWLz4CROZcnx1pv2xtvexqP/21OjWY62iyWz7wDp2si3a+va30v7vNiqoefYOxuVQx336kV6Kiue4Wh4WH560M7Ds5WT+9eLjF0HsSd+T89up0ijMkOHAmXd4jqQ0ODJANSHvLSzxAdYWG+QW07oB8ttjCKQTvFRpOdcoGi8ukfbL+wMDg4CTJoJxaIkAjqCXdT+KzQlUS8n8qNYwAWvtV85cNibNI/WroYQjA57+1CXLg78OL3m3DZMAQDQABg7F/mqBenCAUUGQBX/JDDNJINmcxIQQB9DVfQhhBn9lODwUo4tEhygjBF4CtYYjvrNqeqI83ocwyzRCjjDLGBONM4Ek/XeB09+TvYYRsJpgYQgzWgo4e7H80AwI=)}
+text{font-family:tm,tf,ui-monospace,SFMono-Regular,Menlo,Consolas,'DejaVu Sans Mono',monospace}
+</style>
+
+<rect x="0.00" y="0.00" width="1082.00" height="755.00" rx="10" fill="#101012"/>
+<rect x="0.50" y="0.50" width="1081.00" height="754.00" rx="10" fill="none" stroke="#2c2c30"/>
+<rect x="1.00" y="1.00" width="1080.00" height="29.00" rx="9" fill="#18181b"/>
+<rect x="1.00" y="22.00" width="1080.00" height="8.00" fill="#18181b"/>
+<line x1="1" y1="30" x2="1081.0" y2="30" stroke="#2c2c30"/>
+<circle cx="20" cy="15.0" r="5.5" fill="#ff5f57"/>
+<circle cx="38" cy="15.0" r="5.5" fill="#febc2e"/>
+<circle cx="56" cy="15.0" r="5.5" fill="#28c840"/>
+<text x="541.00" y="19.50" font-size="12" font-weight="500" fill="#9a9aa0" text-anchor="middle" xml:space="preserve">trill</text>
+<text x="91.00" y="58.00" font-size="12.5" font-weight="600" fill="#18cf78" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="98.50" y="58.00" font-size="12.5" font-weight="600" fill="#16cd80" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="158.50" y="58.00" font-size="12.5" font-weight="600" fill="#08bac2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="173.50" y="58.00" font-size="12.5" font-weight="600" fill="#05b6d2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="181.00" y="58.00" font-size="12.5" font-weight="600" fill="#03b3da" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="188.50" y="58.00" font-size="12.5" font-weight="600" fill="#01b1e2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="196.00" y="58.00" font-size="12.5" font-weight="600" fill="#00afeb" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<path d="M263.5 54.25H262.75Q259.75 54.25 259.75 57.25V62.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="58.00" font-size="12.5" font-weight="400" fill="#1ed760" text-anchor="start" xml:space="preserve" textLength="82.50" lengthAdjust="spacingAndGlyphs"> ✦ For You </text>
+<path d="M346.0 54.25H353.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M353.5 54.25H361.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M361.0 54.25H368.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M368.5 54.25H376.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M376.0 54.25H383.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M383.5 54.25H391.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M391.0 54.25H398.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M398.5 54.25H406.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M406.0 54.25H413.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M413.5 54.25H421.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M421.0 54.25H428.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M428.5 54.25H436.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M436.0 54.25H443.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M443.5 54.25H451.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M451.0 54.25H458.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M458.5 54.25H466.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M466.0 54.25H473.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M473.5 54.25H481.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M481.0 54.25H488.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M488.5 54.25H496.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M496.0 54.25H503.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M503.5 54.25H511.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M511.0 54.25H518.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M518.5 54.25H526.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M526.0 54.25H533.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M533.5 54.25H541.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M541.0 54.25H548.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M548.5 54.25H556.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M556.0 54.25H563.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M563.5 54.25H571.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M571.0 54.25H578.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M578.5 54.25H586.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M586.0 54.25H593.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M593.5 54.25H601.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M601.0 54.25H608.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M608.5 54.25H616.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M616.0 54.25H623.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M623.5 54.25H631.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M631.0 54.25H638.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M638.5 54.25H646.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M646.0 54.25H653.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M653.5 54.25H661.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M661.0 54.25H668.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M668.5 54.25H676.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M676.0 54.25H683.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M683.5 54.25H691.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M691.0 54.25H698.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M698.5 54.25H706.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M706.0 54.25H713.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M713.5 54.25H721.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M721.0 54.25H728.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M728.5 54.25H736.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M736.0 54.25H743.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M743.5 54.25H751.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M751.0 54.25H758.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M758.5 54.25H766.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M766.0 54.25H773.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M773.5 54.25H781.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M781.0 54.25H788.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M788.5 54.25H796.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M796.0 54.25H803.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M803.5 54.25H811.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M811.0 54.25H818.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M818.5 54.25H826.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M826.0 54.25H833.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M833.5 54.25H841.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M841.0 54.25H848.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M848.5 54.25H856.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M856.0 54.25H863.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M863.5 54.25H871.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M871.0 54.25H878.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M878.5 54.25H886.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M886.0 54.25H893.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M893.5 54.25H901.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M901.0 54.25H908.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M908.5 54.25H916.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M916.0 54.25H923.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M923.5 54.25H931.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M931.0 54.25H938.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M938.5 54.25H946.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M946.0 54.25H953.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M953.5 54.25H961.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M961.0 54.25H968.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M968.5 54.25H976.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M976.0 54.25H983.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M983.5 54.25H991.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M991.0 54.25H998.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M998.5 54.25H1006.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1006.0 54.25H1013.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1013.5 54.25H1021.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1021.0 54.25H1028.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1028.5 54.25H1036.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1036.0 54.25H1043.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1043.5 54.25H1051.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1051.0 54.25H1058.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1058.5 54.25H1059.25Q1062.25 54.25 1062.25 57.25V62.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="83.50" y="74.50" font-size="12.5" font-weight="600" fill="#1ad270" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="98.50" y="74.50" font-size="12.5" font-weight="600" fill="#16cd80" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="106.00" y="74.50" font-size="12.5" font-weight="600" fill="#15cb88" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="113.50" y="74.50" font-size="12.5" font-weight="600" fill="#13c891" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="121.00" y="74.50" font-size="12.5" font-weight="600" fill="#11c699" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="128.50" y="74.50" font-size="12.5" font-weight="600" fill="#0fc4a1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="136.00" y="74.50" font-size="12.5" font-weight="600" fill="#0ec1a9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="143.50" y="74.50" font-size="12.5" font-weight="600" fill="#0cbfb1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="151.00" y="74.50" font-size="12.5" font-weight="600" fill="#0abdb9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">(</text>
+<text x="158.50" y="74.50" font-size="12.5" font-weight="600" fill="#08bac2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="166.00" y="74.50" font-size="12.5" font-weight="600" fill="#07b8ca" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">)</text>
+<text x="181.00" y="74.50" font-size="12.5" font-weight="600" fill="#03b3da" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="196.00" y="74.50" font-size="12.5" font-weight="600" fill="#00afeb" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<path d="M259.75 62.5V79.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="74.50" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="795.00" lengthAdjust="spacingAndGlyphs">Title                       Artist               Album                  Why                           Time</text>
+<path d="M1062.25 62.5V79.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="263.50" y="79.00" width="795.30" height="16.80" fill="#1ed760"/>
+<text x="76.00" y="91.00" font-size="12.5" font-weight="600" fill="#1cd468" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="91.00" y="91.00" font-size="12.5" font-weight="600" fill="#18cf78" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="98.50" y="91.00" font-size="12.5" font-weight="600" fill="#16cd80" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="106.00" y="91.00" font-size="12.5" font-weight="600" fill="#15cb88" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="121.00" y="91.00" font-size="12.5" font-weight="600" fill="#11c699" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="128.50" y="91.00" font-size="12.5" font-weight="600" fill="#0fc4a1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="136.00" y="91.00" font-size="12.5" font-weight="600" fill="#0ec1a9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="143.50" y="91.00" font-size="12.5" font-weight="600" fill="#0cbfb1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="158.50" y="91.00" font-size="12.5" font-weight="600" fill="#08bac2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="173.50" y="91.00" font-size="12.5" font-weight="600" fill="#05b6d2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="188.50" y="91.00" font-size="12.5" font-weight="600" fill="#01b1e2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<path d="M259.75 79.0V95.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="91.00" font-size="12.5" font-weight="400" fill="#1e1e1e" text-anchor="start" xml:space="preserve" textLength="795.00" lengthAdjust="spacingAndGlyphs">Maneater                    Daryl Hall &amp; John Oa H2O                    radio · Valerie               4:33</text>
+<path d="M1062.25 79.0V95.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="68.50" y="107.50" font-size="12.5" font-weight="600" fill="#1ed760" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="83.50" y="107.50" font-size="12.5" font-weight="600" fill="#1ad270" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="91.00" y="107.50" font-size="12.5" font-weight="600" fill="#18cf78" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="98.50" y="107.50" font-size="12.5" font-weight="600" fill="#16cd80" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="113.50" y="107.50" font-size="12.5" font-weight="600" fill="#13c891" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="136.00" y="107.50" font-size="12.5" font-weight="600" fill="#0ec1a9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="151.00" y="107.50" font-size="12.5" font-weight="600" fill="#0abdb9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="166.00" y="107.50" font-size="12.5" font-weight="600" fill="#07b8ca" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="181.00" y="107.50" font-size="12.5" font-weight="600" fill="#03b3da" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<path d="M259.75 95.5V112.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="107.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">The Sweet Escape            Gwen Stefani, Akon   The Sweet Escape       </text>
+<text x="803.50" y="107.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="107.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:06</text>
+<path d="M1062.25 95.5V112.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="68.50" y="124.00" font-size="12.5" font-weight="600" fill="#1ed760" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">\</text>
+<text x="76.00" y="124.00" font-size="12.5" font-weight="600" fill="#1cd468" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="83.50" y="124.00" font-size="12.5" font-weight="600" fill="#1ad270" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="91.00" y="124.00" font-size="12.5" font-weight="600" fill="#18cf78" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="98.50" y="124.00" font-size="12.5" font-weight="600" fill="#16cd80" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="106.00" y="124.00" font-size="12.5" font-weight="600" fill="#15cb88" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="128.50" y="124.00" font-size="12.5" font-weight="600" fill="#0fc4a1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="136.00" y="124.00" font-size="12.5" font-weight="600" fill="#0ec1a9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="143.50" y="124.00" font-size="12.5" font-weight="600" fill="#0cbfb1" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="151.00" y="124.00" font-size="12.5" font-weight="600" fill="#0abdb9" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="158.50" y="124.00" font-size="12.5" font-weight="600" fill="#08bac2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<text x="166.00" y="124.00" font-size="12.5" font-weight="600" fill="#07b8ca" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">_</text>
+<text x="173.50" y="124.00" font-size="12.5" font-weight="600" fill="#05b6d2" text-anchor="start" xml:space="preserve" textLength="7.50" lengthAdjust="spacingAndGlyphs">/</text>
+<path d="M259.75 112.0V128.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="124.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Grease - 2007 Remaster      Frankie Valli        Frankie Valli...Is T   </text>
+<text x="803.50" y="124.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="124.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:27</text>
+<path d="M1062.25 112.0V128.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M23.5 136.75H22.75Q19.75 136.75 19.75 139.75V145.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="140.50" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="67.50" lengthAdjust="spacingAndGlyphs"> Library </text>
+<path d="M91.0 136.75H98.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M98.5 136.75H106.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M106.0 136.75H113.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M113.5 136.75H121.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M121.0 136.75H128.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M128.5 136.75H136.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M136.0 136.75H143.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M143.5 136.75H151.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M151.0 136.75H158.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M158.5 136.75H166.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M166.0 136.75H173.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M173.5 136.75H181.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M181.0 136.75H188.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M188.5 136.75H196.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M196.0 136.75H203.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M203.5 136.75H211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M211.0 136.75H218.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M218.5 136.75H226.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M226.0 136.75H233.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M233.5 136.75H241.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M241.0 136.75H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M248.5 136.75H249.25Q252.25 136.75 252.25 139.75V145.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 128.5V145.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="140.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">More Than A Woman - From "S Bee Gees             Greatest               </text>
+<text x="803.50" y="140.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="140.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:17</text>
+<path d="M1062.25 128.5V145.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 145.0V161.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="157.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">♥ Liked Songs                 </text>
+<path d="M252.25 145.0V161.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 145.0V161.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="157.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Pocketful of Sunshine       Natasha Bedingfield  Pocketful Of Sunshin   </text>
+<text x="803.50" y="157.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="157.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:22</text>
+<path d="M1062.25 145.0V161.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 161.5V178.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="173.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">◉ Albums                      </text>
+<path d="M252.25 161.5V178.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 161.5V178.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="173.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">This Love                   Maroon 5             Songs About Jane: 10   </text>
+<text x="803.50" y="173.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="173.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:26</text>
+<path d="M1062.25 161.5V178.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 178.0V194.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="190.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">◈ Artists                     </text>
+<path d="M252.25 178.0V194.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 178.0V194.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="190.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Caribbean Queen (No More Lo Billy Ocean          The Very Best of Bil   </text>
+<text x="803.50" y="190.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="190.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:04</text>
+<path d="M1062.25 178.0V194.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="194.50" width="225.30" height="16.80" fill="#d4d4d4"/>
+<path d="M19.75 194.5V211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="206.50" font-size="12.5" font-weight="400" fill="#101012" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">✦ For You                     </text>
+<path d="M252.25 194.5V211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 194.5V211.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="206.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Baby, I Love Your Way       Big Mountain         Unity                  </text>
+<text x="803.50" y="206.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="206.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:09</text>
+<path d="M1062.25 194.5V211.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 211.0V227.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="223.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">≡ Queue                       </text>
+<path d="M252.25 211.0V227.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 211.0V227.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="223.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Get Lucky (feat. Pharrell W Daft Punk, Pharrell  Random Access Memori   </text>
+<text x="803.50" y="223.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Mark Ronson            </text>
+<text x="1013.50" y="223.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  6:09</text>
+<path d="M1062.25 211.0V227.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 227.5V244.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="239.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">⌕ Search                      </text>
+<path d="M252.25 227.5V244.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 227.5V244.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="239.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">I'm Still Standing          Elton John           Too Low For Zero       </text>
+<text x="803.50" y="239.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Queen                  </text>
+<text x="1013.50" y="239.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:03</text>
+<path d="M1062.25 227.5V244.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 244.0V260.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="256.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Morning coffee                </text>
+<path d="M252.25 244.0V260.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 244.0V260.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="256.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Sweet Dreams (Are Made of T Eurythmics, Annie Le Sweet Dreams [(Are M   </text>
+<text x="803.50" y="256.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="256.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:37</text>
+<path d="M1062.25 244.0V260.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 260.5V277.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="272.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Road trip                     </text>
+<path d="M252.25 260.5V277.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 260.5V277.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="272.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Dancing in the Moonlight    Toploader            Onka's Big Moka        </text>
+<text x="803.50" y="272.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="272.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:52</text>
+<path d="M1062.25 260.5V277.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 277.0V293.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="289.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Focus                         </text>
+<path d="M252.25 277.0V293.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 277.0V293.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="289.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Crazy                       Gnarls Barkley, CeeL St. Elsewhere          </text>
+<text x="803.50" y="289.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="289.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  2:57</text>
+<path d="M1062.25 277.0V293.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 293.5V310.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="305.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Sunday                        </text>
+<path d="M252.25 293.5V310.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 293.5V310.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="305.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Little Lies - 2017 Remaster Fleetwood Mac        Tango In the Night (   </text>
+<text x="803.50" y="305.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="305.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:41</text>
+<path d="M1062.25 293.5V310.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 310.0V326.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="322.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Running                       </text>
+<path d="M252.25 310.0V326.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 310.0V326.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="322.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Boogie Wonderland (with The Earth, Wind &amp; Fire,  I Am                   </text>
+<text x="803.50" y="322.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="322.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:48</text>
+<path d="M1062.25 310.0V326.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 326.5V343.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="338.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Rainy day                     </text>
+<path d="M252.25 326.5V343.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 326.5V343.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="338.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Sweet Child O' Mine         Guns N' Roses        Appetite For Destruc   </text>
+<text x="803.50" y="338.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Queen                  </text>
+<text x="1013.50" y="338.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  5:56</text>
+<path d="M1062.25 326.5V343.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 343.0V359.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="355.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Throwbacks                    </text>
+<path d="M252.25 343.0V359.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 343.0V359.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="355.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Happy - From "Despicable Me Pharrell Williams    G I R L                </text>
+<text x="803.50" y="355.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Mark Ronson            </text>
+<text x="1013.50" y="355.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:53</text>
+<path d="M1062.25 343.0V359.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 359.5V376.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="371.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Dinner party                  </text>
+<path d="M252.25 359.5V376.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 359.5V376.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="371.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Pump It                     Black Eyed Peas      Monkey Business        </text>
+<text x="803.50" y="371.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="371.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:33</text>
+<path d="M1062.25 359.5V376.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 376.0V392.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<text x="23.50" y="388.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="225.00" lengthAdjust="spacingAndGlyphs">Chill                         </text>
+<path d="M252.25 376.0V392.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 376.0V392.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="388.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Back To Black               Amy Winehouse        Back To Black          </text>
+<text x="803.50" y="388.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="388.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:00</text>
+<path d="M1062.25 376.0V392.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 392.5V397.75Q19.75 400.75 22.75 400.75H23.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M23.5 400.75H31.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M31.0 400.75H38.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M38.5 400.75H46.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M46.0 400.75H53.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M53.5 400.75H61.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M61.0 400.75H68.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M68.5 400.75H76.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M76.0 400.75H83.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M83.5 400.75H91.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M91.0 400.75H98.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M98.5 400.75H106.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M106.0 400.75H113.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M113.5 400.75H121.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M121.0 400.75H128.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M128.5 400.75H136.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M136.0 400.75H143.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M143.5 400.75H151.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M151.0 400.75H158.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M158.5 400.75H166.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M166.0 400.75H173.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M173.5 400.75H181.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M181.0 400.75H188.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M188.5 400.75H196.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M196.0 400.75H203.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M203.5 400.75H211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M211.0 400.75H218.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M218.5 400.75H226.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M226.0 400.75H233.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M233.5 400.75H241.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M241.0 400.75H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M252.25 392.5V397.75Q252.25 400.75 249.25 400.75H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 392.5V409.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="404.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Forget Me Nots - Remastered Patrice Rushen       Straight from the He   </text>
+<text x="803.50" y="404.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="404.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:44</text>
+<path d="M1062.25 392.5V409.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M23.5 417.25H22.75Q19.75 417.25 19.75 420.25V425.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M23.5 417.25H31.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M31.0 417.25H38.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M38.5 417.25H46.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M46.0 417.25H53.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M53.5 417.25H61.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M61.0 417.25H68.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M68.5 417.25H76.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M76.0 417.25H83.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M83.5 417.25H91.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M91.0 417.25H98.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M98.5 417.25H106.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M106.0 417.25H113.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M113.5 417.25H121.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M121.0 417.25H128.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M128.5 417.25H136.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M136.0 417.25H143.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M143.5 417.25H151.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M151.0 417.25H158.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M158.5 417.25H166.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M166.0 417.25H173.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M173.5 417.25H181.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M181.0 417.25H188.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M188.5 417.25H196.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M196.0 417.25H203.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M203.5 417.25H211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M211.0 417.25H218.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M218.5 417.25H226.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M226.0 417.25H233.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M233.5 417.25H241.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M241.0 417.25H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M248.5 417.25H249.25Q252.25 417.25 252.25 420.25V425.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 409.0V425.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="421.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Could You Be Loved          Bob Marley &amp; The Wai Uprising               </text>
+<text x="803.50" y="421.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="421.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:57</text>
+<path d="M1062.25 409.0V425.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="425.50" width="225.30" height="16.80" fill="#070908"/>
+<path d="M19.75 425.5V442.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="121.00" y="433.75" width="7.80" height="8.55" fill="#080a09"/>
+<rect x="128.50" y="433.75" width="7.80" height="8.55" fill="#080a09"/>
+<rect x="241.00" y="433.75" width="7.80" height="8.55" fill="#080a09"/>
+<path d="M252.25 425.5V442.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 425.5V442.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="437.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Every Breath You Take       The Police           Synchronicity (Remas   </text>
+<text x="803.50" y="437.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Queen                  </text>
+<text x="1013.50" y="437.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:13</text>
+<path d="M1062.25 425.5V442.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="442.00" width="7.80" height="16.80" fill="#090a09"/>
+<rect x="31.00" y="442.00" width="45.30" height="16.80" fill="#080a09"/>
+<rect x="76.00" y="442.00" width="7.80" height="16.80" fill="#202221"/>
+<rect x="83.50" y="442.00" width="7.80" height="16.80" fill="#444544"/>
+<rect x="91.00" y="442.00" width="7.80" height="16.80" fill="#535453"/>
+<rect x="98.50" y="442.00" width="7.80" height="16.80" fill="#5f6060"/>
+<rect x="106.00" y="442.00" width="7.80" height="16.80" fill="#454646"/>
+<rect x="113.50" y="442.00" width="7.80" height="16.80" fill="#454545"/>
+<rect x="121.00" y="442.00" width="7.80" height="16.80" fill="#131413"/>
+<rect x="128.50" y="442.00" width="7.80" height="16.80" fill="#454645"/>
+<rect x="136.00" y="442.00" width="7.80" height="16.80" fill="#464746"/>
+<rect x="143.50" y="442.00" width="7.80" height="16.80" fill="#595a5a"/>
+<rect x="151.00" y="442.00" width="7.80" height="16.80" fill="#5b5c5c"/>
+<rect x="158.50" y="442.00" width="7.80" height="16.80" fill="#515151"/>
+<rect x="166.00" y="442.00" width="7.80" height="16.80" fill="#4b4c4b"/>
+<rect x="173.50" y="442.00" width="7.80" height="16.80" fill="#474847"/>
+<rect x="181.00" y="442.00" width="7.80" height="16.80" fill="#4d4e4e"/>
+<rect x="188.50" y="442.00" width="7.80" height="16.80" fill="#333534"/>
+<rect x="196.00" y="442.00" width="7.80" height="16.80" fill="#090a09"/>
+<rect x="203.50" y="442.00" width="22.80" height="16.80" fill="#080a09"/>
+<rect x="226.00" y="442.00" width="22.80" height="16.80" fill="#090a09"/>
+<path d="M19.75 442.0V458.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="31.00" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="38.50" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="46.00" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="53.50" y="450.25" width="7.80" height="8.55" fill="#090a0a"/>
+<rect x="61.00" y="450.25" width="7.80" height="8.55" fill="#090a0a"/>
+<rect x="68.50" y="450.25" width="7.80" height="8.55" fill="#090a0a"/>
+<rect x="76.00" y="450.25" width="7.80" height="8.55" fill="#4d4d4d"/>
+<rect x="83.50" y="450.25" width="7.80" height="8.55" fill="#9a9a9a"/>
+<rect x="91.00" y="450.25" width="7.80" height="8.55" fill="#999999"/>
+<rect x="98.50" y="450.25" width="7.80" height="8.55" fill="#aaaaaa"/>
+<rect x="106.00" y="450.25" width="7.80" height="8.55" fill="#979797"/>
+<rect x="113.50" y="450.25" width="7.80" height="8.55" fill="#858484"/>
+<rect x="121.00" y="450.25" width="7.80" height="8.55" fill="#2b2b2b"/>
+<rect x="128.50" y="450.25" width="7.80" height="8.55" fill="#898989"/>
+<rect x="136.00" y="450.25" width="7.80" height="8.55" fill="#909090"/>
+<rect x="143.50" y="450.25" width="7.80" height="8.55" fill="#989797"/>
+<rect x="151.00" y="450.25" width="7.80" height="8.55" fill="#9b9b9b"/>
+<rect x="158.50" y="450.25" width="7.80" height="8.55" fill="#8b8b8b"/>
+<rect x="166.00" y="450.25" width="7.80" height="8.55" fill="#818181"/>
+<rect x="173.50" y="450.25" width="7.80" height="8.55" fill="#919191"/>
+<rect x="181.00" y="450.25" width="7.80" height="8.55" fill="#989898"/>
+<rect x="188.50" y="450.25" width="7.80" height="8.55" fill="#737373"/>
+<rect x="196.00" y="450.25" width="7.80" height="8.55" fill="#131313"/>
+<rect x="203.50" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="211.00" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="218.50" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="226.00" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="233.50" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<rect x="241.00" y="450.25" width="7.80" height="8.55" fill="#0a0a0a"/>
+<path d="M252.25 442.0V458.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 442.0V458.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="454.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Treasure                    Bruno Mars           Unorthodox Jukebox     </text>
+<text x="803.50" y="454.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="454.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  2:58</text>
+<path d="M1062.25 442.0V458.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="458.50" width="22.80" height="16.80" fill="#0b0b0a"/>
+<rect x="46.00" y="458.50" width="15.30" height="16.80" fill="#0b0a0a"/>
+<rect x="61.00" y="458.50" width="15.30" height="16.80" fill="#0b0b0a"/>
+<rect x="76.00" y="458.50" width="7.80" height="16.80" fill="#0e0c0b"/>
+<rect x="83.50" y="458.50" width="7.80" height="16.80" fill="#0e0b0b"/>
+<rect x="91.00" y="458.50" width="15.30" height="16.80" fill="#0f0c0b"/>
+<rect x="106.00" y="458.50" width="15.30" height="16.80" fill="#0e0c0b"/>
+<rect x="121.00" y="458.50" width="15.30" height="16.80" fill="#0f0c0b"/>
+<rect x="136.00" y="458.50" width="15.30" height="16.80" fill="#0e0c0b"/>
+<rect x="151.00" y="458.50" width="7.80" height="16.80" fill="#0e0b0b"/>
+<rect x="158.50" y="458.50" width="15.30" height="16.80" fill="#0d0b0b"/>
+<rect x="173.50" y="458.50" width="22.80" height="16.80" fill="#0c0b0b"/>
+<rect x="196.00" y="458.50" width="7.80" height="16.80" fill="#0d0b0b"/>
+<rect x="203.50" y="458.50" width="7.80" height="16.80" fill="#0b0a0a"/>
+<rect x="211.00" y="458.50" width="7.80" height="16.80" fill="#0b0b0b"/>
+<rect x="218.50" y="458.50" width="30.30" height="16.80" fill="#0b0b0a"/>
+<path d="M19.75 458.5V475.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="466.75" width="7.80" height="8.55" fill="#0e0c0b"/>
+<rect x="31.00" y="466.75" width="7.80" height="8.55" fill="#0e0c0b"/>
+<rect x="38.50" y="466.75" width="7.80" height="8.55" fill="#0e0c0b"/>
+<rect x="46.00" y="466.75" width="7.80" height="8.55" fill="#0e0b0b"/>
+<rect x="53.50" y="466.75" width="7.80" height="8.55" fill="#0e0b0b"/>
+<rect x="61.00" y="466.75" width="7.80" height="8.55" fill="#0d0b0b"/>
+<rect x="68.50" y="466.75" width="7.80" height="8.55" fill="#0d0b0b"/>
+<rect x="76.00" y="458.50" width="7.80" height="8.45" fill="#272727"/>
+<rect x="83.50" y="458.50" width="7.80" height="8.45" fill="#3b3a3a"/>
+<rect x="91.00" y="458.50" width="7.80" height="8.45" fill="#494949"/>
+<rect x="98.50" y="458.50" width="7.80" height="8.45" fill="#4c4b4b"/>
+<rect x="106.00" y="458.50" width="7.80" height="8.45" fill="#454445"/>
+<rect x="113.50" y="458.50" width="7.80" height="8.45" fill="#313030"/>
+<rect x="121.00" y="458.50" width="7.80" height="8.45" fill="#242324"/>
+<rect x="128.50" y="458.50" width="7.80" height="8.45" fill="#333232"/>
+<rect x="136.00" y="458.50" width="7.80" height="8.45" fill="#3f3e3e"/>
+<rect x="143.50" y="458.50" width="7.80" height="8.45" fill="#353534"/>
+<rect x="151.00" y="458.50" width="7.80" height="8.45" fill="#393838"/>
+<rect x="158.50" y="458.50" width="7.80" height="8.45" fill="#393938"/>
+<rect x="166.00" y="458.50" width="7.80" height="8.45" fill="#313030"/>
+<rect x="173.50" y="458.50" width="7.80" height="8.45" fill="#3c3b3b"/>
+<rect x="181.00" y="458.50" width="7.80" height="8.45" fill="#363636"/>
+<rect x="188.50" y="458.50" width="7.80" height="8.45" fill="#4a4a49"/>
+<rect x="196.00" y="458.50" width="7.80" height="8.45" fill="#1f1f1e"/>
+<rect x="203.50" y="466.75" width="7.80" height="8.55" fill="#0d0b0b"/>
+<rect x="211.00" y="466.75" width="7.80" height="8.55" fill="#0e0b0b"/>
+<rect x="218.50" y="466.75" width="7.80" height="8.55" fill="#0e0c0b"/>
+<rect x="226.00" y="466.75" width="7.80" height="8.55" fill="#0e0b0b"/>
+<rect x="233.50" y="466.75" width="7.80" height="8.55" fill="#0e0b0b"/>
+<rect x="241.00" y="466.75" width="7.80" height="8.55" fill="#0d0b0b"/>
+<path d="M252.25 458.5V475.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 458.5V475.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="470.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">You Make My Dreams (Come Tr Daryl Hall &amp; John Oa Voices                 </text>
+<text x="803.50" y="470.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="470.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:10</text>
+<path d="M1062.25 458.5V475.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="475.00" width="15.30" height="16.80" fill="#130d0c"/>
+<rect x="38.50" y="475.00" width="7.80" height="16.80" fill="#120d0b"/>
+<rect x="46.00" y="475.00" width="15.30" height="16.80" fill="#120d0c"/>
+<rect x="61.00" y="475.00" width="7.80" height="16.80" fill="#120d0b"/>
+<rect x="68.50" y="475.00" width="7.80" height="16.80" fill="#120c0c"/>
+<rect x="76.00" y="475.00" width="7.80" height="16.80" fill="#120d0b"/>
+<rect x="83.50" y="475.00" width="7.80" height="16.80" fill="#120d0c"/>
+<rect x="91.00" y="475.00" width="15.30" height="16.80" fill="#140d0c"/>
+<rect x="106.00" y="475.00" width="7.80" height="16.80" fill="#130d0b"/>
+<rect x="113.50" y="475.00" width="15.30" height="16.80" fill="#130d0c"/>
+<rect x="128.50" y="475.00" width="15.30" height="16.80" fill="#140d0c"/>
+<rect x="143.50" y="475.00" width="7.80" height="16.80" fill="#130d0c"/>
+<rect x="151.00" y="475.00" width="7.80" height="16.80" fill="#120d0c"/>
+<rect x="158.50" y="475.00" width="7.80" height="16.80" fill="#110d0b"/>
+<rect x="166.00" y="475.00" width="22.80" height="16.80" fill="#100c0b"/>
+<rect x="188.50" y="475.00" width="7.80" height="16.80" fill="#110c0c"/>
+<rect x="196.00" y="475.00" width="22.80" height="16.80" fill="#120d0c"/>
+<rect x="218.50" y="475.00" width="7.80" height="16.80" fill="#130d0b"/>
+<rect x="226.00" y="475.00" width="7.80" height="16.80" fill="#130d0c"/>
+<rect x="233.50" y="475.00" width="7.80" height="16.80" fill="#120d0c"/>
+<rect x="241.00" y="475.00" width="7.80" height="16.80" fill="#130d0c"/>
+<path d="M19.75 475.0V491.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="483.25" width="7.80" height="8.55" fill="#170e0c"/>
+<rect x="31.00" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="38.50" y="483.25" width="7.80" height="8.55" fill="#150d0b"/>
+<rect x="46.00" y="483.25" width="7.80" height="8.55" fill="#150d0b"/>
+<rect x="53.50" y="483.25" width="7.80" height="8.55" fill="#140e0b"/>
+<rect x="61.00" y="483.25" width="7.80" height="8.55" fill="#150d0b"/>
+<rect x="68.50" y="483.25" width="7.80" height="8.55" fill="#150d0b"/>
+<rect x="76.00" y="483.25" width="7.80" height="8.55" fill="#160d0b"/>
+<rect x="83.50" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="91.00" y="483.25" width="7.80" height="8.55" fill="#170e0c"/>
+<rect x="98.50" y="483.25" width="7.80" height="8.55" fill="#170e0c"/>
+<rect x="106.00" y="483.25" width="7.80" height="8.55" fill="#180e0c"/>
+<rect x="113.50" y="483.25" width="7.80" height="8.55" fill="#180e0c"/>
+<rect x="121.00" y="483.25" width="7.80" height="8.55" fill="#180e0c"/>
+<rect x="128.50" y="483.25" width="7.80" height="8.55" fill="#180e0c"/>
+<rect x="136.00" y="483.25" width="7.80" height="8.55" fill="#180e0c"/>
+<rect x="143.50" y="483.25" width="7.80" height="8.55" fill="#170e0c"/>
+<rect x="151.00" y="483.25" width="7.80" height="8.55" fill="#150e0b"/>
+<rect x="158.50" y="483.25" width="7.80" height="8.55" fill="#130d0b"/>
+<rect x="166.00" y="483.25" width="7.80" height="8.55" fill="#130d0c"/>
+<rect x="173.50" y="483.25" width="7.80" height="8.55" fill="#140d0c"/>
+<rect x="181.00" y="483.25" width="7.80" height="8.55" fill="#150d0c"/>
+<rect x="188.50" y="483.25" width="7.80" height="8.55" fill="#150e0c"/>
+<rect x="196.00" y="483.25" width="7.80" height="8.55" fill="#150e0c"/>
+<rect x="203.50" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="211.00" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="218.50" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="226.00" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="233.50" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<rect x="241.00" y="483.25" width="7.80" height="8.55" fill="#160e0c"/>
+<path d="M252.25 475.0V491.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 475.0V491.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="487.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">UNFORGIVEN (feat. Nile Rodg LE SSERAFIM, Nile Ro UNFORGIVEN             </text>
+<text x="803.50" y="487.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Mark Ronson            </text>
+<text x="1013.50" y="487.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:02</text>
+<path d="M1062.25 475.0V491.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="491.50" width="7.80" height="16.80" fill="#1e0f0c"/>
+<rect x="31.00" y="491.50" width="7.80" height="16.80" fill="#1b0f0c"/>
+<rect x="38.50" y="491.50" width="7.80" height="16.80" fill="#190e0c"/>
+<rect x="46.00" y="491.50" width="7.80" height="16.80" fill="#180e0c"/>
+<rect x="53.50" y="491.50" width="7.80" height="16.80" fill="#170e0c"/>
+<rect x="61.00" y="491.50" width="22.80" height="16.80" fill="#180e0c"/>
+<rect x="83.50" y="491.50" width="7.80" height="16.80" fill="#1a0e0c"/>
+<rect x="91.00" y="491.50" width="7.80" height="16.80" fill="#1a0f0c"/>
+<rect x="98.50" y="491.50" width="22.80" height="16.80" fill="#1b0f0c"/>
+<rect x="121.00" y="491.50" width="22.80" height="16.80" fill="#1c0f0c"/>
+<rect x="143.50" y="491.50" width="7.80" height="16.80" fill="#1a0f0c"/>
+<rect x="151.00" y="491.50" width="7.80" height="16.80" fill="#170e0c"/>
+<rect x="158.50" y="491.50" width="7.80" height="16.80" fill="#170e0b"/>
+<rect x="166.00" y="491.50" width="7.80" height="16.80" fill="#180e0b"/>
+<rect x="173.50" y="491.50" width="15.30" height="16.80" fill="#1a0e0c"/>
+<rect x="188.50" y="491.50" width="22.80" height="16.80" fill="#190e0c"/>
+<rect x="211.00" y="491.50" width="22.80" height="16.80" fill="#1a0f0c"/>
+<rect x="233.50" y="491.50" width="15.30" height="16.80" fill="#190e0c"/>
+<path d="M19.75 491.5V508.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="499.75" width="7.80" height="8.55" fill="#23110c"/>
+<rect x="31.00" y="499.75" width="7.80" height="8.55" fill="#21100c"/>
+<rect x="38.50" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="46.00" y="499.75" width="7.80" height="8.55" fill="#1e0f0c"/>
+<rect x="53.50" y="499.75" width="7.80" height="8.55" fill="#1d0f0c"/>
+<rect x="61.00" y="499.75" width="7.80" height="8.55" fill="#1d0f0c"/>
+<rect x="68.50" y="499.75" width="7.80" height="8.55" fill="#1d0f0c"/>
+<rect x="76.00" y="499.75" width="7.80" height="8.55" fill="#1e0f0c"/>
+<rect x="83.50" y="499.75" width="7.80" height="8.55" fill="#1f100c"/>
+<rect x="91.00" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="98.50" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="106.00" y="499.75" width="7.80" height="8.55" fill="#21110c"/>
+<rect x="113.50" y="499.75" width="7.80" height="8.55" fill="#21110c"/>
+<rect x="121.00" y="499.75" width="7.80" height="8.55" fill="#22110c"/>
+<rect x="128.50" y="499.75" width="7.80" height="8.55" fill="#22110c"/>
+<rect x="136.00" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="143.50" y="499.75" width="7.80" height="8.55" fill="#1c0f0c"/>
+<rect x="151.00" y="499.75" width="7.80" height="8.55" fill="#1a0f0c"/>
+<rect x="158.50" y="499.75" width="7.80" height="8.55" fill="#1c0f0c"/>
+<rect x="166.00" y="499.75" width="7.80" height="8.55" fill="#1f100c"/>
+<rect x="173.50" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="181.00" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="188.50" y="499.75" width="7.80" height="8.55" fill="#20100c"/>
+<rect x="196.00" y="499.75" width="7.80" height="8.55" fill="#1f100c"/>
+<rect x="203.50" y="499.75" width="7.80" height="8.55" fill="#1f100c"/>
+<rect x="211.00" y="499.75" width="7.80" height="8.55" fill="#1f100c"/>
+<rect x="218.50" y="499.75" width="7.80" height="8.55" fill="#1f0f0c"/>
+<rect x="226.00" y="499.75" width="7.80" height="8.55" fill="#1e0f0c"/>
+<rect x="233.50" y="499.75" width="7.80" height="8.55" fill="#1d0f0c"/>
+<rect x="241.00" y="499.75" width="7.80" height="8.55" fill="#1d0f0c"/>
+<path d="M252.25 491.5V508.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 491.5V508.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="503.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Good Times                  CHIC                 Risqué                 </text>
+<text x="803.50" y="503.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="503.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  8:15</text>
+<path d="M1062.25 491.5V508.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="508.00" width="7.80" height="16.80" fill="#2c140e"/>
+<rect x="31.00" y="508.00" width="7.80" height="16.80" fill="#2a130d"/>
+<rect x="38.50" y="508.00" width="7.80" height="16.80" fill="#28130d"/>
+<rect x="46.00" y="508.00" width="7.80" height="16.80" fill="#26120c"/>
+<rect x="53.50" y="508.00" width="22.80" height="16.80" fill="#26120d"/>
+<rect x="76.00" y="508.00" width="7.80" height="16.80" fill="#26130d"/>
+<rect x="83.50" y="508.00" width="7.80" height="16.80" fill="#27130d"/>
+<rect x="91.00" y="508.00" width="7.80" height="16.80" fill="#28130d"/>
+<rect x="98.50" y="508.00" width="7.80" height="16.80" fill="#28140e"/>
+<rect x="106.00" y="508.00" width="7.80" height="16.80" fill="#2a140e"/>
+<rect x="113.50" y="508.00" width="15.30" height="16.80" fill="#2b140d"/>
+<rect x="128.50" y="508.00" width="7.80" height="16.80" fill="#29130d"/>
+<rect x="136.00" y="508.00" width="7.80" height="16.80" fill="#22100c"/>
+<rect x="143.50" y="508.00" width="7.80" height="16.80" fill="#1f0f0c"/>
+<rect x="151.00" y="508.00" width="7.80" height="16.80" fill="#22110d"/>
+<rect x="158.50" y="508.00" width="15.30" height="16.80" fill="#28130d"/>
+<rect x="173.50" y="508.00" width="7.80" height="16.80" fill="#27130d"/>
+<rect x="181.00" y="508.00" width="7.80" height="16.80" fill="#28130d"/>
+<rect x="188.50" y="508.00" width="15.30" height="16.80" fill="#27130d"/>
+<rect x="203.50" y="508.00" width="7.80" height="16.80" fill="#26120c"/>
+<rect x="211.00" y="508.00" width="7.80" height="16.80" fill="#25120c"/>
+<rect x="218.50" y="508.00" width="7.80" height="16.80" fill="#25110c"/>
+<rect x="226.00" y="508.00" width="7.80" height="16.80" fill="#24110c"/>
+<rect x="233.50" y="508.00" width="7.80" height="16.80" fill="#23110c"/>
+<rect x="241.00" y="508.00" width="7.80" height="16.80" fill="#22110c"/>
+<path d="M19.75 508.0V524.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="516.25" width="7.80" height="8.55" fill="#391b14"/>
+<rect x="31.00" y="516.25" width="7.80" height="8.55" fill="#371a13"/>
+<rect x="38.50" y="516.25" width="7.80" height="8.55" fill="#351913"/>
+<rect x="46.00" y="516.25" width="7.80" height="8.55" fill="#361a13"/>
+<rect x="53.50" y="516.25" width="7.80" height="8.55" fill="#361a13"/>
+<rect x="61.00" y="516.25" width="7.80" height="8.55" fill="#361a13"/>
+<rect x="68.50" y="516.25" width="7.80" height="8.55" fill="#381c15"/>
+<rect x="76.00" y="516.25" width="7.80" height="8.55" fill="#391c16"/>
+<rect x="83.50" y="516.25" width="7.80" height="8.55" fill="#3a1d16"/>
+<rect x="91.00" y="516.25" width="7.80" height="8.55" fill="#3a1e17"/>
+<rect x="98.50" y="516.25" width="7.80" height="8.55" fill="#3a1e17"/>
+<rect x="106.00" y="516.25" width="7.80" height="8.55" fill="#3a1e17"/>
+<rect x="113.50" y="516.25" width="7.80" height="8.55" fill="#3c1f17"/>
+<rect x="121.00" y="516.25" width="7.80" height="8.55" fill="#3b1d15"/>
+<rect x="128.50" y="516.25" width="7.80" height="8.55" fill="#2e150f"/>
+<rect x="136.00" y="516.25" width="7.80" height="8.55" fill="#26120d"/>
+<rect x="143.50" y="516.25" width="7.80" height="8.55" fill="#2a1510"/>
+<rect x="151.00" y="516.25" width="7.80" height="8.55" fill="#391e16"/>
+<rect x="158.50" y="516.25" width="7.80" height="8.55" fill="#391d16"/>
+<rect x="166.00" y="516.25" width="7.80" height="8.55" fill="#371c15"/>
+<rect x="173.50" y="516.25" width="7.80" height="8.55" fill="#361b15"/>
+<rect x="181.00" y="516.25" width="7.80" height="8.55" fill="#351a13"/>
+<rect x="188.50" y="516.25" width="7.80" height="8.55" fill="#341912"/>
+<rect x="196.00" y="516.25" width="7.80" height="8.55" fill="#331911"/>
+<rect x="203.50" y="516.25" width="7.80" height="8.55" fill="#311710"/>
+<rect x="211.00" y="516.25" width="7.80" height="8.55" fill="#2e160f"/>
+<rect x="218.50" y="516.25" width="7.80" height="8.55" fill="#2d150e"/>
+<rect x="226.00" y="516.25" width="7.80" height="8.55" fill="#2b140e"/>
+<rect x="233.50" y="516.25" width="7.80" height="8.55" fill="#2a140d"/>
+<rect x="241.00" y="516.25" width="7.80" height="8.55" fill="#29130d"/>
+<path d="M252.25 508.0V524.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 508.0V524.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="520.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Dream On                    Aerosmith            Aerosmith              </text>
+<text x="803.50" y="520.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Queen                  </text>
+<text x="1013.50" y="520.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:27</text>
+<path d="M1062.25 508.0V524.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="524.50" width="7.80" height="16.80" fill="#513028"/>
+<rect x="31.00" y="524.50" width="7.80" height="16.80" fill="#523029"/>
+<rect x="38.50" y="524.50" width="7.80" height="16.80" fill="#513129"/>
+<rect x="46.00" y="524.50" width="7.80" height="16.80" fill="#52322a"/>
+<rect x="53.50" y="524.50" width="7.80" height="16.80" fill="#4e2e26"/>
+<rect x="61.00" y="524.50" width="7.80" height="16.80" fill="#522f28"/>
+<rect x="68.50" y="524.50" width="7.80" height="16.80" fill="#58332b"/>
+<rect x="76.00" y="524.50" width="7.80" height="16.80" fill="#5d352d"/>
+<rect x="83.50" y="524.50" width="7.80" height="16.80" fill="#5e362d"/>
+<rect x="91.00" y="524.50" width="7.80" height="16.80" fill="#5c352c"/>
+<rect x="98.50" y="524.50" width="7.80" height="16.80" fill="#57332a"/>
+<rect x="106.00" y="524.50" width="7.80" height="16.80" fill="#56332b"/>
+<rect x="113.50" y="524.50" width="7.80" height="16.80" fill="#432a26"/>
+<rect x="121.00" y="524.50" width="7.80" height="16.80" fill="#291612"/>
+<rect x="128.50" y="524.50" width="7.80" height="16.80" fill="#2d1610"/>
+<rect x="136.00" y="524.50" width="7.80" height="16.80" fill="#2f1710"/>
+<rect x="143.50" y="524.50" width="7.80" height="16.80" fill="#2d1712"/>
+<rect x="151.00" y="524.50" width="7.80" height="16.80" fill="#412a27"/>
+<rect x="158.50" y="524.50" width="7.80" height="16.80" fill="#4d302b"/>
+<rect x="166.00" y="524.50" width="7.80" height="16.80" fill="#4b2f2a"/>
+<rect x="173.50" y="524.50" width="7.80" height="16.80" fill="#482e28"/>
+<rect x="181.00" y="524.50" width="7.80" height="16.80" fill="#482d26"/>
+<rect x="188.50" y="524.50" width="7.80" height="16.80" fill="#492c24"/>
+<rect x="196.00" y="524.50" width="7.80" height="16.80" fill="#462921"/>
+<rect x="203.50" y="524.50" width="7.80" height="16.80" fill="#43271f"/>
+<rect x="211.00" y="524.50" width="7.80" height="16.80" fill="#41241d"/>
+<rect x="218.50" y="524.50" width="7.80" height="16.80" fill="#3e221a"/>
+<rect x="226.00" y="524.50" width="7.80" height="16.80" fill="#3d2018"/>
+<rect x="233.50" y="524.50" width="7.80" height="16.80" fill="#3c1f17"/>
+<rect x="241.00" y="524.50" width="7.80" height="16.80" fill="#3b1d15"/>
+<path d="M19.75 524.5V541.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="532.75" width="7.80" height="8.55" fill="#79524e"/>
+<rect x="31.00" y="532.75" width="7.80" height="8.55" fill="#78524e"/>
+<rect x="38.50" y="532.75" width="7.80" height="8.55" fill="#7b544e"/>
+<rect x="46.00" y="532.75" width="7.80" height="8.55" fill="#79524d"/>
+<rect x="53.50" y="532.75" width="7.80" height="8.55" fill="#74504c"/>
+<rect x="61.00" y="532.75" width="7.80" height="8.55" fill="#79534f"/>
+<rect x="68.50" y="532.75" width="7.80" height="8.55" fill="#7e5551"/>
+<rect x="76.00" y="532.75" width="7.80" height="8.55" fill="#825854"/>
+<rect x="83.50" y="532.75" width="7.80" height="8.55" fill="#815855"/>
+<rect x="91.00" y="532.75" width="7.80" height="8.55" fill="#7d5753"/>
+<rect x="98.50" y="532.75" width="7.80" height="8.55" fill="#714f4c"/>
+<rect x="106.00" y="532.75" width="7.80" height="8.55" fill="#5f413c"/>
+<rect x="113.50" y="524.50" width="7.80" height="8.45" fill="#543028"/>
+<rect x="121.00" y="524.50" width="7.80" height="8.45" fill="#47241a"/>
+<rect x="128.50" y="524.50" width="7.80" height="8.45" fill="#3d1a11"/>
+<rect x="136.00" y="524.50" width="7.80" height="8.45" fill="#381911"/>
+<rect x="143.50" y="524.50" width="7.80" height="8.45" fill="#3e2019"/>
+<rect x="151.00" y="524.50" width="7.80" height="8.45" fill="#492b25"/>
+<rect x="158.50" y="532.75" width="7.80" height="8.55" fill="#594140"/>
+<rect x="166.00" y="532.75" width="7.80" height="8.55" fill="#624a4b"/>
+<rect x="173.50" y="532.75" width="7.80" height="8.55" fill="#60494a"/>
+<rect x="181.00" y="532.75" width="7.80" height="8.55" fill="#624745"/>
+<rect x="188.50" y="532.75" width="7.80" height="8.55" fill="#644440"/>
+<rect x="196.00" y="532.75" width="7.80" height="8.55" fill="#5d3c36"/>
+<rect x="203.50" y="532.75" width="7.80" height="8.55" fill="#61413a"/>
+<rect x="211.00" y="532.75" width="7.80" height="8.55" fill="#603f37"/>
+<rect x="218.50" y="532.75" width="7.80" height="8.55" fill="#5c3b33"/>
+<rect x="226.00" y="532.75" width="7.80" height="8.55" fill="#593931"/>
+<rect x="233.50" y="532.75" width="7.80" height="8.55" fill="#58372f"/>
+<rect x="241.00" y="532.75" width="7.80" height="8.55" fill="#57362e"/>
+<path d="M252.25 524.5V541.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 524.5V541.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="536.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Hold the Line               TOTO                 Toto                   </text>
+<text x="803.50" y="536.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Girls Just Want to H</text>
+<text x="1013.50" y="536.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:55</text>
+<path d="M1062.25 524.5V541.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="541.00" width="7.80" height="16.80" fill="#967d83"/>
+<rect x="31.00" y="541.00" width="7.80" height="16.80" fill="#937b81"/>
+<rect x="38.50" y="541.00" width="7.80" height="16.80" fill="#8f7a80"/>
+<rect x="46.00" y="541.00" width="7.80" height="16.80" fill="#8f7980"/>
+<rect x="53.50" y="541.00" width="7.80" height="16.80" fill="#907980"/>
+<rect x="61.00" y="541.00" width="7.80" height="16.80" fill="#937b82"/>
+<rect x="68.50" y="541.00" width="7.80" height="16.80" fill="#947b83"/>
+<rect x="76.00" y="541.00" width="7.80" height="16.80" fill="#957d84"/>
+<rect x="83.50" y="541.00" width="7.80" height="16.80" fill="#947e87"/>
+<rect x="91.00" y="541.00" width="7.80" height="16.80" fill="#88625d"/>
+<rect x="98.50" y="541.00" width="7.80" height="16.80" fill="#55352b"/>
+<rect x="106.00" y="541.00" width="7.80" height="16.80" fill="#3a2620"/>
+<rect x="113.50" y="541.00" width="7.80" height="16.80" fill="#291712"/>
+<rect x="121.00" y="541.00" width="7.80" height="16.80" fill="#3e2b27"/>
+<rect x="128.50" y="541.00" width="7.80" height="16.80" fill="#5a3c32"/>
+<rect x="136.00" y="541.00" width="7.80" height="16.80" fill="#673b2b"/>
+<rect x="143.50" y="541.00" width="7.80" height="16.80" fill="#543a32"/>
+<rect x="151.00" y="541.00" width="7.80" height="16.80" fill="#4b342b"/>
+<rect x="158.50" y="541.00" width="7.80" height="16.80" fill="#513b35"/>
+<rect x="166.00" y="541.00" width="7.80" height="16.80" fill="#604c4b"/>
+<rect x="173.50" y="541.00" width="7.80" height="16.80" fill="#6f5e5f"/>
+<rect x="181.00" y="541.00" width="7.80" height="16.80" fill="#8d7275"/>
+<rect x="188.50" y="541.00" width="7.80" height="16.80" fill="#8c6f70"/>
+<rect x="196.00" y="541.00" width="7.80" height="16.80" fill="#876b6c"/>
+<rect x="203.50" y="541.00" width="7.80" height="16.80" fill="#866969"/>
+<rect x="211.00" y="541.00" width="7.80" height="16.80" fill="#826565"/>
+<rect x="218.50" y="541.00" width="7.80" height="16.80" fill="#7d605f"/>
+<rect x="226.00" y="541.00" width="7.80" height="16.80" fill="#795c5a"/>
+<rect x="233.50" y="541.00" width="7.80" height="16.80" fill="#765956"/>
+<rect x="241.00" y="541.00" width="7.80" height="16.80" fill="#755753"/>
+<path d="M19.75 541.0V557.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="549.25" width="7.80" height="8.55" fill="#a8a8bc"/>
+<rect x="31.00" y="549.25" width="7.80" height="8.55" fill="#aca8ba"/>
+<rect x="38.50" y="549.25" width="7.80" height="8.55" fill="#aca7b8"/>
+<rect x="46.00" y="549.25" width="7.80" height="8.55" fill="#ada6b7"/>
+<rect x="53.50" y="549.25" width="7.80" height="8.55" fill="#aca3b4"/>
+<rect x="61.00" y="549.25" width="7.80" height="8.55" fill="#aaa3b3"/>
+<rect x="68.50" y="549.25" width="7.80" height="8.55" fill="#aea6b7"/>
+<rect x="76.00" y="549.25" width="7.80" height="8.55" fill="#b4a8b8"/>
+<rect x="83.50" y="549.25" width="7.80" height="8.55" fill="#a9939c"/>
+<rect x="91.00" y="541.00" width="7.80" height="8.45" fill="#856c72"/>
+<rect x="98.50" y="541.00" width="7.80" height="8.45" fill="#604643"/>
+<rect x="106.00" y="549.25" width="7.80" height="8.55" fill="#432d26"/>
+<rect x="113.50" y="549.25" width="7.80" height="8.55" fill="#765e5d"/>
+<rect x="121.00" y="549.25" width="7.80" height="8.55" fill="#8e787b"/>
+<rect x="128.50" y="549.25" width="7.80" height="8.55" fill="#92716c"/>
+<rect x="136.00" y="549.25" width="7.80" height="8.55" fill="#89584a"/>
+<rect x="143.50" y="549.25" width="7.80" height="8.55" fill="#917574"/>
+<rect x="151.00" y="549.25" width="7.80" height="8.55" fill="#8b6f6d"/>
+<rect x="158.50" y="549.25" width="7.80" height="8.55" fill="#796361"/>
+<rect x="166.00" y="549.25" width="7.80" height="8.55" fill="#705c5b"/>
+<rect x="173.50" y="541.00" width="7.80" height="8.45" fill="#7c696d"/>
+<rect x="181.00" y="549.25" width="7.80" height="8.55" fill="#928996"/>
+<rect x="188.50" y="549.25" width="7.80" height="8.55" fill="#9e99aa"/>
+<rect x="196.00" y="549.25" width="7.80" height="8.55" fill="#9f99a8"/>
+<rect x="203.50" y="549.25" width="7.80" height="8.55" fill="#ac9ba5"/>
+<rect x="211.00" y="549.25" width="7.80" height="8.55" fill="#aa969d"/>
+<rect x="218.50" y="549.25" width="7.80" height="8.55" fill="#a48f95"/>
+<rect x="226.00" y="549.25" width="7.80" height="8.55" fill="#a28a8d"/>
+<rect x="233.50" y="549.25" width="7.80" height="8.55" fill="#a28686"/>
+<rect x="241.00" y="549.25" width="7.80" height="8.55" fill="#9f817e"/>
+<path d="M252.25 541.0V557.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 541.0V557.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="553.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Last Train to London        Rikas                Last Train to London   </text>
+<text x="803.50" y="553.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="553.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  2:59</text>
+<path d="M1062.25 541.0V557.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="557.50" width="7.80" height="16.80" fill="#b7c5e0"/>
+<rect x="31.00" y="557.50" width="7.80" height="16.80" fill="#bac4de"/>
+<rect x="38.50" y="557.50" width="7.80" height="16.80" fill="#b4bfdb"/>
+<rect x="46.00" y="557.50" width="7.80" height="16.80" fill="#b0bbd8"/>
+<rect x="53.50" y="557.50" width="7.80" height="16.80" fill="#acb7d5"/>
+<rect x="61.00" y="557.50" width="7.80" height="16.80" fill="#a9b5d3"/>
+<rect x="68.50" y="557.50" width="7.80" height="16.80" fill="#aab6d3"/>
+<rect x="76.00" y="557.50" width="7.80" height="16.80" fill="#9e9aae"/>
+<rect x="83.50" y="557.50" width="7.80" height="16.80" fill="#886761"/>
+<rect x="91.00" y="557.50" width="7.80" height="16.80" fill="#a27260"/>
+<rect x="98.50" y="557.50" width="7.80" height="16.80" fill="#97644b"/>
+<rect x="106.00" y="557.50" width="7.80" height="16.80" fill="#9e7061"/>
+<rect x="113.50" y="557.50" width="7.80" height="16.80" fill="#9c97a7"/>
+<rect x="121.00" y="557.50" width="7.80" height="16.80" fill="#7c6d74"/>
+<rect x="128.50" y="557.50" width="7.80" height="16.80" fill="#7a5f5d"/>
+<rect x="136.00" y="557.50" width="7.80" height="16.80" fill="#704031"/>
+<rect x="143.50" y="557.50" width="7.80" height="16.80" fill="#958287"/>
+<rect x="151.00" y="557.50" width="7.80" height="16.80" fill="#a7a0b0"/>
+<rect x="158.50" y="557.50" width="7.80" height="16.80" fill="#9f8e95"/>
+<rect x="166.00" y="557.50" width="7.80" height="16.80" fill="#a2654e"/>
+<rect x="173.50" y="557.50" width="7.80" height="16.80" fill="#a8725d"/>
+<rect x="181.00" y="557.50" width="7.80" height="16.80" fill="#8e7779"/>
+<rect x="188.50" y="557.50" width="7.80" height="16.80" fill="#a098a6"/>
+<rect x="196.00" y="557.50" width="7.80" height="16.80" fill="#b1b5cb"/>
+<rect x="203.50" y="557.50" width="7.80" height="16.80" fill="#b3b2c4"/>
+<rect x="211.00" y="557.50" width="7.80" height="16.80" fill="#b6afbf"/>
+<rect x="218.50" y="557.50" width="7.80" height="16.80" fill="#b7aab6"/>
+<rect x="226.00" y="557.50" width="7.80" height="16.80" fill="#b6a6ae"/>
+<rect x="233.50" y="557.50" width="7.80" height="16.80" fill="#b4a3ab"/>
+<rect x="241.00" y="557.50" width="7.80" height="16.80" fill="#b09ea4"/>
+<path d="M19.75 557.5V574.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="565.75" width="7.80" height="8.55" fill="#c6d2e9"/>
+<rect x="31.00" y="565.75" width="7.80" height="8.55" fill="#c3cee8"/>
+<rect x="38.50" y="565.75" width="7.80" height="8.55" fill="#bbc8e4"/>
+<rect x="46.00" y="565.75" width="7.80" height="8.55" fill="#b5c3e1"/>
+<rect x="53.50" y="565.75" width="7.80" height="8.55" fill="#b3c1df"/>
+<rect x="61.00" y="565.75" width="7.80" height="8.55" fill="#afbfdf"/>
+<rect x="68.50" y="565.75" width="7.80" height="8.55" fill="#abbcdc"/>
+<rect x="76.00" y="557.50" width="7.80" height="8.45" fill="#acaec5"/>
+<rect x="83.50" y="557.50" width="7.80" height="8.45" fill="#9f8489"/>
+<rect x="91.00" y="565.75" width="7.80" height="8.55" fill="#c3967b"/>
+<rect x="98.50" y="565.75" width="7.80" height="8.55" fill="#cf9573"/>
+<rect x="106.00" y="557.50" width="7.80" height="8.45" fill="#9e7c76"/>
+<rect x="113.50" y="557.50" width="7.80" height="8.45" fill="#b2a2ae"/>
+<rect x="121.00" y="557.50" width="7.80" height="8.45" fill="#b1a5b2"/>
+<rect x="128.50" y="557.50" width="7.80" height="8.45" fill="#9d8080"/>
+<rect x="136.00" y="557.50" width="7.80" height="8.45" fill="#82554d"/>
+<rect x="143.50" y="557.50" width="7.80" height="8.45" fill="#a79ba8"/>
+<rect x="151.00" y="565.75" width="7.80" height="8.55" fill="#b1b3c9"/>
+<rect x="158.50" y="565.75" width="7.80" height="8.55" fill="#a69298"/>
+<rect x="166.00" y="557.50" width="7.80" height="8.45" fill="#a2776c"/>
+<rect x="173.50" y="565.75" width="7.80" height="8.55" fill="#d19c7e"/>
+<rect x="181.00" y="565.75" width="7.80" height="8.55" fill="#af826f"/>
+<rect x="188.50" y="557.50" width="7.80" height="8.45" fill="#aaaec4"/>
+<rect x="196.00" y="565.75" width="7.80" height="8.55" fill="#b1b8d1"/>
+<rect x="203.50" y="565.75" width="7.80" height="8.55" fill="#b1b8d1"/>
+<rect x="211.00" y="565.75" width="7.80" height="8.55" fill="#b0b6cd"/>
+<rect x="218.50" y="565.75" width="7.80" height="8.55" fill="#b1b3c6"/>
+<rect x="226.00" y="565.75" width="7.80" height="8.55" fill="#b1b1c3"/>
+<rect x="233.50" y="565.75" width="7.80" height="8.55" fill="#b2b3c7"/>
+<rect x="241.00" y="565.75" width="7.80" height="8.55" fill="#b2b4c5"/>
+<path d="M252.25 557.5V574.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 557.5V574.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="569.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Love You Like A Love Song   Selena Gomez &amp; The S When The Sun Goes Do   </text>
+<text x="803.50" y="569.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="569.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:08</text>
+<path d="M1062.25 557.5V574.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="574.00" width="7.80" height="16.80" fill="#c2cfe8"/>
+<rect x="31.00" y="574.00" width="7.80" height="16.80" fill="#c0cde7"/>
+<rect x="38.50" y="574.00" width="7.80" height="16.80" fill="#bccae6"/>
+<rect x="46.00" y="574.00" width="7.80" height="16.80" fill="#b8c7e4"/>
+<rect x="53.50" y="574.00" width="7.80" height="16.80" fill="#b5c5e3"/>
+<rect x="61.00" y="574.00" width="7.80" height="16.80" fill="#b4c4e3"/>
+<rect x="68.50" y="574.00" width="7.80" height="16.80" fill="#a39ca9"/>
+<rect x="76.00" y="574.00" width="7.80" height="16.80" fill="#776466"/>
+<rect x="83.50" y="574.00" width="7.80" height="16.80" fill="#805546"/>
+<rect x="91.00" y="574.00" width="7.80" height="16.80" fill="#a85a37"/>
+<rect x="98.50" y="574.00" width="7.80" height="16.80" fill="#8a4327"/>
+<rect x="106.00" y="574.00" width="7.80" height="16.80" fill="#713c27"/>
+<rect x="113.50" y="574.00" width="7.80" height="16.80" fill="#6f4637"/>
+<rect x="121.00" y="574.00" width="7.80" height="16.80" fill="#502f26"/>
+<rect x="128.50" y="574.00" width="7.80" height="16.80" fill="#764532"/>
+<rect x="136.00" y="574.00" width="7.80" height="16.80" fill="#5e3221"/>
+<rect x="143.50" y="574.00" width="7.80" height="16.80" fill="#83594b"/>
+<rect x="151.00" y="574.00" width="7.80" height="16.80" fill="#c78054"/>
+<rect x="158.50" y="574.00" width="7.80" height="16.80" fill="#99644c"/>
+<rect x="166.00" y="574.00" width="7.80" height="16.80" fill="#80422b"/>
+<rect x="173.50" y="574.00" width="7.80" height="16.80" fill="#743721"/>
+<rect x="181.00" y="574.00" width="7.80" height="16.80" fill="#6b3623"/>
+<rect x="188.50" y="574.00" width="7.80" height="16.80" fill="#6d4f49"/>
+<rect x="196.00" y="574.00" width="7.80" height="16.80" fill="#9e97a6"/>
+<rect x="203.50" y="574.00" width="7.80" height="16.80" fill="#b4c0dc"/>
+<rect x="211.00" y="574.00" width="7.80" height="16.80" fill="#b4c0db"/>
+<rect x="218.50" y="574.00" width="7.80" height="16.80" fill="#b7bed5"/>
+<rect x="226.00" y="574.00" width="7.80" height="16.80" fill="#b8bed3"/>
+<rect x="233.50" y="574.00" width="7.80" height="16.80" fill="#bac1d7"/>
+<rect x="241.00" y="574.00" width="7.80" height="16.80" fill="#babfd3"/>
+<path d="M19.75 574.0V590.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="582.25" width="7.80" height="8.55" fill="#c6d4eb"/>
+<rect x="31.00" y="582.25" width="7.80" height="8.55" fill="#c8d4eb"/>
+<rect x="38.50" y="582.25" width="7.80" height="8.55" fill="#c5d1ea"/>
+<rect x="46.00" y="582.25" width="7.80" height="8.55" fill="#c2cee8"/>
+<rect x="53.50" y="582.25" width="7.80" height="8.55" fill="#c2cfe9"/>
+<rect x="61.00" y="582.25" width="7.80" height="8.55" fill="#bfcde7"/>
+<rect x="68.50" y="574.00" width="7.80" height="8.45" fill="#a9b2cc"/>
+<rect x="76.00" y="582.25" width="7.80" height="8.55" fill="#876e6e"/>
+<rect x="83.50" y="574.00" width="7.80" height="8.45" fill="#8e6554"/>
+<rect x="91.00" y="574.00" width="7.80" height="8.45" fill="#bf8b6c"/>
+<rect x="98.50" y="574.00" width="7.80" height="8.45" fill="#995b3f"/>
+<rect x="106.00" y="574.00" width="7.80" height="8.45" fill="#8b4e36"/>
+<rect x="113.50" y="574.00" width="7.80" height="8.45" fill="#846e6f"/>
+<rect x="121.00" y="582.25" width="7.80" height="8.55" fill="#8b4b2a"/>
+<rect x="128.50" y="574.00" width="7.80" height="8.45" fill="#735956"/>
+<rect x="136.00" y="582.25" width="7.80" height="8.55" fill="#a06243"/>
+<rect x="143.50" y="582.25" width="7.80" height="8.55" fill="#c78350"/>
+<rect x="151.00" y="574.00" width="7.80" height="8.45" fill="#ab9ba0"/>
+<rect x="158.50" y="574.00" width="7.80" height="8.45" fill="#9f8382"/>
+<rect x="166.00" y="574.00" width="7.80" height="8.45" fill="#93523a"/>
+<rect x="173.50" y="574.00" width="7.80" height="8.45" fill="#825440"/>
+<rect x="181.00" y="574.00" width="7.80" height="8.45" fill="#9e6a53"/>
+<rect x="188.50" y="574.00" width="7.80" height="8.45" fill="#826767"/>
+<rect x="196.00" y="574.00" width="7.80" height="8.45" fill="#a7aec7"/>
+<rect x="203.50" y="582.25" width="7.80" height="8.55" fill="#bec5dd"/>
+<rect x="211.00" y="582.25" width="7.80" height="8.55" fill="#c0c8df"/>
+<rect x="218.50" y="582.25" width="7.80" height="8.55" fill="#c0c6db"/>
+<rect x="226.00" y="582.25" width="7.80" height="8.55" fill="#c2c6da"/>
+<rect x="233.50" y="582.25" width="7.80" height="8.55" fill="#c3c6d8"/>
+<rect x="241.00" y="582.25" width="7.80" height="8.55" fill="#c4c4d4"/>
+<path d="M252.25 574.0V590.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 574.0V590.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="586.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Give Me the Night           George Benson        Give Me the Night      </text>
+<text x="803.50" y="586.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="586.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  5:01</text>
+<path d="M1062.25 574.0V590.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="590.50" width="7.80" height="16.80" fill="#cedaee"/>
+<rect x="31.00" y="590.50" width="7.80" height="16.80" fill="#cdd9ee"/>
+<rect x="38.50" y="590.50" width="7.80" height="16.80" fill="#cdd7ed"/>
+<rect x="46.00" y="590.50" width="7.80" height="16.80" fill="#cbd5eb"/>
+<rect x="53.50" y="590.50" width="7.80" height="16.80" fill="#cbd6eb"/>
+<rect x="61.00" y="590.50" width="7.80" height="16.80" fill="#c4bbc5"/>
+<rect x="68.50" y="590.50" width="7.80" height="16.80" fill="#ae8b85"/>
+<rect x="76.00" y="590.50" width="7.80" height="16.80" fill="#9c756e"/>
+<rect x="83.50" y="590.50" width="7.80" height="16.80" fill="#714b40"/>
+<rect x="91.00" y="590.50" width="7.80" height="16.80" fill="#9b5030"/>
+<rect x="98.50" y="590.50" width="7.80" height="16.80" fill="#9b4c2b"/>
+<rect x="106.00" y="590.50" width="7.80" height="16.80" fill="#8d5b40"/>
+<rect x="113.50" y="590.50" width="7.80" height="16.80" fill="#8c5a3d"/>
+<rect x="121.00" y="590.50" width="7.80" height="16.80" fill="#be6e3c"/>
+<rect x="128.50" y="590.50" width="7.80" height="16.80" fill="#894629"/>
+<rect x="136.00" y="590.50" width="7.80" height="16.80" fill="#b67351"/>
+<rect x="143.50" y="590.50" width="7.80" height="16.80" fill="#da8950"/>
+<rect x="151.00" y="590.50" width="7.80" height="16.80" fill="#be723d"/>
+<rect x="158.50" y="590.50" width="7.80" height="16.80" fill="#c48e60"/>
+<rect x="166.00" y="590.50" width="7.80" height="16.80" fill="#9d6547"/>
+<rect x="173.50" y="590.50" width="7.80" height="16.80" fill="#b55d36"/>
+<rect x="181.00" y="590.50" width="7.80" height="16.80" fill="#84452b"/>
+<rect x="188.50" y="590.50" width="7.80" height="16.80" fill="#78564d"/>
+<rect x="196.00" y="590.50" width="7.80" height="16.80" fill="#765348"/>
+<rect x="203.50" y="590.50" width="7.80" height="16.80" fill="#af9192"/>
+<rect x="211.00" y="590.50" width="7.80" height="16.80" fill="#cbb7be"/>
+<rect x="218.50" y="590.50" width="7.80" height="16.80" fill="#c6b0b4"/>
+<rect x="226.00" y="590.50" width="7.80" height="16.80" fill="#c5afb1"/>
+<rect x="233.50" y="590.50" width="7.80" height="16.80" fill="#c3aaab"/>
+<rect x="241.00" y="590.50" width="7.80" height="16.80" fill="#c1a5a4"/>
+<path d="M19.75 590.5V607.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="598.75" width="7.80" height="8.55" fill="#d8ddec"/>
+<rect x="31.00" y="598.75" width="7.80" height="8.55" fill="#d7dcec"/>
+<rect x="38.50" y="598.75" width="7.80" height="8.55" fill="#d8dbea"/>
+<rect x="46.00" y="598.75" width="7.80" height="8.55" fill="#d8d8e8"/>
+<rect x="53.50" y="598.75" width="7.80" height="8.55" fill="#d7d8e6"/>
+<rect x="61.00" y="590.50" width="7.80" height="8.45" fill="#c4cbe0"/>
+<rect x="68.50" y="590.50" width="7.80" height="8.45" fill="#a88e8f"/>
+<rect x="76.00" y="590.50" width="7.80" height="8.45" fill="#a88c8e"/>
+<rect x="83.50" y="598.75" width="7.80" height="8.55" fill="#aa8077"/>
+<rect x="91.00" y="598.75" width="7.80" height="8.55" fill="#bc866a"/>
+<rect x="98.50" y="598.75" width="7.80" height="8.55" fill="#af7556"/>
+<rect x="106.00" y="598.75" width="7.80" height="8.55" fill="#bd9177"/>
+<rect x="113.50" y="598.75" width="7.80" height="8.55" fill="#bc8c6f"/>
+<rect x="121.00" y="598.75" width="7.80" height="8.55" fill="#d48f5b"/>
+<rect x="128.50" y="598.75" width="7.80" height="8.55" fill="#b4744e"/>
+<rect x="136.00" y="598.75" width="7.80" height="8.55" fill="#cb966d"/>
+<rect x="143.50" y="598.75" width="7.80" height="8.55" fill="#de9f65"/>
+<rect x="151.00" y="590.50" width="7.80" height="8.45" fill="#d57a41"/>
+<rect x="158.50" y="590.50" width="7.80" height="8.45" fill="#ce9260"/>
+<rect x="166.00" y="598.75" width="7.80" height="8.55" fill="#c9a288"/>
+<rect x="173.50" y="598.75" width="7.80" height="8.55" fill="#cc9171"/>
+<rect x="181.00" y="598.75" width="7.80" height="8.55" fill="#caa493"/>
+<rect x="188.50" y="598.75" width="7.80" height="8.55" fill="#8a6860"/>
+<rect x="196.00" y="590.50" width="7.80" height="8.45" fill="#9a7e7f"/>
+<rect x="203.50" y="590.50" width="7.80" height="8.45" fill="#c0b5c2"/>
+<rect x="211.00" y="590.50" width="7.80" height="8.45" fill="#ccc3d2"/>
+<rect x="218.50" y="590.50" width="7.80" height="8.45" fill="#cabfcb"/>
+<rect x="226.00" y="590.50" width="7.80" height="8.45" fill="#c9bdc8"/>
+<rect x="233.50" y="590.50" width="7.80" height="8.45" fill="#c7b9c2"/>
+<rect x="241.00" y="590.50" width="7.80" height="8.45" fill="#c4b4bb"/>
+<path d="M252.25 590.5V607.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 590.5V607.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="602.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Talk to Me (feat. Tyla, Nil Damiano David, Tyla, FUNNY little FEARS (   </text>
+<text x="803.50" y="602.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Mark Ronson            </text>
+<text x="1013.50" y="602.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  3:13</text>
+<path d="M1062.25 590.5V607.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="607.00" width="7.80" height="16.80" fill="#9d7b6c"/>
+<rect x="31.00" y="607.00" width="7.80" height="16.80" fill="#9c7967"/>
+<rect x="38.50" y="607.00" width="7.80" height="16.80" fill="#9e7662"/>
+<rect x="46.00" y="607.00" width="7.80" height="16.80" fill="#9f7663"/>
+<rect x="53.50" y="607.00" width="7.80" height="16.80" fill="#9f7460"/>
+<rect x="61.00" y="607.00" width="7.80" height="16.80" fill="#b08672"/>
+<rect x="68.50" y="607.00" width="7.80" height="16.80" fill="#ac8479"/>
+<rect x="76.00" y="607.00" width="7.80" height="16.80" fill="#ac827a"/>
+<rect x="83.50" y="607.00" width="7.80" height="16.80" fill="#d6bebd"/>
+<rect x="91.00" y="607.00" width="7.80" height="16.80" fill="#e7ccc1"/>
+<rect x="98.50" y="607.00" width="7.80" height="16.80" fill="#e5c3b5"/>
+<rect x="106.00" y="607.00" width="7.80" height="16.80" fill="#d2a48d"/>
+<rect x="113.50" y="607.00" width="7.80" height="16.80" fill="#bc7951"/>
+<rect x="121.00" y="607.00" width="7.80" height="16.80" fill="#c98a5d"/>
+<rect x="128.50" y="607.00" width="7.80" height="16.80" fill="#d39767"/>
+<rect x="136.00" y="607.00" width="7.80" height="16.80" fill="#c78c61"/>
+<rect x="143.50" y="607.00" width="7.80" height="16.80" fill="#c18156"/>
+<rect x="151.00" y="607.00" width="7.80" height="16.80" fill="#8a5436"/>
+<rect x="158.50" y="607.00" width="7.80" height="16.80" fill="#704535"/>
+<rect x="166.00" y="607.00" width="7.80" height="16.80" fill="#a18384"/>
+<rect x="173.50" y="607.00" width="7.80" height="16.80" fill="#9a8185"/>
+<rect x="181.00" y="607.00" width="7.80" height="16.80" fill="#6e4d4b"/>
+<rect x="188.50" y="607.00" width="7.80" height="16.80" fill="#7f666e"/>
+<rect x="196.00" y="607.00" width="7.80" height="16.80" fill="#69463c"/>
+<rect x="203.50" y="607.00" width="7.80" height="16.80" fill="#744532"/>
+<rect x="211.00" y="607.00" width="7.80" height="16.80" fill="#7e4c30"/>
+<rect x="218.50" y="607.00" width="7.80" height="16.80" fill="#7d492b"/>
+<rect x="226.00" y="607.00" width="7.80" height="16.80" fill="#7a4527"/>
+<rect x="233.50" y="607.00" width="7.80" height="16.80" fill="#754123"/>
+<rect x="241.00" y="607.00" width="7.80" height="16.80" fill="#703e22"/>
+<path d="M19.75 607.0V623.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="607.00" width="7.80" height="8.45" fill="#e4dce1"/>
+<rect x="31.00" y="607.00" width="7.80" height="8.45" fill="#e2dade"/>
+<rect x="38.50" y="607.00" width="7.80" height="8.45" fill="#e2d8dd"/>
+<rect x="46.00" y="607.00" width="7.80" height="8.45" fill="#e3d7db"/>
+<rect x="53.50" y="607.00" width="7.80" height="8.45" fill="#e0d3d6"/>
+<rect x="61.00" y="607.00" width="7.80" height="8.45" fill="#c7afac"/>
+<rect x="68.50" y="615.25" width="7.80" height="8.55" fill="#ad867b"/>
+<rect x="76.00" y="607.00" width="7.80" height="8.45" fill="#aa8a8d"/>
+<rect x="83.50" y="615.25" width="7.80" height="8.55" fill="#dabeb3"/>
+<rect x="91.00" y="615.25" width="7.80" height="8.55" fill="#f5e5df"/>
+<rect x="98.50" y="615.25" width="7.80" height="8.55" fill="#f4e5de"/>
+<rect x="106.00" y="615.25" width="7.80" height="8.55" fill="#d0a58f"/>
+<rect x="113.50" y="607.00" width="7.80" height="8.45" fill="#bd7954"/>
+<rect x="121.00" y="607.00" width="7.80" height="8.45" fill="#cc8a5d"/>
+<rect x="128.50" y="615.25" width="7.80" height="8.55" fill="#d49d70"/>
+<rect x="136.00" y="607.00" width="7.80" height="8.45" fill="#d49967"/>
+<rect x="143.50" y="607.00" width="7.80" height="8.45" fill="#cb8c5c"/>
+<rect x="151.00" y="615.25" width="7.80" height="8.55" fill="#b06f4c"/>
+<rect x="158.50" y="615.25" width="7.80" height="8.55" fill="#a05e46"/>
+<rect x="166.00" y="607.00" width="7.80" height="8.45" fill="#b79a97"/>
+<rect x="173.50" y="607.00" width="7.80" height="8.45" fill="#d1bcb9"/>
+<rect x="181.00" y="607.00" width="7.80" height="8.45" fill="#b19a9b"/>
+<rect x="188.50" y="607.00" width="7.80" height="8.45" fill="#866d72"/>
+<rect x="196.00" y="615.25" width="7.80" height="8.55" fill="#7c5c5a"/>
+<rect x="203.50" y="607.00" width="7.80" height="8.45" fill="#9b7267"/>
+<rect x="211.00" y="607.00" width="7.80" height="8.45" fill="#b3948f"/>
+<rect x="218.50" y="607.00" width="7.80" height="8.45" fill="#a7867f"/>
+<rect x="226.00" y="607.00" width="7.80" height="8.45" fill="#95756d"/>
+<rect x="233.50" y="607.00" width="7.80" height="8.45" fill="#856358"/>
+<rect x="241.00" y="607.00" width="7.80" height="8.45" fill="#745349"/>
+<path d="M252.25 607.0V623.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 607.0V623.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="619.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">If You Don't Want My Love   Jalen Ngonda         Come Around and Love   </text>
+<text x="803.50" y="619.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Valerie             </text>
+<text x="1013.50" y="619.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  2:26</text>
+<path d="M1062.25 607.0V623.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="623.50" width="15.30" height="16.80" fill="#572e16"/>
+<rect x="38.50" y="623.50" width="7.80" height="16.80" fill="#5c3118"/>
+<rect x="46.00" y="623.50" width="7.80" height="16.80" fill="#5a3017"/>
+<rect x="53.50" y="623.50" width="7.80" height="16.80" fill="#542b15"/>
+<rect x="61.00" y="623.50" width="7.80" height="16.80" fill="#653622"/>
+<rect x="68.50" y="623.50" width="7.80" height="16.80" fill="#b18474"/>
+<rect x="76.00" y="623.50" width="7.80" height="16.80" fill="#a47668"/>
+<rect x="83.50" y="623.50" width="7.80" height="16.80" fill="#a8684e"/>
+<rect x="91.00" y="623.50" width="7.80" height="16.80" fill="#da8450"/>
+<rect x="98.50" y="623.50" width="7.80" height="16.80" fill="#e5ac8b"/>
+<rect x="106.00" y="623.50" width="7.80" height="16.80" fill="#ba927f"/>
+<rect x="113.50" y="623.50" width="7.80" height="16.80" fill="#7a482f"/>
+<rect x="121.00" y="623.50" width="7.80" height="16.80" fill="#956344"/>
+<rect x="128.50" y="623.50" width="7.80" height="16.80" fill="#c69d79"/>
+<rect x="136.00" y="623.50" width="7.80" height="16.80" fill="#875436"/>
+<rect x="143.50" y="623.50" width="7.80" height="16.80" fill="#573120"/>
+<rect x="151.00" y="623.50" width="7.80" height="16.80" fill="#512b1c"/>
+<rect x="158.50" y="623.50" width="7.80" height="16.80" fill="#a95737"/>
+<rect x="166.00" y="623.50" width="7.80" height="16.80" fill="#9d6857"/>
+<rect x="173.50" y="623.50" width="7.80" height="16.80" fill="#79504b"/>
+<rect x="181.00" y="623.50" width="7.80" height="16.80" fill="#4c281d"/>
+<rect x="188.50" y="623.50" width="7.80" height="16.80" fill="#6a4946"/>
+<rect x="196.00" y="623.50" width="7.80" height="16.80" fill="#6c4e4f"/>
+<rect x="203.50" y="623.50" width="7.80" height="16.80" fill="#3f241a"/>
+<rect x="211.00" y="623.50" width="7.80" height="16.80" fill="#4f2b15"/>
+<rect x="218.50" y="623.50" width="7.80" height="16.80" fill="#552e16"/>
+<rect x="226.00" y="623.50" width="7.80" height="16.80" fill="#522c15"/>
+<rect x="233.50" y="623.50" width="7.80" height="16.80" fill="#4e2a14"/>
+<rect x="241.00" y="623.50" width="7.80" height="16.80" fill="#4c2913"/>
+<path d="M19.75 623.5V640.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="623.50" width="7.80" height="8.45" fill="#6f3d22"/>
+<rect x="31.00" y="623.50" width="7.80" height="8.45" fill="#764528"/>
+<rect x="38.50" y="623.50" width="7.80" height="8.45" fill="#744123"/>
+<rect x="46.00" y="623.50" width="7.80" height="8.45" fill="#713d1f"/>
+<rect x="53.50" y="623.50" width="7.80" height="8.45" fill="#6f3c1f"/>
+<rect x="61.00" y="623.50" width="7.80" height="8.45" fill="#7d4d36"/>
+<rect x="68.50" y="623.50" width="7.80" height="8.45" fill="#ba968a"/>
+<rect x="76.00" y="623.50" width="7.80" height="8.45" fill="#a97d70"/>
+<rect x="83.50" y="623.50" width="7.80" height="8.45" fill="#b1785f"/>
+<rect x="91.00" y="623.50" width="7.80" height="8.45" fill="#e4b6a0"/>
+<rect x="98.50" y="623.50" width="7.80" height="8.45" fill="#e4b59f"/>
+<rect x="106.00" y="631.75" width="7.80" height="8.55" fill="#b49586"/>
+<rect x="113.50" y="623.50" width="7.80" height="8.45" fill="#a06545"/>
+<rect x="121.00" y="623.50" width="7.80" height="8.45" fill="#b7815d"/>
+<rect x="128.50" y="623.50" width="7.80" height="8.45" fill="#ca9d77"/>
+<rect x="136.00" y="623.50" width="7.80" height="8.45" fill="#9e6a4a"/>
+<rect x="143.50" y="623.50" width="7.80" height="8.45" fill="#9b6341"/>
+<rect x="151.00" y="623.50" width="7.80" height="8.45" fill="#89553b"/>
+<rect x="158.50" y="623.50" width="7.80" height="8.45" fill="#c47554"/>
+<rect x="166.00" y="623.50" width="7.80" height="8.45" fill="#a67d78"/>
+<rect x="173.50" y="623.50" width="7.80" height="8.45" fill="#7f5b59"/>
+<rect x="181.00" y="631.75" width="7.80" height="8.55" fill="#522c1d"/>
+<rect x="188.50" y="623.50" width="7.80" height="8.45" fill="#6f5355"/>
+<rect x="196.00" y="623.50" width="7.80" height="8.45" fill="#7a5c5d"/>
+<rect x="203.50" y="623.50" width="7.80" height="8.45" fill="#4f2d1f"/>
+<rect x="211.00" y="623.50" width="7.80" height="8.45" fill="#61351b"/>
+<rect x="218.50" y="623.50" width="7.80" height="8.45" fill="#67391c"/>
+<rect x="226.00" y="623.50" width="7.80" height="8.45" fill="#67391c"/>
+<rect x="233.50" y="623.50" width="7.80" height="8.45" fill="#62361b"/>
+<rect x="241.00" y="623.50" width="7.80" height="8.45" fill="#61351a"/>
+<path d="M252.25 623.5V640.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 623.5V640.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="635.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Adventure of a Lifetime     Coldplay             A Head Full of Dream   </text>
+<text x="803.50" y="635.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Uptown Funk         </text>
+<text x="1013.50" y="635.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:23</text>
+<path d="M1062.25 623.5V640.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="640.00" width="7.80" height="16.80" fill="#432112"/>
+<rect x="31.00" y="640.00" width="7.80" height="16.80" fill="#401f11"/>
+<rect x="38.50" y="640.00" width="7.80" height="16.80" fill="#482413"/>
+<rect x="46.00" y="640.00" width="7.80" height="16.80" fill="#3c1d10"/>
+<rect x="53.50" y="640.00" width="7.80" height="16.80" fill="#391a0f"/>
+<rect x="61.00" y="640.00" width="7.80" height="16.80" fill="#613421"/>
+<rect x="68.50" y="640.00" width="7.80" height="16.80" fill="#ad7b69"/>
+<rect x="76.00" y="640.00" width="7.80" height="16.80" fill="#8a5847"/>
+<rect x="83.50" y="640.00" width="7.80" height="16.80" fill="#572d1e"/>
+<rect x="91.00" y="640.00" width="7.80" height="16.80" fill="#c4906e"/>
+<rect x="98.50" y="640.00" width="7.80" height="16.80" fill="#ddbba2"/>
+<rect x="106.00" y="640.00" width="7.80" height="16.80" fill="#ba9377"/>
+<rect x="113.50" y="640.00" width="7.80" height="16.80" fill="#704731"/>
+<rect x="121.00" y="640.00" width="7.80" height="16.80" fill="#462315"/>
+<rect x="128.50" y="640.00" width="7.80" height="16.80" fill="#3a1c12"/>
+<rect x="136.00" y="640.00" width="7.80" height="16.80" fill="#3d2015"/>
+<rect x="143.50" y="640.00" width="7.80" height="16.80" fill="#301911"/>
+<rect x="151.00" y="640.00" width="7.80" height="16.80" fill="#2f160e"/>
+<rect x="158.50" y="640.00" width="7.80" height="16.80" fill="#411e14"/>
+<rect x="166.00" y="640.00" width="7.80" height="16.80" fill="#2f1811"/>
+<rect x="173.50" y="640.00" width="7.80" height="16.80" fill="#45271f"/>
+<rect x="181.00" y="640.00" width="7.80" height="16.80" fill="#552f22"/>
+<rect x="188.50" y="640.00" width="7.80" height="16.80" fill="#62423f"/>
+<rect x="196.00" y="640.00" width="7.80" height="16.80" fill="#684846"/>
+<rect x="203.50" y="640.00" width="7.80" height="16.80" fill="#341d15"/>
+<rect x="211.00" y="640.00" width="7.80" height="16.80" fill="#3d1e10"/>
+<rect x="218.50" y="640.00" width="7.80" height="16.80" fill="#3f2011"/>
+<rect x="226.00" y="640.00" width="7.80" height="16.80" fill="#381b0f"/>
+<rect x="233.50" y="640.00" width="7.80" height="16.80" fill="#3a1c0f"/>
+<rect x="241.00" y="640.00" width="7.80" height="16.80" fill="#3d1e0f"/>
+<path d="M19.75 640.0V656.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="640.00" width="7.80" height="8.45" fill="#492412"/>
+<rect x="31.00" y="640.00" width="7.80" height="8.45" fill="#462311"/>
+<rect x="38.50" y="640.00" width="7.80" height="8.45" fill="#512a15"/>
+<rect x="46.00" y="640.00" width="7.80" height="8.45" fill="#472412"/>
+<rect x="53.50" y="640.00" width="7.80" height="8.45" fill="#3f1f10"/>
+<rect x="61.00" y="640.00" width="7.80" height="8.45" fill="#633623"/>
+<rect x="68.50" y="648.25" width="7.80" height="8.55" fill="#b4816a"/>
+<rect x="76.00" y="640.00" width="7.80" height="8.45" fill="#996a59"/>
+<rect x="83.50" y="640.00" width="7.80" height="8.45" fill="#885846"/>
+<rect x="91.00" y="640.00" width="7.80" height="8.45" fill="#d39b77"/>
+<rect x="98.50" y="640.00" width="7.80" height="8.45" fill="#e4bda5"/>
+<rect x="106.00" y="640.00" width="7.80" height="8.45" fill="#bf9e8a"/>
+<rect x="113.50" y="648.25" width="7.80" height="8.55" fill="#8c5d3d"/>
+<rect x="121.00" y="648.25" width="7.80" height="8.55" fill="#513120"/>
+<rect x="128.50" y="640.00" width="7.80" height="8.45" fill="#70442c"/>
+<rect x="136.00" y="640.00" width="7.80" height="8.45" fill="#a1704d"/>
+<rect x="143.50" y="640.00" width="7.80" height="8.45" fill="#573524"/>
+<rect x="151.00" y="640.00" width="7.80" height="8.45" fill="#391b12"/>
+<rect x="158.50" y="640.00" width="7.80" height="8.45" fill="#5c2c1b"/>
+<rect x="166.00" y="640.00" width="7.80" height="8.45" fill="#603729"/>
+<rect x="173.50" y="640.00" width="7.80" height="8.45" fill="#6d453e"/>
+<rect x="181.00" y="640.00" width="7.80" height="8.45" fill="#5e3625"/>
+<rect x="188.50" y="648.25" width="7.80" height="8.55" fill="#65433f"/>
+<rect x="196.00" y="640.00" width="7.80" height="8.45" fill="#6b4d4e"/>
+<rect x="203.50" y="640.00" width="7.80" height="8.45" fill="#3a221a"/>
+<rect x="211.00" y="640.00" width="7.80" height="8.45" fill="#452412"/>
+<rect x="218.50" y="640.00" width="7.80" height="8.45" fill="#4c2814"/>
+<rect x="226.00" y="640.00" width="7.80" height="8.45" fill="#492613"/>
+<rect x="233.50" y="640.00" width="7.80" height="8.45" fill="#462412"/>
+<rect x="241.00" y="640.00" width="7.80" height="8.45" fill="#452411"/>
+<path d="M252.25 640.0V656.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 640.0V656.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="652.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Livin' On A Prayer          Bon Jovi             Slippery When Wet (D   </text>
+<text x="803.50" y="652.00" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">like Queen                  </text>
+<text x="1013.50" y="652.00" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:10</text>
+<path d="M1062.25 640.0V656.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="23.50" y="656.50" width="7.80" height="16.80" fill="#3c1c10"/>
+<rect x="31.00" y="656.50" width="7.80" height="16.80" fill="#411f12"/>
+<rect x="38.50" y="656.50" width="7.80" height="16.80" fill="#37190f"/>
+<rect x="46.00" y="656.50" width="7.80" height="16.80" fill="#35190e"/>
+<rect x="53.50" y="656.50" width="7.80" height="16.80" fill="#33180e"/>
+<rect x="61.00" y="656.50" width="7.80" height="16.80" fill="#512615"/>
+<rect x="68.50" y="656.50" width="7.80" height="16.80" fill="#692d1b"/>
+<rect x="76.00" y="656.50" width="7.80" height="16.80" fill="#82341d"/>
+<rect x="83.50" y="656.50" width="7.80" height="16.80" fill="#5a2f1d"/>
+<rect x="91.00" y="656.50" width="7.80" height="16.80" fill="#c08c6e"/>
+<rect x="98.50" y="656.50" width="7.80" height="16.80" fill="#d09e7b"/>
+<rect x="106.00" y="656.50" width="7.80" height="16.80" fill="#874c2e"/>
+<rect x="113.50" y="656.50" width="7.80" height="16.80" fill="#804a2b"/>
+<rect x="121.00" y="656.50" width="7.80" height="16.80" fill="#673921"/>
+<rect x="128.50" y="656.50" width="7.80" height="16.80" fill="#5e321d"/>
+<rect x="136.00" y="656.50" width="7.80" height="16.80" fill="#3a1e12"/>
+<rect x="143.50" y="656.50" width="7.80" height="16.80" fill="#774728"/>
+<rect x="151.00" y="656.50" width="7.80" height="16.80" fill="#6a371f"/>
+<rect x="158.50" y="656.50" width="7.80" height="16.80" fill="#6f301c"/>
+<rect x="166.00" y="656.50" width="7.80" height="16.80" fill="#6c3922"/>
+<rect x="173.50" y="656.50" width="7.80" height="16.80" fill="#532c1c"/>
+<rect x="181.00" y="656.50" width="7.80" height="16.80" fill="#814b35"/>
+<rect x="188.50" y="656.50" width="7.80" height="16.80" fill="#7c4b39"/>
+<rect x="196.00" y="656.50" width="7.80" height="16.80" fill="#69443c"/>
+<rect x="203.50" y="656.50" width="7.80" height="16.80" fill="#2e170f"/>
+<rect x="211.00" y="656.50" width="7.80" height="16.80" fill="#31180e"/>
+<rect x="218.50" y="656.50" width="7.80" height="16.80" fill="#30170e"/>
+<rect x="226.00" y="656.50" width="7.80" height="16.80" fill="#27130d"/>
+<rect x="233.50" y="656.50" width="7.80" height="16.80" fill="#2a140d"/>
+<rect x="241.00" y="656.50" width="7.80" height="16.80" fill="#2c150d"/>
+<path d="M19.75 656.5V673.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<rect x="23.50" y="656.50" width="7.80" height="8.45" fill="#492414"/>
+<rect x="31.00" y="656.50" width="7.80" height="8.45" fill="#452113"/>
+<rect x="38.50" y="656.50" width="7.80" height="8.45" fill="#3b1c10"/>
+<rect x="46.00" y="664.75" width="7.80" height="8.55" fill="#36190f"/>
+<rect x="53.50" y="664.75" width="7.80" height="8.55" fill="#3a1b10"/>
+<rect x="61.00" y="656.50" width="7.80" height="8.45" fill="#572d1b"/>
+<rect x="68.50" y="656.50" width="7.80" height="8.45" fill="#a86f54"/>
+<rect x="76.00" y="656.50" width="7.80" height="8.45" fill="#8d4a33"/>
+<rect x="83.50" y="664.75" width="7.80" height="8.55" fill="#5c2f1e"/>
+<rect x="91.00" y="656.50" width="7.80" height="8.45" fill="#c99e80"/>
+<rect x="98.50" y="656.50" width="7.80" height="8.45" fill="#d2a98c"/>
+<rect x="106.00" y="656.50" width="7.80" height="8.45" fill="#9e6849"/>
+<rect x="113.50" y="656.50" width="7.80" height="8.45" fill="#864e2d"/>
+<rect x="121.00" y="656.50" width="7.80" height="8.45" fill="#754527"/>
+<rect x="128.50" y="656.50" width="7.80" height="8.45" fill="#693e23"/>
+<rect x="136.00" y="664.75" width="7.80" height="8.55" fill="#3b1e12"/>
+<rect x="143.50" y="656.50" width="7.80" height="8.45" fill="#764d2c"/>
+<rect x="151.00" y="664.75" width="7.80" height="8.55" fill="#8c4426"/>
+<rect x="158.50" y="664.75" width="7.80" height="8.55" fill="#84371f"/>
+<rect x="166.00" y="664.75" width="7.80" height="8.55" fill="#814225"/>
+<rect x="173.50" y="664.75" width="7.80" height="8.55" fill="#884c2d"/>
+<rect x="181.00" y="664.75" width="7.80" height="8.55" fill="#965d3f"/>
+<rect x="188.50" y="664.75" width="7.80" height="8.55" fill="#ac6b43"/>
+<rect x="196.00" y="664.75" width="7.80" height="8.55" fill="#865032"/>
+<rect x="203.50" y="656.50" width="7.80" height="8.45" fill="#301911"/>
+<rect x="211.00" y="656.50" width="7.80" height="8.45" fill="#351a0f"/>
+<rect x="218.50" y="656.50" width="7.80" height="8.45" fill="#341a0f"/>
+<rect x="226.00" y="656.50" width="7.80" height="8.45" fill="#2d150d"/>
+<rect x="233.50" y="656.50" width="7.80" height="8.45" fill="#2e150d"/>
+<rect x="241.00" y="656.50" width="7.80" height="8.45" fill="#32170d"/>
+<path d="M252.25 656.5V673.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 656.5V673.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<text x="263.50" y="668.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="540.00" lengthAdjust="spacingAndGlyphs">Part-Time Lover             Stevie Wonder        In Square Circle       </text>
+<text x="803.50" y="668.50" font-size="12.5" font-weight="400" fill="#cc99cc" text-anchor="start" xml:space="preserve" textLength="210.00" lengthAdjust="spacingAndGlyphs">radio · Le Freak            </text>
+<text x="1013.50" y="668.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs">  4:12</text>
+<path d="M1062.25 656.5V673.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M19.75 673.0V678.25Q19.75 681.25 22.75 681.25H23.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M23.5 681.25H31.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M31.0 681.25H38.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M38.5 681.25H46.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M46.0 681.25H53.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M53.5 681.25H61.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M61.0 681.25H68.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M68.5 681.25H76.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M76.0 681.25H83.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M83.5 681.25H91.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M91.0 681.25H98.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M98.5 681.25H106.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M106.0 681.25H113.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M113.5 681.25H121.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M121.0 681.25H128.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M128.5 681.25H136.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M136.0 681.25H143.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M143.5 681.25H151.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M151.0 681.25H158.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M158.5 681.25H166.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M166.0 681.25H173.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M173.5 681.25H181.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M181.0 681.25H188.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M188.5 681.25H196.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M196.0 681.25H203.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M203.5 681.25H211.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M211.0 681.25H218.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M218.5 681.25H226.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M226.0 681.25H233.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M233.5 681.25H241.0" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M241.0 681.25H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M252.25 673.0V678.25Q252.25 681.25 249.25 681.25H248.5" fill="none" stroke="#7c7c7d" stroke-width="1.1"/>
+<path d="M259.75 673.0V678.25Q259.75 681.25 262.75 681.25H263.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M263.5 681.25H271.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M271.0 681.25H278.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M278.5 681.25H286.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M286.0 681.25H293.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M293.5 681.25H301.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M301.0 681.25H308.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M308.5 681.25H316.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M316.0 681.25H323.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M323.5 681.25H331.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M331.0 681.25H338.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M338.5 681.25H346.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M346.0 681.25H353.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M353.5 681.25H361.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M361.0 681.25H368.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M368.5 681.25H376.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M376.0 681.25H383.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M383.5 681.25H391.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M391.0 681.25H398.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M398.5 681.25H406.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M406.0 681.25H413.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M413.5 681.25H421.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M421.0 681.25H428.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M428.5 681.25H436.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M436.0 681.25H443.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M443.5 681.25H451.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M451.0 681.25H458.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M458.5 681.25H466.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M466.0 681.25H473.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M473.5 681.25H481.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M481.0 681.25H488.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M488.5 681.25H496.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M496.0 681.25H503.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M503.5 681.25H511.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M511.0 681.25H518.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M518.5 681.25H526.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M526.0 681.25H533.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M533.5 681.25H541.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M541.0 681.25H548.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M548.5 681.25H556.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M556.0 681.25H563.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M563.5 681.25H571.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M571.0 681.25H578.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M578.5 681.25H586.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M586.0 681.25H593.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M593.5 681.25H601.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M601.0 681.25H608.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M608.5 681.25H616.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M616.0 681.25H623.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M623.5 681.25H631.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M631.0 681.25H638.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M638.5 681.25H646.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M646.0 681.25H653.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M653.5 681.25H661.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M661.0 681.25H668.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M668.5 681.25H676.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M676.0 681.25H683.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M683.5 681.25H691.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M691.0 681.25H698.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M698.5 681.25H706.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M706.0 681.25H713.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M713.5 681.25H721.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M721.0 681.25H728.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M728.5 681.25H736.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M736.0 681.25H743.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M743.5 681.25H751.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M751.0 681.25H758.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M758.5 681.25H766.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M766.0 681.25H773.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M773.5 681.25H781.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M781.0 681.25H788.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M788.5 681.25H796.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M796.0 681.25H803.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M803.5 681.25H811.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M811.0 681.25H818.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M818.5 681.25H826.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M826.0 681.25H833.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M833.5 681.25H841.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M841.0 681.25H848.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M848.5 681.25H856.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M856.0 681.25H863.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M863.5 681.25H871.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M871.0 681.25H878.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M878.5 681.25H886.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M886.0 681.25H893.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M893.5 681.25H901.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M901.0 681.25H908.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M908.5 681.25H916.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M916.0 681.25H923.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M923.5 681.25H931.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M931.0 681.25H938.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M938.5 681.25H946.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M946.0 681.25H953.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M953.5 681.25H961.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M961.0 681.25H968.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M968.5 681.25H976.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M976.0 681.25H983.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M983.5 681.25H991.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M991.0 681.25H998.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M998.5 681.25H1006.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1006.0 681.25H1013.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1013.5 681.25H1021.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1021.0 681.25H1028.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1028.5 681.25H1036.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1036.0 681.25H1043.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1043.5 681.25H1051.0" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1051.0 681.25H1058.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<path d="M1062.25 673.0V678.25Q1062.25 681.25 1059.25 681.25H1058.5" fill="none" stroke="#1ed760" stroke-width="1.1"/>
+<rect x="991.00" y="689.50" width="52.80" height="16.80" fill="#1ed760"/>
+<rect x="25.00" y="693.50" width="1.80" height="8.50" fill="#d4d4d4"/>
+<rect x="28.10" y="693.50" width="1.80" height="8.50" fill="#d4d4d4"/>
+<text x="31.00" y="701.50" font-size="12.5" font-weight="600" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="105.00" lengthAdjust="spacingAndGlyphs"> Dancing Queen</text>
+<text x="151.00" y="701.50" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="30.00" lengthAdjust="spacingAndGlyphs">ABBA</text>
+<text x="848.50" y="701.50" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="142.50" lengthAdjust="spacingAndGlyphs">xfade 5s  vol 65%  </text>
+<text x="991.00" y="701.50" font-size="12.5" font-weight="600" fill="#1e1e1e" text-anchor="start" xml:space="preserve" textLength="52.50" lengthAdjust="spacingAndGlyphs"> ⇄✦  ↻ </text>
+<text x="1043.50" y="701.50" font-size="12.5" font-weight="400" fill="#6b6b6b" text-anchor="start" xml:space="preserve" textLength="15.00" lengthAdjust="spacingAndGlyphs"> ⊘</text>
+<rect x="61.00" y="706.00" width="960.30" height="16.80" fill="#37373c"/>
+<text x="16.00" y="718.00" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="45.00" lengthAdjust="spacingAndGlyphs"> 0:00 </text>
+<text x="1021.00" y="718.00" font-size="12.5" font-weight="400" fill="#7c7c7d" text-anchor="start" xml:space="preserve" textLength="37.50" lengthAdjust="spacingAndGlyphs"> 3:50</text>
+<text x="16.00" y="734.50" font-size="12.5" font-weight="400" fill="#d4d4d4" text-anchor="start" xml:space="preserve" textLength="1050.00" lengthAdjust="spacingAndGlyphs"> For You: 50 songs from what you play, worked out here. X: not interested · R: new picks                                                    </text>
+</svg>
