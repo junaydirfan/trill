@@ -33,7 +33,7 @@ pub enum Msg {
     /// Every liked track, saved album and followed artist (for the ♥ markers and `f`).
     Liked(Result<HashSet<String>, String>),
     /// `P`: every track in the open list, ready to play.
-    PlayAll(Vec<Row>),
+    PlayAll(Result<Vec<Row>, String>),
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
     Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
@@ -260,9 +260,10 @@ pub struct App {
     pub quit: bool,
 
     // playback
+    /// The list playing. `order` indexes `ctx` and then `recs` (see [`App::at`]).
     ctx: Rows,
-    /// ctx[..base] is the list; ctx[base..] are smart-shuffle recommendations.
-    base: usize,
+    /// Smart-shuffle recommendations, kept apart so a big list isn't copied to add them.
+    recs: Vec<Row>,
     /// The list the playing context came from (uri, title), for `w`.
     ctx_src: (String, String),
     /// `w` opened that list: select the playing song once it's shown.
@@ -392,7 +393,7 @@ impl App {
             loading: false,
             quit: false,
             ctx: Arc::new(Vec::new()),
-            base: 0,
+            recs: Vec::new(),
             ctx_src: (String::new(), String::new()),
             jump: false,
             order: Vec::new(),
@@ -528,7 +529,7 @@ impl App {
             return;
         }
         let (uri, title) = self.ctx_src.clone();
-        if !self.now.as_ref().is_some_and(|n| self.ctx[..self.base].iter().any(|r| r.uri == n.uri)) {
+        if !self.now.as_ref().is_some_and(|n| self.ctx.iter().any(|r| r.uri == n.uri)) {
             // A recommendation, or a song started elsewhere: it's in no list we know of.
             self.show_now_in_queue();
             return;
@@ -622,7 +623,7 @@ impl App {
         }
         let start = if self.now.is_some() { self.cursor + 1 } else { self.cursor };
         for p in start..(start + 100).min(self.order.len()) {
-            rows.push(self.ctx[self.order[p]].clone());
+            rows.push(self.at(self.order[p]).clone());
             self.queue_src.push(QSrc::Upcoming(p));
         }
         self.show("trill:queue".into(), format!("Queue — {} manual, {} upcoming", self.queue.len(), rows.len().saturating_sub(self.queue.len() + self.now.is_some() as usize)), Arc::new(rows));
@@ -670,7 +671,9 @@ impl App {
                             self.replace_view_rows(rows);
                         }
                     }
-                    Err(e) if is_current => self.status = format!("Couldn't load {title}: {e}"),
+                    Err(e) if is_current => self.status = format!("Couldn't load {title}: {e}  (R to retry)"),
+                    // the copy on screen came from disk and stays
+                    Err(e) if self.view.uri == uri => self.status = format!("{title}: saved copy, couldn't refresh it: {e}"),
                     Err(_) => {}
                 }
                 if is_current {
@@ -734,7 +737,7 @@ impl App {
 
     /// Rebuild `order`, keeping the current track at the cursor.
     fn reorder(&mut self, keep: Option<usize>) {
-        self.order = (0..self.base).collect();
+        self.order = (0..self.ctx.len()).collect();
         if self.shuffle {
             for i in (1..self.order.len()).rev() {
                 let j = (self.rand() % (i as u64 + 1)) as usize;
@@ -754,13 +757,19 @@ impl App {
     /// Smart shuffle: one recommendation after every 3 songs still to come.
     fn weave(&mut self) {
         if self.smart {
-            weave(&mut self.order, self.cursor + 1, self.base..self.ctx.len());
+            let n = self.ctx.len();
+            weave(&mut self.order, self.cursor + 1, n..n + self.recs.len());
         }
     }
 
     /// Whether `uri` is playing as a smart-shuffle recommendation (shown with ✦).
     pub fn is_rec(&self, uri: &str) -> bool {
-        self.ctx[self.base..].iter().any(|r| r.uri == uri)
+        self.recs.iter().any(|r| r.uri == uri)
+    }
+
+    /// Entry `i` of the play order's index space: the list, then the recommendations.
+    fn at(&self, i: usize) -> &Row {
+        self.ctx.get(i).unwrap_or_else(|| &self.recs[i - self.ctx.len()])
     }
 
     fn fetch_recs(&self) {
@@ -795,10 +804,10 @@ impl App {
         let pos = if tracks.get(before).map(|r| &r.uri) == Some(target) { before } else { 0 };
         self.ctx = if tracks.len() == rows.len() { rows.clone() } else { Arc::new(tracks) };
         self.ctx_src = (self.view.uri.clone(), self.view.title.clone());
-        self.base = self.ctx.len();
+        self.recs.clear();
         self.reorder(Some(pos));
         self.skips = 0;
-        let row = self.ctx[self.order[self.cursor]].clone();
+        let row = self.at(self.order[self.cursor]).clone();
         self.load(row);
         if self.smart {
             self.fetch_recs();
@@ -814,9 +823,9 @@ impl App {
         }
         let p = self.cursor + 1;
         if p < self.order.len() {
-            Some(self.ctx[self.order[p]].clone())
+            Some(self.at(self.order[p]).clone())
         } else if self.repeat == Repeat::All && !self.order.is_empty() {
-            Some(self.ctx[self.order[0]].clone())
+            Some(self.at(self.order[0]).clone())
         } else {
             None
         }
@@ -842,7 +851,7 @@ impl App {
             self.status = "End of list".into();
             return None;
         }
-        Some(self.ctx[self.order[self.cursor]].clone())
+        Some(self.at(self.order[self.cursor]).clone())
     }
 
     fn next(&mut self, auto: bool) {
@@ -872,7 +881,7 @@ impl App {
         } else if self.repeat == Repeat::All {
             self.cursor = self.order.len() - 1;
         }
-        let row = self.ctx[self.order[self.cursor]].clone();
+        let row = self.at(self.order[self.cursor]).clone();
         self.load(row);
     }
 
@@ -1315,10 +1324,10 @@ impl App {
         (self.shuffle, self.smart) = (on, on && smart);
         self.save_prefs();
         // A playing recommendation isn't in the list's order: carry on after the list song before it.
-        let cur = self.order.get(..=self.cursor).and_then(|o| o.iter().rev().find(|&&c| c < self.base).copied());
+        let cur = self.order.get(..=self.cursor).and_then(|o| o.iter().rev().find(|&&c| c < self.ctx.len()).copied());
         self.reorder(cur);
         self.weave();
-        if self.smart && self.ctx.len() == self.base && !self.ctx.is_empty() {
+        if self.smart && self.recs.is_empty() && !self.ctx.is_empty() {
             self.fetch_recs();
         }
         self.refresh_queue_view();
@@ -1345,7 +1354,7 @@ impl App {
                 }
                 Some(QSrc::Upcoming(p)) if p < self.order.len() => {
                     self.cursor = p;
-                    let r = self.ctx[self.order[p]].clone();
+                    let r = self.at(self.order[p]).clone();
                     self.load(r);
                 }
                 _ => {}

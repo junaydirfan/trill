@@ -270,12 +270,11 @@ pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<CtxTrack>> 
         if out.len() >= MAX_TRACKS {
             break;
         }
+        // A page that fails (librespot has retried it already) fails the whole list: a
+        // shortened one would replace the full copy on screen and on disk.
         if page.tracks.is_empty() && !page.page_url().is_empty() && fetched < MAX_PAGES {
             fetched += 1;
-            match fetch_page(session, page.page_url()).await {
-                Ok(p) => page = p,
-                Err(_) => continue,
-            }
+            page = fetch_page(session, page.page_url()).await?;
         }
         for t in &page.tracks {
             let u = t.uri();
@@ -291,9 +290,7 @@ pub async fn context_tracks(session: &Session, uri: &str) -> Res<Vec<CtxTrack>> 
         }
         if !page.next_page_url().is_empty() && fetched < MAX_PAGES {
             fetched += 1;
-            if let Ok(p) = fetch_page(session, page.next_page_url()).await {
-                pages.push_front(p);
-            }
+            pages.push_front(fetch_page(session, page.next_page_url()).await?);
         }
     }
     out.truncate(MAX_TRACKS);
@@ -346,7 +343,8 @@ fn track_row(uri: &str, t: &PTrack) -> Row {
 }
 
 /// Batched extended-metadata of one kind: the raw proto per uri (missing ones left out).
-async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> HashMap<String, Vec<u8>> {
+/// A failed request is an error, not an empty answer, so it can't quietly drop songs from a list.
+async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> Res<HashMap<String, Vec<u8>>> {
     let req = BatchedEntityRequest {
         entity_request: uris
             .iter()
@@ -359,9 +357,7 @@ async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> Ha
         ..Default::default()
     };
     let mut map = HashMap::with_capacity(uris.len());
-    let Ok(resp) = session.spclient().get_extended_metadata(req).await else {
-        return map;
-    };
+    let resp = session.spclient().get_extended_metadata(req).await.map_err(e)?;
     for arr in resp.extended_metadata {
         for d in arr.extension_data {
             if let Some(any) = d.extension_data.into_option() {
@@ -369,7 +365,7 @@ async fn ext_meta(session: &Session, uris: &[String], kind: ExtensionKind) -> Ha
             }
         }
     }
-    map
+    Ok(map)
 }
 
 /// Spotify's web-player GraphQL ("pathfinder"), the only place play counts come from.
@@ -452,18 +448,18 @@ fn set_plays(rows: &mut [Row], plays: &HashMap<String, u64>) {
     }
 }
 
-async fn metadata_chunk(session: Session, uris: Vec<String>) -> HashMap<String, Row> {
-    ext_meta(&session, &uris, ExtensionKind::TRACK_V4)
-        .await
+async fn metadata_chunk(session: Session, uris: Vec<String>) -> Res<HashMap<String, Row>> {
+    Ok(ext_meta(&session, &uris, ExtensionKind::TRACK_V4)
+        .await?
         .into_iter()
         .filter_map(|(u, b)| PTrack::parse_from_bytes(&b).ok().map(|t| (u.clone(), track_row(&u, &t))))
-        .collect()
+        .collect())
 }
 
 /// Where a song lives: its album (uri, "Album — Artist") or, with `artist`, its first
 /// artist (uri, name).
 pub async fn track_home(session: &Session, uri: &str, artist: bool) -> Res<(String, String)> {
-    let bytes = ext_meta(session, &[uri.to_string()], ExtensionKind::TRACK_V4).await.remove(uri).ok_or("Spotify has no details for this song")?;
+    let bytes = ext_meta(session, &[uri.to_string()], ExtensionKind::TRACK_V4).await?.remove(uri).ok_or("Spotify has no details for this song")?;
     let t = PTrack::parse_from_bytes(&bytes).map_err(e)?;
     let first = t.artist.first();
     if artist {
@@ -482,8 +478,8 @@ fn gid_uri(kind: &str, gid: &[u8]) -> Option<String> {
 }
 
 /// Metadata of one kind for many uris, 300 per request with 16 in flight; parsed in order.
-async fn entities<T: Message>(session: &Session, uris: &[String], kind: ExtensionKind) -> Vec<(String, T)> {
-    let maps: Vec<HashMap<String, Vec<u8>>> =
+async fn entities<T: Message>(session: &Session, uris: &[String], kind: ExtensionKind) -> Res<Vec<(String, T)>> {
+    let maps: Vec<Res<HashMap<String, Vec<u8>>>> =
         stream::iter(uris.chunks(META_CHUNK).map(<[String]>::to_vec))
             .map(|c| {
                 let s = session.clone();
@@ -492,8 +488,11 @@ async fn entities<T: Message>(session: &Session, uris: &[String], kind: Extensio
             .buffered(16)
             .collect()
             .await;
-    let mut all: HashMap<String, Vec<u8>> = maps.into_iter().flatten().collect();
-    uris.iter().filter_map(|u| Some((u.clone(), T::parse_from_bytes(&all.remove(u)?).ok()?))).collect()
+    let mut all = HashMap::new();
+    for m in maps {
+        all.extend(m?);
+    }
+    Ok(uris.iter().filter_map(|u| Some((u.clone(), T::parse_from_bytes(&all.remove(u)?).ok()?))).collect())
 }
 
 fn album_row(uri: String, a: &PAlbum) -> Row {
@@ -520,14 +519,14 @@ fn album_row(uri: String, a: &PAlbum) -> Row {
 }
 
 /// Album rows in the given order (name, artists, "2021 · single" in the album column).
-pub async fn album_rows(session: &Session, uris: &[String]) -> Vec<Row> {
-    entities::<PAlbum>(session, uris, ExtensionKind::ALBUM_V4).await.into_iter().map(|(u, a)| album_row(u, &a)).collect()
+pub async fn album_rows(session: &Session, uris: &[String]) -> Res<Vec<Row>> {
+    Ok(entities::<PAlbum>(session, uris, ExtensionKind::ALBUM_V4).await?.into_iter().map(|(u, a)| album_row(u, &a)).collect())
 }
 
 /// An artist's page: top tracks, then albums, singles and compilations, newest first as
 /// Spotify lists them. Two metadata requests in parallel, after the artist's own.
 pub async fn artist_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
-    let raw = ext_meta(session, &[uri.to_string()], ExtensionKind::ARTIST_V4).await.remove(uri).ok_or("artist not found")?;
+    let raw = ext_meta(session, &[uri.to_string()], ExtensionKind::ARTIST_V4).await?.remove(uri).ok_or("artist not found")?;
     let a = PArtist::parse_from_bytes(&raw).map_err(e)?;
     let country = session.country();
     let top: Vec<String> = a
@@ -544,24 +543,25 @@ pub async fn artist_rows(session: &Session, uri: &str) -> Res<Vec<Row>> {
         .filter_map(|g| g.album.first())
         .filter_map(|al| gid_uri("album", al.gid()))
         .collect();
-    let (mut rows, albums, plays) = tokio::join!(track_rows(session, top), album_rows(session, &releases), play_counts(session, uri));
+    let (rows, albums, plays) = tokio::join!(track_rows(session, top), album_rows(session, &releases), play_counts(session, uri));
+    let mut rows = rows?;
     set_plays(&mut rows, &plays);
-    rows.extend(albums);
+    rows.extend(albums?);
     Ok(rows)
 }
 
 /// Every track in a list, in order: tracks as they are, albums and playlists opened
 /// (8 at a time), duplicates dropped. Plays an artist's whole discography.
-pub async fn expand(session: &Session, rows: &[Row]) -> Vec<Row> {
+pub async fn expand(session: &Session, rows: &[Row]) -> Res<Vec<Row>> {
     let items: Vec<(Kind, String)> = rows.iter().map(|r| (r.kind, r.uri.clone())).collect();
-    let lists: Vec<Vec<String>> = stream::iter(items)
+    let lists: Vec<Res<Vec<String>>> = stream::iter(items)
         .map(|(kind, uri)| {
             let s = session.clone();
             async move {
                 match kind {
-                    Kind::Track => vec![uri],
-                    Kind::Album | Kind::Playlist => context_track_uris(&s, &uri).await.unwrap_or_default(),
-                    Kind::Artist => Vec::new(),
+                    Kind::Track => Ok(vec![uri]),
+                    Kind::Album | Kind::Playlist => context_track_uris(&s, &uri).await,
+                    Kind::Artist => Ok(Vec::new()),
                 }
             }
         })
@@ -569,7 +569,11 @@ pub async fn expand(session: &Session, rows: &[Row]) -> Vec<Row> {
         .collect()
         .await;
     let mut seen = std::collections::HashSet::new();
-    let uris: Vec<String> = lists.into_iter().flatten().filter(|u| seen.insert(u.clone())).take(MAX_TRACKS).collect();
+    let mut uris = Vec::new();
+    for list in lists {
+        uris.extend(list?.into_iter().filter(|u| seen.insert(u.clone())));
+    }
+    uris.truncate(MAX_TRACKS);
     track_rows(session, uris).await
 }
 
@@ -577,7 +581,7 @@ pub async fn expand(session: &Session, rows: &[Row]) -> Vec<Row> {
 async fn followed_artist_rows(session: &Session) -> Res<Vec<Row>> {
     let uris = crate::library::collection(session, "artist").await?;
     Ok(entities::<PArtist>(session, &uris, ExtensionKind::ARTIST_V4)
-        .await
+        .await?
         .into_iter()
         .map(|(uri, a)| artist_row(uri, a.name()))
         .collect())
@@ -598,10 +602,10 @@ fn artist_row(uri: String, name: &str) -> Row {
     }
 }
 
-/// Turn track URIs into display rows, keeping order. Batched + 4 requests in flight.
-pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
+/// Turn track URIs into display rows, keeping order. Batched, 16 requests in flight.
+pub async fn track_rows(session: &Session, uris: Vec<String>) -> Res<Vec<Row>> {
     let chunks: Vec<Vec<String>> = uris.chunks(META_CHUNK).map(<[String]>::to_vec).collect();
-    let maps: Vec<HashMap<String, Row>> = stream::iter(chunks)
+    let maps: Vec<Res<HashMap<String, Row>>> = stream::iter(chunks)
         .map(|c| metadata_chunk(session.clone(), c))
         .buffered(16)
         .collect()
@@ -609,7 +613,7 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
     let mut rows = Vec::with_capacity(uris.len());
     let mut maps = maps.into_iter();
     for chunk in uris.chunks(META_CHUNK) {
-        let map = maps.next().unwrap_or_default();
+        let map = maps.next().transpose()?.unwrap_or_default();
         for u in chunk {
             // tracks with no metadata are region-locked/removed; drop them
             if let Some(r) = map.get(u) {
@@ -617,7 +621,7 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Vec<Row> {
             }
         }
     }
-    rows
+    Ok(rows)
 }
 
 /// Songs Spotify recommends for a list (its radio station), for smart shuffle. Seeded by
@@ -635,7 +639,7 @@ pub async fn recommendations(session: &Session, list: &str, track: &str) -> Vec<
     if uris.is_empty() {
         uris = station(session, track).await;
     }
-    track_rows(session, uris).await
+    track_rows(session, uris).await.unwrap_or_default()
 }
 
 fn station_uris(v: &Value) -> Vec<String> {
@@ -655,7 +659,7 @@ pub async fn context_rows(session: &Session, uri: &str, known: &[Row]) -> Res<Ve
     if uri == SAVED_ALBUMS {
         let uris: Vec<String> =
             crate::library::collection(session, "collection").await?.into_iter().filter(|u| u.starts_with("spotify:album:")).collect();
-        return Ok(album_rows(session, &uris).await);
+        return album_rows(session, &uris).await;
     }
     if uri == FOLLOWED_ARTISTS {
         return followed_artist_rows(session).await;
@@ -668,7 +672,7 @@ pub async fn context_rows(session: &Session, uri: &str, known: &[Row]) -> Res<Ve
     let have: HashMap<&str, &Row> = known.iter().filter(|r| r.kind == Kind::Track).map(|r| (r.uri.as_str(), r)).collect();
     let mut missing: Vec<String> = tracks.iter().filter(|t| !have.contains_key(t.uri.as_str())).map(|t| t.uri.clone()).collect();
     missing.dedup();
-    let fetched: HashMap<String, Row> = track_rows(session, missing).await.into_iter().map(|r| (r.uri.clone(), r)).collect();
+    let fetched: HashMap<String, Row> = track_rows(session, missing).await?.into_iter().map(|r| (r.uri.clone(), r)).collect();
     // tracks with no metadata are region-locked/removed; they stay dropped
     let mut rows: Vec<Row> = tracks
         .into_iter()
@@ -921,7 +925,7 @@ async fn rich_search(session: &Session, own: Option<Arc<Mutex<WebToken>>>, q: &s
 async fn basic_search(session: &Session, q: &str) -> Res<Vec<Row>> {
     let mut uris = context_track_uris(session, &format!("spotify:search:{}", pct(q))).await?;
     uris.truncate(50);
-    let tracks = entities::<PTrack>(session, &uris, ExtensionKind::TRACK_V4).await;
+    let tracks = entities::<PTrack>(session, &uris, ExtensionKind::TRACK_V4).await?;
     Ok(search_rows(&tracks))
 }
 
