@@ -186,7 +186,7 @@ pub fn draw_splash(f: &mut Frame, playlists: &[String]) {
         }
         None => side,
     };
-    let fixed = ["♥ Liked Songs", "≡ Queue", "⌕ Search"];
+    let fixed = ["♥ Liked Songs", "◉ Albums", "◈ Artists", "✦ For You", "≡ Queue", "⌕ Search"]; // as App::new lists them
     let items: Vec<ListItem> = fixed.iter().copied().chain(playlists.iter().map(String::as_str)).map(ListItem::new).collect();
     f.render_widget(List::new(items).block(block("Library", false)), side);
     f.render_widget(Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim()).title(" trill "), main);
@@ -319,7 +319,7 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         (show_album, Constraint::Length(album_w), Line::from("Album")),
         (true, Constraint::Fill(1), Line::default()),
         (show_added, Constraint::Length(10), Line::from("Added")),
-        (for_w > 0, Constraint::Length(for_w.max(3)), Line::from("For")),
+        (for_w > 0, Constraint::Length(for_w.max(3)), Line::from(if app.view.uri == crate::discover::FOR_YOU { "Why" } else { "For" })),
         (plays_w > 0, Constraint::Length(plays_w.max(5)), Line::from("Plays").right_aligned()),
         (true, Constraint::Length(time_w), Line::from("Time").right_aligned()),
     ] {
@@ -538,6 +538,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("D D", "remove from the playlist · queue"),
         ("y  Y", "copy link: highlighted · open list"),
         ("I", "private session ⊘ on / off (6 h)"),
+        ("X", "not interested (For You, ✦ songs)"),
     ]),
     ("Browse", &[
         ("↑↓  jk", "move (PgUp/PgDn, g/G jump)"),
@@ -552,8 +553,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("R", "reload the current list"),
     ]),
     ("View", &[
-        ("L", "lyrics"),
-        ("i  t", "album art on / off · next theme"),
+        ("L  i  t", "lyrics · album art · next theme"),
         ("e  E", "next EQ preset / EQ panel"),
         ("?  q", "this help · quit (also Ctrl-C)"),
     ]),

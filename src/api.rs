@@ -627,19 +627,53 @@ pub async fn track_rows(session: &Session, uris: Vec<String>) -> Res<Vec<Row>> {
 /// Songs Spotify recommends for a list (its radio station), for smart shuffle. Seeded by
 /// the list (playlists, albums, artists), else by `track` (Liked Songs, search). Up to 50.
 pub async fn recommendations(session: &Session, list: &str, track: &str) -> Vec<Row> {
-    async fn station(session: &Session, seed: &str) -> Vec<String> {
-        let scope = if seed.starts_with("spotify:track:") { "tracks" } else { "stations" };
-        let Ok(body) = session.spclient().get_apollo_station(scope, seed, Some(50), Vec::new(), false).await else {
-            return Vec::new();
-        };
-        let v: Value = serde_json::from_slice(&body).unwrap_or_default();
-        station_uris(&v)
-    }
     let mut uris = if list.starts_with("spotify:") { station(session, list).await } else { Vec::new() };
     if uris.is_empty() {
         uris = station(session, track).await;
     }
     track_rows(session, uris).await.unwrap_or_default()
+}
+
+/// Up to 50 songs of Spotify's radio for a list or a song (empty if it has none).
+pub async fn station(session: &Session, seed: &str) -> Vec<String> {
+    let scope = if seed.starts_with("spotify:track:") { "tracks" } else { "stations" };
+    let Ok(body) = session.spclient().get_apollo_station(scope, seed, Some(50), Vec::new(), false).await else {
+        return Vec::new();
+    };
+    let v: Value = serde_json::from_slice(&body).unwrap_or_default();
+    station_uris(&v)
+}
+
+/// Each song's first artist, as (artist uri, name), from one batched metadata request.
+pub async fn track_artists(session: &Session, uris: &[String]) -> Res<HashMap<String, (String, String)>> {
+    Ok(entities::<PTrack>(session, uris, ExtensionKind::TRACK_V4)
+        .await?
+        .into_iter()
+        .filter_map(|(u, t)| {
+            let a = t.artist.first()?;
+            Some((u, (gid_uri("artist", a.gid())?, a.name().to_string())))
+        })
+        .collect())
+}
+
+/// What an artist's page lists besides their music: related artists (uri, name), and the
+/// uris of their top songs. The same GraphQL query the artist page uses for play counts.
+pub async fn artist_overview(session: &Session, uri: &str) -> Res<(Vec<(String, String)>, Vec<String>)> {
+    let v = gql(session, GQL_ARTIST, serde_json::json!({ "uri": uri, "locale": "", "includePrerelease": false })).await?;
+    Ok(overview_of(&v["data"]["artistUnion"]))
+}
+
+fn overview_of(a: &Value) -> (Vec<(String, String)>, Vec<String>) {
+    let items = |v: &Value| v["items"].as_array().cloned().unwrap_or_default();
+    let related = items(&a["relatedContent"]["relatedArtists"])
+        .iter()
+        .filter_map(|r| Some((r["uri"].as_str()?.to_string(), r["profile"]["name"].as_str().unwrap_or("").to_string())))
+        .collect();
+    let top = items(&a["discography"]["topTracks"])
+        .iter()
+        .filter_map(|t| t["track"]["uri"].as_str().filter(|u| u.starts_with("spotify:track:")).map(String::from))
+        .collect();
+    (related, top)
 }
 
 fn station_uris(v: &Value) -> Vec<String> {
@@ -695,6 +729,11 @@ const LIST_FORMAT: &str = "trill-list 1";
 
 fn list_path(dir: &std::path::Path, uri: &str) -> std::path::PathBuf {
     dir.join("lists").join(uri.replace([':', '/', '\\'], "_"))
+}
+
+/// How long ago the list was saved.
+pub fn list_age(dir: &std::path::Path, uri: &str) -> Option<Duration> {
+    std::fs::metadata(list_path(dir, uri)).and_then(|m| m.modified()).ok()?.elapsed().ok()
 }
 
 pub fn read_list_cache(dir: &std::path::Path, uri: &str) -> Option<Vec<Row>> {
@@ -993,6 +1032,20 @@ mod tests {
         .unwrap();
         assert_eq!(station_uris(&v), ["spotify:track:a", "spotify:track:c"]);
         assert!(station_uris(&Value::Null).is_empty());
+    }
+
+    #[test]
+    fn reads_artist_overview() {
+        let v: Value = serde_json::from_str(r#"{
+          "relatedContent": {"relatedArtists": {"items": [
+            {"uri": "spotify:artist:a", "profile": {"name": "Nile Rodgers"}}, {"profile": {"name": "no uri"}}]}},
+          "discography": {"topTracks": {"items": [
+            {"track": {"uri": "spotify:track:1", "playcount": "5"}}, {"track": {"uri": "spotify:episode:2"}}]}}
+        }"#).unwrap();
+        let (related, top) = overview_of(&v);
+        assert_eq!(related, [("spotify:artist:a".to_string(), "Nile Rodgers".to_string())]);
+        assert_eq!(top, ["spotify:track:1"]);
+        assert_eq!(overview_of(&Value::Null), (Vec::new(), Vec::new()));
     }
 
     #[test]
