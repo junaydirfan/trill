@@ -129,7 +129,8 @@ struct Candidate {
 
 /// Merge the candidates for each song (scores add up, the strongest reason is kept), leave
 /// out `exclude`, push down songs played lately (score / (1 + plays in 30 days)), then take
-/// the best greedily, each further song by the same artist counting half as much.
+/// the best greedily: each further song by the same artist counts half as much, and each
+/// further one from the same source (one song's radio, one artist's neighbours) 0.8 as much.
 /// The reason goes in `members`, which the table shows in its own column.
 fn rank(cands: Vec<Candidate>, rows: &HashMap<String, Row>, exclude: &HashSet<String>, recent: &HashMap<String, u32>, n: usize) -> Vec<Row> {
     let mut merged: HashMap<String, (f64, f64, String)> = HashMap::new(); // uri -> (total, best, why)
@@ -151,11 +152,13 @@ fn rank(cands: Vec<Candidate>, rows: &HashMap<String, Row>, exclude: &HashSet<St
     pool.sort_by(|a, b| b.0.total_cmp(&a.0).then_with(|| a.1.uri.cmp(&b.1.uri)));
     let artist = |r: &Row| r.artist.split(", ").next().unwrap_or("").to_lowercase();
     let mut per_artist: HashMap<String, u32> = HashMap::new();
+    let mut per_source: HashMap<String, u32> = HashMap::new();
     let mut out = Vec::new();
     while out.len() < n {
-        let damped = |(s, r, _): &(f64, &Row, String)| {
+        let damped = |(s, r, why): &(f64, &Row, String)| {
             let k = *per_artist.get(&artist(r)).unwrap_or(&0);
-            (k < PER_ARTIST).then(|| s * 0.5f64.powi(k as i32))
+            let src = *per_source.get(why).unwrap_or(&0);
+            (k < PER_ARTIST).then(|| s * 0.5f64.powi(k as i32) * 0.8f64.powi(src as i32))
         };
         let Some(i) = (0..pool.len()).filter(|&i| damped(&pool[i]).is_some()).max_by(|&a, &b| {
             damped(&pool[a]).unwrap_or(0.0).total_cmp(&damped(&pool[b]).unwrap_or(0.0)).then_with(|| pool[b].1.uri.cmp(&pool[a].1.uri))
@@ -164,6 +167,7 @@ fn rank(cands: Vec<Candidate>, rows: &HashMap<String, Row>, exclude: &HashSet<St
         };
         let (_, row, why) = pool.remove(i);
         *per_artist.entry(artist(row)).or_insert(0) += 1;
+        *per_source.entry(why.clone()).or_insert(0) += 1;
         let mut r = row.clone();
         r.members = why;
         out.push(r);
@@ -333,8 +337,8 @@ mod tests {
         let recent: HashMap<String, u32> = [("tired".to_string(), 9)].into();
         let out = rank(cands, &rows, &exclude, &recent, 10);
         let got: Vec<&str> = out.iter().map(|r| r.uri.as_str()).collect();
-        // B's merged 0.7 beats A's second song (0.95 / 2); "tired" (3.0 / 10) beats A's third
-        // (0.9 / 4); A's fourth is past the cap of 3
+        // B's merged 0.7 beats A's second song (0.95 × ½ × 0.8 for its source); "tired"
+        // (3.0 / 10 × 0.8²) beats A's third (0.9 × ¼ × 0.8²); A's fourth is past the cap of 3
         assert_eq!(got, ["a1", "b1", "a2", "tired", "a3"]);
         assert_eq!(out[1].members, "like B");
         assert_eq!(out[0].members, "radio · x");
