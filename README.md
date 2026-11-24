@@ -1,139 +1,59 @@
 <p align="center">
-  <img src="assets/readme/hero.svg" width="880" alt="trill: Spotify in your terminal. Lighter than the tab you'd open to look it up. About 20 MB of RAM, 0% CPU while idle, about 2 ms from key press to frame, about 30 ms from launch to library.">
+  <img src="assets/readme/hero.svg" width="880" alt="trill: Spotify in your terminal. It plays through Spotify's own player, Soloist. About 17 MB of memory at start, 0% CPU while idle, the library on screen in about 50 ms, one 6.6 MB program.">
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/rust-2024-111111?style=flat-square&logo=rust" alt="Rust 2024">
+  <a href="https://github.com/junaydirfan/trill/releases/latest"><img src="https://img.shields.io/github/v/release/junaydirfan/trill?style=flat-square&color=1ed760&labelColor=111111&label=release" alt="Latest release"></a>
   <img src="https://img.shields.io/badge/linux-PipeWire%20%C2%B7%20PulseAudio-111111?style=flat-square&logo=linux&logoColor=white" alt="Linux, PipeWire or PulseAudio">
   <img src="https://img.shields.io/badge/macOS-Apple%20Silicon-111111?style=flat-square&logo=apple&logoColor=white" alt="macOS on Apple Silicon">
   <img src="https://img.shields.io/badge/windows-x86__64-111111?style=flat-square&logo=windows&logoColor=white" alt="Windows x86_64">
-  <img src="https://img.shields.io/badge/built%20for-CachyOS-111111?style=flat-square&logo=archlinux&logoColor=white" alt="Built for CachyOS">
-  <img src="https://img.shields.io/badge/needs-Spotify%20Premium-1ed760?style=flat-square&logo=spotify&logoColor=white" alt="Requires Spotify Premium">
+  <img src="https://img.shields.io/badge/rust-2024-111111?style=flat-square&logo=rust" alt="Rust 2024">
+  <img src="https://img.shields.io/badge/needs-Spotify%20Premium-1ed760?style=flat-square&labelColor=111111&logo=spotify&logoColor=white" alt="Requires Spotify Premium">
 </p>
 
 <p align="center">
-  <img src="assets/screenshots/Timeline.gif" width="880" alt="trill playing a song: library with pinned playlists and album art on the left, the track list on the right, the progress bar along the bottom">
+  <img src="assets/readme/screen-library.svg" width="880" alt="trill playing Dreams by Fleetwood Mac from the album Rumours: the Library sidebar with Liked Songs, Albums, Artists, For You, Queue, Search and playlists, the album cover drawn in colour blocks under it, the album's songs with their play counts, and the now-playing line with the progress bar.">
 </p>
 
 <p align="center">
   <a href="#get-started"><strong>Get started</strong></a> &nbsp;·&nbsp;
   <a href="#features"><strong>Features</strong></a> &nbsp;·&nbsp;
+  <a href="#for-you"><strong>For You</strong></a> &nbsp;·&nbsp;
   <a href="#numbers"><strong>Numbers</strong></a> &nbsp;·&nbsp;
   <a href="#keys"><strong>Keys</strong></a> &nbsp;·&nbsp;
   <a href="#faq"><strong>FAQ</strong></a>
 </p>
 
-trill is a terminal Spotify client that does one thing and does it cheaply. It plays through **Soloist**, Spotify's own headless player, so audio keeps working on the accounts where librespot gets refused. It browses through librespot's private connection, so no Web API limits apply to your library. One async thread does the UI and the networking. It redraws only when something changes, and it never polls.
-
-## Features
+trill is Spotify for the terminal. Audio comes from **Soloist**, Spotify's own headless player, so it plays on accounts where librespot gets refused. Your library comes through librespot's connection, the same private API the official apps use, so the Web API's limits don't get in the way. It stays out of your way too: a small program that sleeps when there's nothing to do.
 
 <p align="center">
-  <img src="assets/readme/features.svg" width="880" alt="What trill does, by key: L synced lyrics, i album art, e 10-band EQ, s smart shuffle, x crossfade, I private session, f like, save and follow, A playlists, / search, y copy link. Plus media keys, the lock screen, the KDE media widget and your phone through Spotify Connect.">
+  <img src="assets/readme/different.svg" width="880" alt="What's different about trill. Plays where librespot can't: audio comes from Soloist, Spotify's own player. Small and quiet: about 17.4 MB of memory, and no CPU or timers while idle. For You, worked out here: suggestions from what you play, ranked on your computer; your play history stays on it. Your whole library: playlists, folders, pins, albums, artists and lyrics, through Spotify's own API, with no Web API limits.">
 </p>
-
-<details>
-<summary><strong>Every feature in a sentence</strong></summary>
-
-- **Your library.** Playlists, Liked Songs, saved albums and followed artists. Pinned playlists and folders sit at the top, like in the official app.
-- **Artist pages.** Top tracks, then every album, single and EP, newest first. `P` plays the whole discography.
-- **Play counts.** Album pages and an artist's top tracks show each song's all-time plays, the same numbers as the official app.
-- **Synced lyrics.** The current line lights up and stays in view, and the screen redraws exactly when the next line starts.
-- **Real album art.** It uses kitty, Ghostty, WezTerm, foot, iTerm2 or Konsole graphics when the terminal has them, and colour half-blocks everywhere else.
-- **10-band EQ** (Linux) with 11 presets, as a PipeWire filter that only touches trill's audio. On Flat it doesn't run at all.
-- **Spotify's own crossfade** and gapless transitions, streaming at 320 kbps.
-- **Themes,** including `cover`, which takes its accent colour from the album art that's playing.
-- **Smart shuffle.** Like Spotify's: a recommended song (✦) after every three of yours, picked from the list's own Spotify radio.
-- **Edit as you listen.** Like and unlike, add to your playlists and remove from them; a ✓ shows which playlists already have the song. Every change is safe against edits made on your phone.
-- **Desktop native.** On Linux, MPRIS gives you the KDE media widget, the lock screen, media keys, `playerctl` and KDE Connect. On macOS, the media keys, Control Center and the lock screen control trill.
-- **Private session.** `I` starts Spotify's private session for your whole account, the same switch as in the official apps: Friend Activity, your profile, recommendations and Wrapped don't see what you play. It ends by itself after 6 hours. On Linux with Soloist it also hides the song from Discord and anything else watching your Spotify devices. Soloist doesn't support a private session, so trill passes its connection to Spotify through a small local relay that marks it private. The relay uses a local certificate that only works for spotify.com, is readable only by you, and is used only by Soloist. Soloist restarts once (~3 s) the first time you turn private on. Mid-song, the music pauses for about 1.5 s either way, so Discord notices the change.
-- **Status at a glance.** The now-playing line ends in ` ⇄ ` shuffle (` ⇄✦ ` smart), ` ↻ ` repeat (` ↻1 ` one song) and ` ⊘ ` private session, lit when on and dim when off.
-- **Mouse too.** Click to open, select and seek, double-click to play, and scroll with the wheel. The keyboard still does everything.
-- **Remembers you.** Volume, EQ, crossfade, shuffle, repeat, sort order and theme come back on the next start.
-</details>
-
-## Numbers
-
-<p align="center">
-  <img src="assets/readme/speed.svg" width="880" alt="Speed, on a log scale: key press to redraw 2 ms; reopening Liked Songs (3,901 songs) 2 ms from disk; launch to library on screen 30 ms; press play to playing 0.2 s; search 0.35 s; first open of Liked Songs 0.45 to 0.7 s.">
-</p>
-<p align="center">
-  <img src="assets/readme/footprint.svg" width="880" alt="Memory (PSS): trill 22 MB, Soloist 54 MB, its crash reporter 8 MB, the EQ 4 MB when on. CPU: trill 0% idle and 0.1 to 0.3% playing, Soloist about 2.5% playing. One 9 MB binary.">
-</p>
-
-<details>
-<summary><strong>Every measurement</strong></summary>
-
-Measured on an i9-14900HX laptop, with a network round trip to Spotify of about 150 ms.
-
-| | |
-|---|---|
-| Launch to library on screen | ~30 ms (usable after login, ~0.35–0.6 s) |
-| Open Liked Songs (3,901 tracks), very first time | ~0.45–0.7 s |
-| Open it again, also after a restart | ~2 ms from disk, then refreshed in the background (~0.25 s) |
-| Search | ~0.35 s |
-| Key press to redraw | ~2 ms |
-| Press play to playing | ~0.2 s |
-| trill RAM at start (♥ set + cover loaded) | ~14 MB PSS |
-| trill RAM, Liked Songs open | ~17 MB PSS |
-| trill RAM after a while, private session relay on | ~22 MB PSS |
-| trill CPU while idle | 0 |
-| trill CPU while playing | ~0.1–0.3% of one core (also with lyrics open) |
-| Soloist while playing | ~2.5% of one core, ~48–54 MB (+ ~8–11 MB crash reporter) |
-| EQ, when not on Flat | ~1.7% of one core, ~4 MB |
-| The binary | ~9 MB, nothing else to install besides Soloist |
-</details>
-
-<details>
-<summary><strong>Why it's light</strong></summary>
-
-- One async thread runs the UI and networking. librespot's player runtime is capped to one worker thread instead of one per CPU core.
-- Terminal input sits on one blocking thread, so it uses no CPU while idle.
-- The screen redraws only on input, player events, or once a second while playing. Nothing polls Spotify.
-- Audio is decoded in-process and sent to PipeWire over the PulseAudio protocol. There's no rodio or cpal layer.
-- Stream buffers go to `~/.cache/trill/tmp`, not `/tmp`. On CachyOS `/tmp` is tmpfs, which means RAM.
-- Track info is fetched 300 tracks per request, with up to 16 requests in parallel, instead of one request per song.
-- Each frame builds only the table rows that fit on screen.
-- The playlist list is cached, so the sidebar fills on the first frame and refreshes in the background.
-- Every list you open is saved to `~/.cache/trill/lists`, so it opens instantly next time, even after a restart. A fresh copy loads in the background and replaces it only if something changed, keeping your place. That refresh, and `R`, only fetch details for songs added since.
-- Spotify login and Soloist startup run at the same time. With a saved login, the library is drawn from cache before the login finishes, and keys you type meanwhile wait their turn.
-- Freed heap goes back to the OS after big lists load (`malloc_trim`), and glibc is limited to 2 malloc arenas.
-- Album art is decoded and resized once per song, off the UI thread. The next song's cover is downloaded while the current one ends, so it changes with the song.
-</details>
-
-## How it works
-
-<p align="center">
-  <img src="assets/readme/how-it-works.svg" width="880" alt="How it works: trill runs its UI and networking on one async thread. It browses Spotify through a librespot session with no Web API limits, drives Soloist, Spotify's own player, over a local WebSocket, and talks to your desktop over MPRIS. Soloist streams from Spotify and plays through PipeWire, with the EQ filter when it's on.">
-</p>
-
-trill holds two connections to Spotify. Your library, search, lyrics and edits go through librespot's private connection, the same one Spotify's apps use, so the public Web API's rate limits don't apply. Audio comes from **Soloist**, Spotify's own headless player, which trill starts in the background and drives over a local WebSocket. Everything else (queue, shuffle, repeat, the screen) is trill, on a single async thread.
-
-### Why Soloist
-
-Since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)). On those accounts, login and browsing work, but every track fails with `error audio key 0 1` and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, controls it over its local WebSocket, and manages shuffle, repeat and the queue itself.
-
-trill uses Soloist automatically once the key and Soloist are both in place, and librespot otherwise. To force one, set `backend = soloist` or `backend = librespot` in the [config](#details).
-
-> [!NOTE]
-> Soloist only accepts the API key as a command-line argument. While it runs, anything that can list processes on this machine (`/proc/<pid>/cmdline`) can see the key. That's fine on a single-user desktop, but keep it in mind on a shared machine.
-
-<details>
-<summary><strong>How song transitions work</strong></summary>
-
-When a song ends, Soloist would normally play its own autoplay "radio" pick. To prevent that, trill puts your next song into Soloist's queue about 8 s before the end, so the switch is native and gapless. Soloist's queue can't be edited. If you pick a different song during those last 8 s, the queued song is skipped first, and you may hear a split second of it (about 0.15 s).
-</details>
 
 ## Get started
 
 <p align="center">
-  <img src="assets/readme/get-started.svg" width="880" alt="Get started in six steps, about ten minutes, once: install, get a Soloist key, save it, run trill --update-soloist, run trill --pair, then run trill.">
+  <img src="assets/readme/get-started.svg" width="880" alt="Get started in four steps, about ten minutes, once. 1: install trill with one command. 2: get a free Soloist API key from Spotify's developer dashboard and save it. 3: run trill --update-soloist to download Spotify's player. 4: run trill --pair once with your phone, then just trill.">
 </p>
 
-You need **Spotify Premium** and about 10 minutes. Each step only happens once.
+You need **Spotify Premium**. Each step happens once.
 
-### 1. Install trill
+**1. Install trill**
 
-**Windows:** paste this into PowerShell. It puts `trill.exe` in `~\.local\bin` and adds that folder to your `PATH`:
+**Linux** (x86_64; needs `libpulse`, which comes with PipeWire and PulseAudio):
+
+```bash
+mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
+```
+
+**macOS** (Apple Silicon), then open a new Terminal window:
+
+```bash
+mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-macos-arm64.tar.gz | tar -xz -C ~/.local/bin
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+```
+
+**Windows** (PowerShell), then close PowerShell and open a new window:
 
 ```powershell
 $dir = "$HOME\.local\bin"; New-Item -ItemType Directory -Force $dir | Out-Null
@@ -142,128 +62,164 @@ Expand-Archive -Force "$env:TEMP\trill.zip" $dir
 [Environment]::SetEnvironmentVariable("Path", [Environment]::GetEnvironmentVariable("Path", "User") + ";$dir", "User")
 ```
 
-Then **close PowerShell and open a new window**. Only new windows know where `trill` is; the old one says "trill is not recognized". Use Windows Terminal if you can: it shows real album art, and the old console draws it with coloured blocks.
+**2. Get a Soloist key.** Sign in at https://developer.spotify.com/dashboard with your Premium account, open the **Soloist API Key** page and create a key (it starts with `spak_`). It belongs to your account, so keep it private like a password.
 
-**macOS (Apple Silicon):** paste this into Terminal, then open a new Terminal window:
-
-```bash
-mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-macos-arm64.tar.gz | tar -xz -C ~/.local/bin
-echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
-```
-
-> [!NOTE]
-> Album art looks pixelated in Apple's Terminal. That's a known limit of Terminal, not trill: it can't display images, so trill draws the cover with coloured blocks. For the real cover, run trill in [Ghostty](https://ghostty.org) or [iTerm2](https://iterm2.com) (both free). trill picks them up by itself.
-
-**Linux (x86_64):** download it, or build it (below). It needs `libpulse`, which comes with PipeWire and PulseAudio:
+**3. Save it where trill looks for it**, then download Soloist:
 
 ```bash
-mkdir -p ~/.local/bin && curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
+mkdir -p ~/.config/trill && touch ~/.config/trill/soloist_api_key && chmod 600 ~/.config/trill/soloist_api_key
+${EDITOR:-nano} ~/.config/trill/soloist_api_key      # paste the key, save
+trill --update-soloist
 ```
+
+On Windows: `New-Item -Force -ItemType File $HOME\.config\trill\soloist_api_key; notepad $HOME\.config\trill\soloist_api_key`, paste, save, then `trill --update-soloist`.
+
+**4. Pair and play.** Run `trill --pair`, open Spotify on your phone (same Wi-Fi), tap the devices icon and pick **trill**. Then run **`trill`**. Your browser opens once to log in; after that it starts straight away. Press `?` for every key.
+
+**Updating:** `trill --update` gets the latest release; your login, key, pairing and settings stay. trill also mentions a new release at the bottom right, once a day at most. Spotify's Soloist builds last 90 days: when trill says yours has expired, run `trill --update-soloist` again.
 
 <details>
-<summary><strong>Build from source instead</strong></summary>
+<summary><strong>If something doesn't work</strong></summary>
 
-You only need Rust for this; "`cargo` is not recognized" means it isn't installed, and the downloads above don't need it.
+- **"trill is not recognized" / "command not found":** open a new terminal window after installing. On Linux with fish, run `fish_add_path ~/.local/bin` once.
+- **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`; a key saved as `soloist_api_key.txt` works too), or `trill --update-soloist` hasn't been run.
+- **"Soloist isn't signed in":** run `trill --pair` again with your phone on the same Wi-Fi, and allow the firewall or local network prompt on Windows and macOS.
+- **"Can't reach Spotify":** trill is offline. Your saved login is kept, so just start it again once you're connected.
+- **Album art looks pixelated:** the terminal can't show images, so trill draws the cover with coloured blocks. That's always the case in Apple's Terminal, Alacritty, tmux and the old Windows console. Ghostty, kitty, WezTerm, foot, iTerm2, Konsole and Windows Terminal show the real cover.
+- **`trill --update` can't replace the file** (say a package manager installed it): quit trill and run the install command from step 1 again. On Windows the file is locked while trill runs.
+- **Anything else:** run `TRILL_LOG=debug trill` (Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then `~/.cache/trill/trill.log`, Soloist's is `~/.cache/trill/soloist.log`. An issue with the log helps.
+
+Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair there. Don't copy `~/.local/share/trill/soloist-data`: it's this computer's Soloist identity, and two players sharing one keep taking playback from each other.
+</details>
+
+<details>
+<summary><strong>Build from source</strong></summary>
+
+You only need Rust for this; the downloads above don't.
 
 - **Linux:** needs `rust`, `libpulse`, `openssl` and `pkgconf` (all already on CachyOS).
   ```bash
   git clone https://github.com/junaydirfan/trill && cd trill
   cargo build --release
   install -Dm755 target/release/trill ~/.local/bin/trill
+  install -Dm644 assets/trill.desktop ~/.local/share/applications/trill.desktop   # optional: name and icon in KDE's media widget
   ```
-  Optional: install the launcher so KDE shows trill's name and icon in the media widget (it also adds a menu entry). With the `spotify-launcher` package installed, you can set its `Icon=` to `spotify-launcher` for Spotify's icon.
-  ```bash
-  install -Dm644 assets/trill.desktop ~/.local/share/applications/trill.desktop
-  ```
-- **macOS:** run `xcode-select --install`, install Rust from https://rustup.rs, then `cargo install --git https://github.com/junaydirfan/trill`.
-- **Windows:** install Rust from https://rustup.rs (its installer offers to set up the Visual Studio C++ build tools it needs), open a new window, then `cargo install --git https://github.com/junaydirfan/trill`.
+- **macOS:** `xcode-select --install`, Rust from https://rustup.rs, then `cargo install --git https://github.com/junaydirfan/trill`.
+- **Windows:** Rust from https://rustup.rs (its installer sets up the C++ build tools), a new window, then `cargo install --git https://github.com/junaydirfan/trill`.
 
-`cargo install` puts `trill` in `~/.cargo/bin`, which the Rust installer adds to your `PATH`.
+To update a build: `cargo install --git https://github.com/junaydirfan/trill --force`, or `git pull` and build again.
 </details>
 
-### 2. Get your Soloist API key
+## Features
 
-trill plays music through **Soloist**, Spotify's own player ([why](#why-soloist)). Soloist needs a free API key that belongs to your Spotify account:
+<p align="center">
+  <img src="assets/readme/features.svg" width="880" alt="What trill does, by key: / search; For You, picks from what you play; s smart shuffle; L synced lyrics; i album art; e 10-band EQ; x crossfade; z sleep timer; F find in a list; f like, save and follow, A adds to playlists; I private session; media keys. Plus pins and folders, artist pages with play counts, themes and the mouse.">
+</p>
 
-1. Sign in at https://developer.spotify.com/dashboard with your Premium account. The first time, accept the developer terms.
-2. Open the **Soloist API Key** page and create a key. It starts with `spak_`.
+<details>
+<summary><strong>Every feature in a line</strong></summary>
 
-Everyone needs their own key, made with their own Premium account: a friend can't use yours. Keep it private, like a password. Spotify's guide: [Soloist authentication](https://developer.spotify.com/documentation/soloist/concepts/authentication).
+- **Your library:** playlists, folders, Liked Songs, saved albums and followed artists, with your pins at the top like in the official app.
+- **Artist pages:** top songs, then every album, single and EP, newest first. Albums and top songs show their all-time play counts. `P` plays the whole discography.
+- **For You:** songs picked from what you play, worked out on your computer. See [For You](#for-you).
+- **Smart shuffle** (`s` twice): a song Spotify recommends (✦) after every three of yours.
+- **Synced lyrics** (`L`): the line being sung lights up and stays in view.
+- **Album art** (`i`): real images where the terminal can, colour blocks elsewhere.
+- **10-band EQ** (`e`, `E`, Linux): 11 presets, as a PipeWire filter only trill's audio goes through. On Flat it doesn't run at all.
+- **Crossfade** (`x`): Spotify's own, gapless, streaming at 320 kbps.
+- **Sleep timer** (`z`): 15 to 90 minutes or the end of the song. The volume fades out over 8 s, then it pauses.
+- **Find in a list** (`F`): narrows the open list as you type, by title, artist or album.
+- **Sort** (`o`): newest first, playlist order, title, artist, album or length. Each list remembers its own.
+- **Search** (`/`): songs, albums, artists and playlists; `↑` brings back past searches.
+- **Edit as you listen:** like, save and follow (`f`), add to and remove from playlists (`A`, ✓ shows where it already is), remove from the open playlist (`D D`). Safe against edits made on your phone meanwhile.
+- **Queue** (`a`, `c`): songs you add play next; `D D` in the queue takes one out.
+- **Private session** (`I`): Spotify's own, for your whole account. On Linux it also hides the song from Discord.
+- **Desktop:** MPRIS on Linux (KDE's media widget, the lock screen, media keys, `playerctl`, KDE Connect), Now Playing on macOS, and your phone through Spotify Connect.
+- **Themes** (`t`), including `cover`, which takes its colour from the album art. **The mouse** works too.
+- **Remembers you:** volume, EQ, crossfade, shuffle, repeat, sorts, theme and searches come back next time.
+</details>
 
-### 3. Save the key where trill looks for it
+## For You
 
-**Windows (PowerShell):** this opens an empty file in Notepad. Paste the key, press Ctrl+S, and close Notepad.
+<p align="center">
+  <img src="assets/readme/screen-foryou.svg" width="880" alt="trill's For You: fifty songs picked from what you play, each with a Why column saying where it came from, such as the radio of a song you play or an artist like one you play.">
+</p>
 
-```powershell
-New-Item -Force -ItemType File $HOME\.config\trill\soloist_api_key | Out-Null
-notepad $HOME\.config\trill\soloist_api_key
-```
+<p align="center">
+  <img src="assets/readme/foryou.svg" width="880" alt="How For You works. 1: what you play: every song played for 30 seconds, logged on your computer, older plays counting less. 2: your seeds: your top songs and top artists. 3: Spotify's radio of those songs and the artists related to yours, fetched at once and kept for 12 hours. 4: ranked here: liked songs left out, songs you play a lot pushed down, no one artist takes over, and X hides a song for good. Your play history stays on your computer.">
+</p>
 
-**macOS and Linux:** this makes a file only you can read and opens it. Paste the key and save (in nano: Ctrl+O, Enter, Ctrl+X).
+**✦ For You** in the sidebar is 50 songs picked from what you actually play. The Why column says where each one came from. Press `X` on one you don't want and it won't come back (that works on ✦ smart-shuffle songs too). It opens at once from last time and is worked out again after 12 hours, or when you press `R`. Until you've played 15 different songs, your newest liked songs help it along.
 
-```bash
-mkdir -p ~/.config/trill && touch ~/.config/trill/soloist_api_key && chmod 600 ~/.config/trill/soloist_api_key
-${EDITOR:-nano} ~/.config/trill/soloist_api_key
-```
+<details>
+<summary><strong>How it ranks, and what goes to Spotify</strong></summary>
 
-### 4. Download Soloist
+- **What you play:** every song played for 30 s goes in `~/.local/share/trill/plays`. A play counts half as much every 14 days.
+- **Seeds:** your 4 top songs, and the 4 artists of your top songs.
+- **Candidates:** the radio of each seed song (what smart shuffle uses), and the top songs of the 12 artists Spotify most often lists as related to yours.
+- **Ranking, on your computer:** songs from several sources add up. Liked songs and songs you said no to (`~/.local/share/trill/not_interested`) are left out. A song you played *n* times in the last 30 days counts 1/(1+*n*). Each further song by the same artist counts half (3 at most), and each further one from the same source 0.8, so the list stays varied.
+- **What goes to Spotify,** over the same connection trill uses for browsing: the ids of your 4 seed songs (their radio), up to 40 of your top songs (to look up their artists), up to 16 artist ids (their pages) and the songs suggested (for titles and covers). About 20 requests, at most every 12 hours unless you press `R`. Your play log and your no's stay on your computer.
+</details>
 
-```bash
-trill --update-soloist
-```
+## Numbers
 
-This fetches Spotify's Soloist build for your system. Spotify's builds expire after 90 days; when trill says yours has, run this again.
+<p align="center">
+  <img src="assets/readme/numbers.svg" width="880" alt="Footprint, measured on an i9-14900HX, memory as PSS. trill at start: 17.4 MB; playing from Liked Songs, 3,953 songs: 20.6 MB; with For You open: 20.2 MB; Soloist, Spotify's player, while playing: about 49 MB. CPU: 0% idle and paused, about 0.2% playing. The library on screen about 50 ms after launch; For You worked out in about 1.5 s and reopened in 7 ms.">
+</p>
 
-### 5. Pair with your phone
+<details>
+<summary><strong>Every measurement</strong></summary>
 
-```bash
-trill --pair
-```
+Measured on the v0.6.0 release download on an i9-14900HX laptop (CachyOS), with the Soloist backend, a library of 3,953 liked songs and 110 playlists, and a network round trip to Spotify of about 150 ms. trill ran in tmux at 140×42 on a copy of a real config and cache. Memory is PSS from `/proc/<pid>/smaps_rollup`; wakeups are voluntary context switches over all of trill's threads.
 
-Open Spotify on your phone (on the same Wi-Fi), tap the devices icon and pick **trill**. On Windows or a Mac, allow it when you're asked about the firewall, incoming connections or local network access, or your phone won't see it.
+| | |
+|---|---|
+| Launch to library on screen | ~50 ms (from disk; usable after login, ~0.45–0.55 s) |
+| trill at start | 17.4 MB (peak 26 MB) |
+| Liked Songs open and playing | 20.6 MB |
+| After a few song changes | 19.9 MB (peak 30 MB) |
+| For You open | 20.2 MB |
+| CPU idle, and paused | 0 |
+| Wakeups idle | ~3 a minute: Spotify's keepalive ping and its reply; paused, the same |
+| CPU playing | ~0.2% of one core |
+| Key press to frame | ~2.6 ms moving in 3,953 songs; ~5.6 ms re-sorting them; ~4.4 ms per key in find (timed inside trill with a timing build of this code) |
+| For You, worked out | ~1.4–2.2 s; reopened from disk, 7 ms |
+| Soloist while playing | ~49 MB, plus ~11 MB for its crash reporter; ~2% of one core |
+| EQ, when not on Flat | ~4 MB, ~1.7% of one core (not re-measured for v0.6.0) |
+| The program | 6.6 MB, nothing to install besides Soloist |
 
-### 6. Play
+The release download links OpenSSL 3. On CachyOS and Arch that's a compatibility library nothing else uses, so about 1.3 MB of its memory counts against trill alone; built from source there, trill uses the system's OpenSSL and starts at about 15.8 MB.
+</details>
 
-```bash
-trill
-```
+<details>
+<summary><strong>Why it's light</strong></summary>
 
-Your browser opens once to log in to Spotify, which trill uses to browse your library. Later starts skip it (`trill --logout` forgets the login). Press `?` for every key.
+- One async thread does the screen and the networking; keys are read on a thread of their own that sleeps until you type.
+- The screen redraws only when something changes: a key, a player event, or once a second while playing. Lyrics redraw exactly when the next line starts.
+- Nothing runs on a timer while idle. A dropped connection is noticed on your next key, not by polling.
+- Every list you open is saved in `~/.cache/trill/lists`, so it opens at once, also after a restart, and a fresh copy loads in the background. Refreshing only fetches details for songs added since.
+- Song details come 300 to a request, up to 16 requests at once. A request that fails leaves the saved list alone instead of shortening it.
+- The first frame comes from disk while the login runs. A terminal that doesn't answer the image query (tmux, for one) is remembered, so later starts don't wait for it.
+- On Linux, freed memory goes back to the system after big lists load and after each cover is decoded.
+- Each frame builds only the rows that fit on screen.
+</details>
 
-### Updating
+## How it works
 
-```bash
-trill --update
-```
+<p align="center">
+  <img src="assets/readme/how-it-works.svg" width="880" alt="How it works. trill runs its screen and networking on one async thread, with keys read on a thread of their own. It browses your library through librespot's session, the same private API the official apps use, and keeps your lists on disk so they open at once. It drives Soloist, Spotify's own headless player, over a local WebSocket; Soloist streams from Spotify and plays through PipeWire, with the EQ when it's on. The desktop gets MPRIS on Linux and Now Playing on macOS.">
+</p>
 
-That downloads the latest release and puts it in place of your trill; restart trill afterwards. Your login, key, pairing and settings stay. Once a day trill also checks for a new release and says so at the bottom right. `trill --version` shows what you have, and the [releases page](https://github.com/junaydirfan/trill/releases) what's new.
+**Why Soloist:** since late 2025, Spotify has been refusing audio keys to librespot on more and more accounts ([librespot#1649](https://github.com/librespot-org/librespot/issues/1649)): login and browsing work, but every song fails and is skipped. Soloist is Spotify's own player, so it isn't affected. trill starts it in the background, drives it over its local WebSocket, and keeps the queue, shuffle and repeat itself. With no Soloist key, trill plays through librespot instead; `backend = soloist` or `backend = librespot` in the config picks one.
 
-On v0.2.0 or older (no `--update` yet), or if it can't replace the file (say a package manager installed trill), run the download again. Quit trill first; on Windows the file is locked while it runs.
+> [!NOTE]
+> Soloist only takes its API key on the command line, so while it runs, anything that can list processes on this computer can see the key. Fine on your own desktop; keep it in mind on a shared machine.
 
-**Windows** (PowerShell):
+<details>
+<summary><strong>How songs change over</strong></summary>
 
-```powershell
-Invoke-WebRequest https://github.com/junaydirfan/trill/releases/latest/download/trill-windows-x86_64.zip -OutFile "$env:TEMP\trill.zip"
-Expand-Archive -Force "$env:TEMP\trill.zip" "$HOME\.local\bin"
-```
-
-**macOS:**
-
-```bash
-curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-macos-arm64.tar.gz | tar -xz -C ~/.local/bin
-```
-
-**Linux:**
-
-```bash
-curl -fsSL https://github.com/junaydirfan/trill/releases/latest/download/trill-linux-x86_64.tar.gz | tar -xz -C ~/.local/bin
-```
-
-Built it yourself? Run `cargo install --git https://github.com/junaydirfan/trill --force`, or `git pull` and build again in your clone.
-
-Soloist updates separately: when trill says your Soloist build has expired (Spotify's builds last 90 days), run `trill --update-soloist`.
-
-Stuck? See [Troubleshooting](#troubleshooting).
+When a song ends, Soloist would play its own autoplay pick. To prevent that, trill puts your next song in Soloist's queue about 8 s before the end, so the change is gapless. Soloist's queue can't be edited, so if you pick another song in those last 8 s, the queued one is skipped first and you may hear a split second of it.
+</details>
 
 ## Keys
 
@@ -272,28 +228,29 @@ Stuck? See [Troubleshooting](#troubleshooting).
 </p>
 
 <details>
-<summary><strong>Keys as text</strong></summary>
+<summary><strong>Keys as text, and the mouse</strong></summary>
 
 | key | action | | key | action |
 |---|---|---|---|---|
 | `↑↓` `jk` `PgUp/PgDn` `g/G` | move | | `f` | like a song · save an album · follow an artist |
 | `Tab` `h` `l` | switch pane | | `A` | add to or remove from a playlist (✓ = already in it) |
-| `Enter` | play / open | | `D` `D` | remove from the open playlist |
-| `Esc` `Backspace` | back | | `L` | lyrics |
-| `Space` | play / pause | | `i` | album art on / off |
-| `n` / `p` | next / previous | | `t` | next colour theme |
-| `w` | jump to the playing song | | `s` | shuffle ⇄: off → on → smart ⇄✦ |
-| `←→` or `,` `.` | seek ±10 s | | `r` | repeat ↻: off → all → one ↻1 |
-| `+` / `-` | volume ±5% | | `o` / `O` | next / previous sort order |
-| `a` | add to queue | | `e` / `E` | next EQ preset / EQ panel |
-| `c` | show the queue | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
-| `/` | search | | `R` | reload the current list |
-| `P` | play everything in the list | | `?` | key help |
-| `y` | copy the Spotify link of the highlighted song, album, playlist or artist | | `Y` | copy the link of the open list |
-| `I` | private session ⊘ on / off | | `u` / `U` | open the song's album / artist |
+| `Enter` | play / open | | `D` `D` | remove from the open playlist, or from the queue |
+| `Esc` `Backspace` | back (clears a find first) | | `X` | not interested (For You, ✦ songs) |
+| `Space` | play / pause | | `s` | shuffle ⇄: off → on → smart ⇄✦ |
+| `n` / `p` | next / previous | | `r` | repeat ↻: off → all → one ↻1 |
+| `←→` or `,` `.` | seek ±10 s | | `x` | crossfade off / 3 / 5 / 8 / 12 s |
+| `+` / `-` | volume ±5% | | `z` | sleep timer: 15 / 30 / 45 / 60 / 90 min, end of song, off |
+| `a` | add to queue | | `/` | search (`↑↓` past searches) |
+| `c` | show the queue | | `F` | find in this list |
+| `w` | jump to the playing song | | `o` / `O` | sort this list: next / previous order |
+| `P` | play everything in the list | | `u` / `U` | open the song's album / artist |
+| `L` | lyrics | | `R` | reload the list (For You: new picks) |
+| `i` | album art on / off | | `e` / `E` | next EQ preset / EQ panel |
+| `t` | next colour theme | | `I` | private session ⊘ on / off |
+| `y` / `Y` | copy the link of the highlighted item / the open list | | `?` | every key |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
-**Mouse:** click a sidebar entry to open it, click a song to select it, double-click to play it, click the progress bar to seek, and use the wheel to scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle shuffle, repeat or private session. In the add-to-playlist picker, click a playlist to highlight it and double-click to add or remove the song. In the EQ panel, click a band to pick it. A click outside either one closes it. To select text in the terminal, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in macOS Terminal), or set `mouse = off` in the config.
+**Mouse:** click a sidebar entry to open it, a song to select it, double-click to play, click the progress bar to seek, and scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle them. In the playlist picker and the EQ panel, click to pick; a click outside closes them. To select text, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in Apple's Terminal), or set `mouse = off`.
 </details>
 
 ## Details
@@ -301,131 +258,119 @@ Stuck? See [Troubleshooting](#troubleshooting).
 <details>
 <summary><strong>Library, sorting and pins</strong></summary>
 
-- **Sorting:** playlists and Liked Songs show **most recently added first**, with an **Added** column, so playing from the top plays your newest additions first. `o` steps through the other orders: the playlist's own order, title, artist, album and length (`O` steps back). The list's header shows the current order, and it's remembered. Artist pages and albums always keep Spotify's order.
-- **Pins:** playlists and folders you pinned in Spotify sit at the top of the library, in the same order as the official app. Opening a pinned folder lists its playlists. trill can't pin or unpin, because Spotify ignores pin changes from third-party clients, so pin them from the official app.
-- **Albums and Artists:** the two entries under Liked Songs list your saved albums and the artists you follow, most recent first, and sort like playlists. Opening an artist shows their top tracks, then their albums, singles, EPs and compilations, newest first.
-- **Liking, saving, following:** `f` likes or unlikes the highlighted song, saves or unsaves the highlighted album, and follows or unfollows the highlighted artist. With nothing highlighted, it likes the song playing. Everything in your library shows a ♥, including the now-playing line. The ♥ changes straight away and changes back if Spotify refuses.
-- **Smart shuffle:** `s` steps through off, shuffle and smart shuffle. Smart shuffle plays your list shuffled with a song Spotify recommends after every three, marked ✦ in the now-playing line and the queue (`c`). They come from the list's Spotify radio (playlists, albums, artists), or the playing song's radio for Liked Songs and search results. Like in Spotify, they're only played, not added. To keep one, press `w`: it shows the recommendation at the top of the queue, where `f` likes it and `A` adds it (the picker starts on the playlist it was picked for, so `w` `A` `Enter` adds it there).
-- **Album and artist of a song:** `u` opens the album of the highlighted song (or the one playing), `U` its artist (the first one, for songs with several). `Esc` comes back.
-- **Jump to the playing song:** `w` opens the list it's playing from and highlights it. A song that isn't in that list (a smart-shuffle recommendation, or one started from your phone) is shown at the top of the queue instead, where `f` likes it and `A` adds it.
-- **Play all:** `P` plays every track in the open list, opening the albums and playlists in it. On an artist page that's the whole discography, top tracks first, without repeats (about 1 s for ~100 songs).
-- **Playlists:** `A` opens a picker of the playlists you can edit, which are yours and collaborative ones. A ✓ marks the ones that already have the song. `Enter` adds it, or removes it from a ✓ playlist, and the picker stays open for more until `Esc`. In one of your playlists, pressing `D` twice removes the highlighted song. trill re-reads the playlist from Spotify first, so an edit made on your phone in the meantime can't make it remove the wrong song.
+- **Sorting:** playlists and Liked Songs start **newest first**, with an Added column. `o` steps through the playlist's own order, title, artist, album and length (`O` steps back), and each list remembers its own. Albums and artist pages keep Spotify's order.
+- **Find** (`F`): type to narrow the open list; `↑↓` move in it, `Enter` keeps it, `Esc` clears it. Playing from a narrowed list plays what's shown.
+- **Pins:** playlists and folders you pinned in Spotify sit at the top, in the official app's order. trill can't pin or unpin (Spotify ignores pin changes from other clients), so pin them in the official app.
+- **Smart shuffle:** `s` steps through off, shuffle and smart shuffle. Recommendations (✦) come from the list's Spotify radio, or the playing song's for Liked Songs and search. To keep one, press `w`: it shows at the top of the queue, where `f` likes it and `A` adds it (the picker starts on the list it was picked for). `X` says no to it.
+- **Album and artist of a song:** `u` / `U` open them for the highlighted song, or the one playing.
+- **Play all:** `P` plays every song in the open list, opening the albums and playlists in it. On an artist page that's the whole discography.
+- **Playlists:** `A` opens a picker of the playlists you can edit (yours and collaborative ones). `Enter` adds the song, or removes it from a ✓ playlist, and the picker stays open until `Esc`. trill re-reads a playlist before removing, so an edit made on your phone meanwhile can't make it remove the wrong song.
 
-These actions go through the same private Spotify API as the rest of trill (not the Web API), so no rate limits apply. Each one takes about 0.4–0.5 s to reach Spotify.
+These go through the same private API as the rest of trill, so no rate limits apply; each takes about 0.4–0.5 s to reach Spotify.
 </details>
 
 <details>
-<summary><strong>Lyrics and album art</strong></summary>
+<summary><strong>Lyrics, album art, EQ, crossfade and themes</strong></summary>
 
-- **Lyrics:** `L` swaps the track list for the current song's lyrics. When Spotify has timed lyrics, the current line is highlighted and kept in view. Otherwise, `j`/`k` scroll. Lyrics are only fetched while this view is open.
-- **Album art:** the cover sits under the playlist list when the window is tall enough. Terminals with an image protocol show a real image. kitty, Ghostty, WezTerm, foot and iTerm2 are detected automatically, and Konsole uses the iTerm2 protocol. Everywhere else, including Alacritty, tmux and VS Code, the cover is drawn with coloured half-block characters. For a sharp image in VS Code, turn on `terminal.integrated.enableImages`.
-</details>
+- **Lyrics:** `L` swaps the list for the song's lyrics. With timed lyrics the current line is highlighted; otherwise `j`/`k` scroll. They're only fetched while this view is open.
+- **Album art:** the cover sits under the sidebar when there's room. kitty, Ghostty, WezTerm, foot and iTerm2 are detected, and Konsole uses the iTerm2 protocol. Elsewhere, including Alacritty, tmux and VS Code (unless `terminal.integrated.enableImages` is on), it's coloured half-blocks.
+- **EQ** (Linux): `e` cycles Flat, Bass Boost, Bass Reducer, Treble Boost, Vocal, Rock, Pop, Hip-Hop, Electronic, Acoustic, Loudness and Custom. `E` opens the 10-band panel (32 Hz–16 kHz, ±12 dB; `↑↓` band, `←→` adjust, `0` reset). It's a small PipeWire filter only trill's audio goes through. On Flat it doesn't run; the first other setting starts it and restarts the player once (~3 s, resuming where you were). `eq = off` disables it.
+- **Crossfade:** `x` cycles off, 3, 5, 8 and 12 s. It's Soloist's own; applying it restarts Soloist once (~3 s, resuming).
+- **Quality:** trill sets Soloist to 320 kbps (it defaults to 160).
+- **Themes:** `t` cycles spotify, ocean, violet, sunset, rose, mono and cover. `cover` takes its colour from the album art, made readable on a dark terminal.
 
-<details>
-<summary><strong>EQ, crossfade, quality and themes</strong></summary>
-
-- **EQ:** `e` cycles through the presets: Flat, Bass Boost, Bass Reducer, Treble Boost, Vocal, Rock, Pop, Hip-Hop, Electronic, Acoustic, Loudness and Custom. `E` opens the 10-band panel (32 Hz to 16 kHz, ±12 dB). In the panel, `↑↓` picks a band, `←→` adjusts it and `0` resets it. A preamp is set automatically so boosts don't clip.
-  - The EQ is a small PipeWire filter that only trill's audio passes through, so other apps aren't affected.
-  - **On Flat it doesn't run at all.** The first non-flat setting starts it and briefly restarts the player (~3 s, then it resumes where you were). After that, changes apply live. Set `eq = off` in the config to disable it completely.
-- **Crossfade:** `x` cycles through off, 3, 5, 8 and 12 s. This is Spotify's own crossfade inside Soloist. Applying it restarts Soloist (~3 s, then it resumes where you were).
-- **Quality:** trill sets Soloist to 320 kbps. Out of the box, Soloist streams at 160 kbps.
-- **Themes:** `t` cycles through spotify, ocean, violet, sunset, rose, mono and cover. `cover` takes the accent colour from the album art of the song that's playing:
-  - Every pixel votes for its colour, weighted by how colourful it is, so a vivid title or detail wins over a large muted area.
-  - Pastel and off-white covers keep their tint, and black-and-white covers get a light grey.
-  - The colour is brightened until it reads on a dark terminal. The last colour is remembered, so the next start opens in it.
-  - The colour comes from the cover trill already decodes for the art (~0.5–1 ms per song). With the art hidden, trill fetches the cover just for its colour (~50–100 KB per song).
-  - `trill --debug-tint <search>` prints the colour picked for each result's cover.
-
-All of these, plus shuffle, repeat, sort order and album art on or off, are saved in `~/.local/share/trill/audio_settings`. Volume is saved too, including changes made from KDE's media controls or your phone.
+These and the rest of your keyboard settings are saved in `~/.local/share/trill/audio_settings`.
 </details>
 
 <details>
 <summary><strong>Config</strong></summary>
 
-The config is optional. It lives in `~/.config/trill/config`:
+Optional, in `~/.config/trill/config`:
 
 ```ini
 bitrate = 320          # 96 | 160 | 320
-audio_cache_mb = 0     # >0 keeps played tracks on disk (saves bandwidth on repeats)
+audio_cache_mb = 0     # >0 keeps played songs on disk (librespot backend)
 normalise = false
-client_id =            # your own Spotify app, used ONLY for search (see below)
+client_id =            # your own Spotify app, used only for search (below)
 backend = auto         # auto | soloist | librespot
-device_name = trill  # how Soloist shows up in Spotify Connect
+device_name = trill    # how Soloist shows up in Spotify Connect
 soloist_cache_mb = 200
-soloist_ws =           # host:port of a Soloist you already run, instead of spawning one
-eq = on                # off = never run the EQ process
-art = on               # off = no album art (and no terminal capability query)
-mouse = on             # off = no clicks or wheel; the terminal keeps its own text selection
+soloist_ws =           # host:port of a Soloist you already run, instead of starting one
+eq = on                # off = don't run the EQ at all
+art = on               # off = no album art (and no terminal query)
+mouse = on             # off = no clicks or wheel; the terminal keeps its own selection
 ```
 </details>
 
 <details>
-<summary><strong>Better search (recommended)</strong></summary>
+<summary><strong>Better search</strong></summary>
 
-Playlists, liked songs, albums and artists all use librespot's own connection, so the public Web API's limits don't apply to them. Search, however, uses the Web API.
+Search is the one thing that uses the public Web API. Without your own app it borrows librespot's shared token, which Spotify rate-limits most of the time, so trill always runs a basic search alongside it (about 0.3 s). The basic one finds songs and their albums and artists, but no playlists. After a rate-limit error trill pauses the Web API for 2 minutes, doubling up to 32.
 
-Without your own app, search borrows librespot's shared token, which every librespot app uses, so Spotify rate-limits it most of the time. To keep search fast either way, trill always runs a basic search alongside the Web API one (about 0.3 s), and after a rate-limit error it stops asking the Web API for 2 minutes, doubling with each further error up to 32 minutes. The basic search finds songs, plus the albums and artists of those songs, but no playlists.
+For full search (songs, albums, playlists and artists) every time:
 
-For reliable full search (tracks, albums, playlists and artists):
-
-1. Go to https://developer.spotify.com/dashboard, click **Create app**, and choose Web API.
+1. At https://developer.spotify.com/dashboard, **Create app** with the Web API.
 2. Add the redirect URI `http://127.0.0.1:8898/login`.
-3. Put the Client ID in the config as `client_id = …`. On the next start, trill asks you to log in once more, for search only.
+3. Put its Client ID in the config as `client_id = …`. trill asks you to log in once more, for search only.
 
-The status line shows which search path answered: `web api` (your app), `web api*` (the shared token), or "no playlists" (the basic search).
+The status line says which one answered: `web api` (your app), `web api*` (the shared token) or "no playlists" (the basic search).
+</details>
+
+<details>
+<summary><strong>Your data</strong></summary>
+
+Everything trill keeps is plain text:
+
+| | What |
+|---|---|
+| `~/.config/trill/` | `config`, `soloist_api_key` |
+| `~/.local/share/trill/audio_settings` | your keyboard settings, sorts per list, past searches |
+| `~/.local/share/trill/plays` | what you played, for For You (`time`, song, title, artist per line) |
+| `~/.local/share/trill/not_interested` | songs you pressed `X` on |
+| `~/.local/share/trill/soloist-data/` | this computer's Soloist pairing (don't copy it to another computer) |
+| `~/.cache/trill/` | your login, lists, logs; safe to delete (you'd log in again) |
+
+To take your history and settings to another computer, copy `audio_settings`, `plays` and `not_interested`. `trill --logout` forgets the login.
 </details>
 
 <details>
 <summary><strong>macOS and Windows notes</strong></summary>
 
-- **Which machines:** Apple Silicon Macs and x86_64 Windows, because those are the Soloist builds Spotify publishes. An Intel Mac can still build trill and try `backend = librespot`, if your account still works with librespot. ARM Windows runs the x86_64 build through emulation.
-- **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill` (on Windows, under `C:\Users\<you>`), not `~/Library` or `%APPDATA%`.
-- **No EQ.** It's a PipeWire filter, and PipeWire is Linux-only. Picking an EQ setting says so instead of starting it.
-- **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song and its cover. Windows has no media-key support yet. Every key inside trill works everywhere, and your phone can control it through Spotify Connect.
-- **Album art:** Ghostty, kitty, WezTerm and iTerm2 show the real cover, and so does Windows Terminal. Apple's Terminal can't draw images, so there the cover is coloured half-blocks and looks blurry and blocky; use one of the others on a Mac for a sharp cover. The old Windows console also uses half-blocks.
-- **Quitting:** `q` stops Soloist with trill. If trill crashes, Soloist can keep running in the background (Linux stops it automatically). Run `pkill soloist` on a Mac or `taskkill /IM soloist.exe /F` on Windows if that happens.
-- The [Numbers](#numbers) were measured on Linux. The glibc memory tricks under *Why it's light* in [Numbers](#numbers) only apply on Linux.
+- **Which machines:** Apple Silicon Macs and x86_64 Windows, the Soloist builds Spotify publishes. ARM Windows runs the x86_64 build through emulation.
+- **Same paths as Linux:** `~/.config/trill`, `~/.cache/trill` and `~/.local/share/trill` (on Windows, under `C:\Users\<you>`).
+- **No EQ:** it's a PipeWire filter, and PipeWire is Linux-only.
+- **Media keys:** on a Mac, play/pause, next and previous (keyboard, AirPods, Control Center, the lock screen) control trill, and Now Playing shows the song and cover. Windows has no media-key support yet; your phone can control trill through Spotify Connect.
+- **Quitting:** `q` stops Soloist with trill. If trill crashes on a Mac or Windows, Soloist can keep running: `pkill soloist`, or `taskkill /IM soloist.exe /F`.
+- The [Numbers](#numbers) were measured on Linux; the memory trimming only applies there. macOS and Windows builds are compiled and tested by CI on every release, but get less everyday use, so an issue helps if something seems off.
 </details>
 
 <details>
 <summary><strong>Debugging</strong></summary>
 
 ```bash
-TRILL_LOG=debug trill              # writes ~/.cache/trill/trill.log
-trill --debug-play [spotify:track:…] # play one track headless, print engine events
+TRILL_LOG=debug trill                 # writes ~/.cache/trill/trill.log
+trill --debug-play [spotify:track:…]  # play one song headless, print the player's events
 ```
 
 Soloist's own output goes to `~/.cache/trill/soloist.log`.
 </details>
 
-## Troubleshooting
-
-- **"trill is not recognized" or "command not found":** open a new terminal window after installing.
-- **"cargo is not recognized":** you only need Rust to build trill yourself. Use the download in step 1.
-- **Every song is skipped with "Unavailable":** trill isn't playing through Soloist, and the message says what's missing. Usually the key isn't saved in `~/.config/trill/soloist_api_key` (on Windows, `C:\Users\<you>\.config\trill\soloist_api_key`), or step 4 hasn't been run.
-- **Album art looks pixelated or blocky:** your terminal can't display images, so trill draws the cover with coloured blocks. This is always the case in Apple's Terminal, Alacritty and the old Windows console. Use Ghostty, kitty, WezTerm, iTerm2 or Windows Terminal for the real cover.
-- **Your phone doesn't list trill:** run `trill --pair` again with the phone on the same Wi-Fi, and allow the firewall prompt.
-- **Anything else:** run `TRILL_LOG=debug trill` (on Windows: `$env:TRILL_LOG="debug"; trill`). trill's log is then in `~/.cache/trill/trill.log`, and Soloist's in `~/.cache/trill/soloist.log`.
-
-> [!NOTE]
-> macOS and Windows support is new. If something doesn't work there, an issue with the log helps.
-
-> [!TIP]
-> Setting trill up on a second computer? Copy only `~/.config/trill/soloist_api_key` and pair again there. Don't copy `~/.local/share/trill`: it holds this computer's Soloist identity, and two players sharing one identity keep taking playback from each other.
-
 ## FAQ
 
 **Why not just librespot?**
-On many accounts, Spotify no longer hands librespot the keys to decrypt audio. trill still uses librespot for everything except playback, and you can switch to it with `backend = librespot` if your account still works with it.
+On many accounts Spotify no longer gives librespot the keys to decrypt audio. trill still uses librespot for everything except playback, and `backend = librespot` switches to it if your account still works with it.
 
 **Does it work without Premium?**
-No. Both Soloist and librespot need a Premium account.
+No. Soloist and librespot both need Premium.
 
 **Only CachyOS?**
-No. It's tuned and tested there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs and Windows PCs (see [Get started](#get-started)).
+No. It's made and measured there, but any Linux with PipeWire or PulseAudio works, and so do Apple Silicon Macs and Windows PCs.
 
 **Can I use it in WSL?**
-The Linux build should work under WSL2 with WSLg, which provides the audio. Pairing your phone with Soloist needs WSL's mirrored networking, though, so on Windows the native build is the easier choice.
+The Linux build should work under WSL2 with WSLg for audio, but pairing your phone needs WSL's mirrored networking, so the native Windows build is easier.
 
 **Why does it ask me to log in twice?**
-It only does if you set your own `client_id`. That second login is for search alone.
+Only if you set your own `client_id`: that second login is for search alone.
+
+**Does For You send my listening history anywhere?**
+No. The play log stays on your computer. Spotify sees the requests For You makes (radio and artist pages for a few seeds), the same kind trill makes while you browse. See [For You](#for-you).
