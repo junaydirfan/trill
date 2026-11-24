@@ -17,6 +17,7 @@ use ratatui_image::{FilterType, Resize, picker::Picker, protocol::Protocol};
 use super::{App, Focus, Msg, SideKind};
 use crate::{
     api::{self, Kind, Row},
+    discover::{self, FOR_YOU},
     library::{self, Lyrics},
     theme,
 };
@@ -484,6 +485,40 @@ impl App {
         });
     }
 
+    /// `X` on a For You song or a ✦ smart-shuffle song: never suggest it again (kept in
+    /// `not_interested`). It leaves For You at once; a ✦ song leaves the queue (and is skipped
+    /// if it's playing).
+    pub(super) fn mark_not_interested(&mut self) {
+        let row = match self.focus {
+            Focus::Main if !self.lyrics_open => self.view.state.selected().and_then(|i| self.view.rows.get(i)).cloned(),
+            _ => None,
+        }
+        .filter(|r| r.kind == Kind::Track && (self.view.uri == FOR_YOU || self.is_rec(&r.uri)))
+        .or_else(|| self.now.clone().filter(|r| self.is_rec(&r.uri)));
+        let Some(row) = row else {
+            self.status = "X is for suggestions: a song in For You, or a ✦ song from smart shuffle.".into();
+            return;
+        };
+        if self.not_interested.insert(row.uri.clone())
+            && let Some(d) = self.data_dir.as_deref()
+        {
+            discover::add_not_interested(d, &row.uri);
+        }
+        self.edit_cached(FOR_YOU, |v| v.retain(|r| r.uri != row.uri));
+        if let Some(i) = self.recs.iter().position(|r| r.uri == row.uri) {
+            let idx = self.ctx.len() + i;
+            if self.now.as_ref().is_some_and(|n| n.uri == row.uri) {
+                self.next(false);
+            }
+            // later in the play order: take it out (the entry at the cursor is what plays now)
+            if let Some(p) = self.order.iter().position(|&o| o == idx).filter(|&p| p > self.cursor) {
+                self.order.remove(p);
+            }
+            self.refresh_queue_view();
+        }
+        self.status = format!("Not interested in “{}”: it won't be suggested again.", row.title);
+    }
+
     // ---------------------------------------------------------------- lyrics
 
     pub(super) fn toggle_lyrics(&mut self) {
@@ -776,7 +811,10 @@ impl App {
                 }
                 let have: HashSet<&str> = self.ctx.iter().map(|r| r.uri.as_str()).collect();
                 let mut seen = HashSet::new();
-                let recs: Vec<Row> = rows.into_iter().filter(|r| !have.contains(r.uri.as_str()) && seen.insert(r.uri.clone())).collect();
+                let recs: Vec<Row> = rows
+                    .into_iter()
+                    .filter(|r| !have.contains(r.uri.as_str()) && !self.not_interested.contains(&r.uri) && seen.insert(r.uri.clone()))
+                    .collect();
                 self.recs = recs;
                 self.weave();
                 self.refresh_queue_view();

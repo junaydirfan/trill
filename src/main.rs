@@ -13,6 +13,7 @@ mod app;
 mod audio;
 mod auth;
 mod config;
+mod discover;
 mod engine;
 mod library;
 mod theme;
@@ -736,6 +737,8 @@ async fn run(cfg: Config) -> i32 {
     }
     app.soloist_missing = cfg.soloist_missing();
     app.cache_dir = Some(cfg.cache_dir.clone());
+    app.not_interested = discover::not_interested(&cfg.data_dir);
+    app.data_dir = Some(cfg.data_dir.clone());
     app.art_on = img_picker.is_some() && app.audio.art;
     app.img_picker = img_picker;
     app.load_playlists();
@@ -854,6 +857,7 @@ async fn run(cfg: Config) -> i32 {
             Some(cmd) = remote_rx.recv() => { app.on_remote(cmd); dirty = true; }
             _ = tick.tick(), if app.playing => {
                 app.check_resume();
+                app.note_play();
                 dirty = true;
             }
         }

@@ -23,6 +23,7 @@ use crate::{
     audio::{AudioSettings, BANDS, Eq},
     auth::WebToken,
     engine::{Engine, EngineEvent},
+    discover::{self, FOR_YOU},
     mpris::Remote,
 };
 
@@ -67,8 +68,10 @@ fn weave(order: &mut Vec<usize>, from: usize, mut recs: std::ops::Range<usize>) 
     }
 }
 
-/// Sidebar entries above the playlists: Liked Songs, Albums, Artists, Queue, Search.
-const FIXED_SIDE: usize = 5;
+/// Sidebar entries above the playlists: Liked Songs, Albums, Artists, For You, Queue, Search.
+const FIXED_SIDE: usize = 6;
+/// For You is worked out again when it's opened this long after the last time (or on `R`).
+const FOR_YOU_FRESH: Duration = Duration::from_secs(12 * 3600);
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
@@ -198,6 +201,7 @@ fn sorted(sort: Sort, uri: &str, rows: Rows) -> (Rows, Option<&'static str>) {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum SideKind {
     Liked,
+    ForYou,
     Queue,
     Search,
     Playlist,
@@ -274,6 +278,12 @@ pub struct App {
     pub soloist_missing: Option<String>,
     /// Where the playlist list is cached so the sidebar fills instantly on start.
     pub cache_dir: Option<std::path::PathBuf>,
+    /// Where settings, the play log and "not interested" live.
+    pub data_dir: Option<std::path::PathBuf>,
+    /// Songs never to suggest again (`X`).
+    pub not_interested: HashSet<String>,
+    /// The song whose play is already in the log (it's logged once it has played 30 s).
+    logged: Option<String>,
     /// Tag of a newer trill release, shown in the title bar.
     pub update: Option<String>,
     /// EQ panel open, with this band selected.
@@ -375,6 +385,10 @@ pub struct App {
 
 const SEEK_MS: u32 = 10_000;
 
+fn for_you_status(n: usize) -> String {
+    format!("For You: {n} songs from what you play, worked out here. X: not interested · R: new picks")
+}
+
 fn playlists_status(n: usize) -> String {
     format!("{n} playlists. Tab to switch panes, / to search, ? for keys.")
 }
@@ -398,6 +412,7 @@ impl App {
             SideItem { name: "♥ Liked Songs".into(), uri: format!("spotify:user:{user}:collection"), kind: SideKind::Liked, editable: false, pinned: false },
             SideItem { name: "◉ Albums".into(), uri: api::SAVED_ALBUMS.into(), kind: SideKind::Liked, editable: false, pinned: false },
             SideItem { name: "◈ Artists".into(), uri: api::FOLLOWED_ARTISTS.into(), kind: SideKind::Liked, editable: false, pinned: false },
+            SideItem { name: "✦ For You".into(), uri: FOR_YOU.into(), kind: SideKind::ForYou, editable: false, pinned: false },
             SideItem { name: "≡ Queue".into(), uri: "trill:queue".into(), kind: SideKind::Queue, editable: false, pinned: false },
             SideItem { name: "⌕ Search".into(), uri: "trill:search".into(), kind: SideKind::Search, editable: false, pinned: false },
         ];
@@ -426,6 +441,9 @@ impl App {
             eq,
             eq_allowed: true,
             cache_dir: None,
+            data_dir: None,
+            not_interested: HashSet::new(),
+            logged: None,
             update: None,
             eq_panel: None,
             help_open: false,
@@ -524,7 +542,20 @@ impl App {
                 self.back.remove(0);
             }
         }
-        if !force && let Some(rows) = self.cache.get(&uri).cloned() {
+        if !force && uri != FOR_YOU && let Some(rows) = self.cache.get(&uri).cloned() {
+            self.show(uri, title, rows);
+            return;
+        }
+        // For You from disk, as it was last worked out, unless that was a while ago
+        if !force
+            && uri == FOR_YOU
+            && let Some(dir) = self.cache_dir.as_deref()
+            && api::list_age(dir, &uri).is_some_and(|a| a < FOR_YOU_FRESH)
+            && let Some(rows) = api::read_list_cache(dir, &uri)
+        {
+            let rows: Rows = Arc::new(rows);
+            self.cache.insert(uri.clone(), rows.clone()); // so `X` can take songs out of it
+            self.status = for_you_status(rows.len());
             self.show(uri, title, rows);
             return;
         }
@@ -556,6 +587,18 @@ impl App {
     /// Load a list; `known` rows (an older copy) spare re-fetching their songs' details.
     fn fetch_rows(&self, uri: String, title: String, known: Rows) {
         let (s, tx) = (self.session.clone(), self.tx.clone());
+        if uri == FOR_YOU {
+            let Some(dir) = self.data_dir.clone() else { return };
+            let liked = self.cache.get(&self.liked_uri()).cloned().or_else(|| {
+                self.cache_dir.as_deref().and_then(|d| api::read_list_cache(d, &self.liked_uri())).map(Arc::new)
+            });
+            let exclude: HashSet<String> = self.liked.iter().chain(&self.not_interested).cloned().collect();
+            tokio::spawn(async move {
+                let rows = discover::for_you(&s, &dir, liked.unwrap_or_default(), exclude).await;
+                let _ = tx.send(Msg::Rows { uri, title, rows });
+            });
+            return;
+        }
         tokio::spawn(async move {
             let rows = api::context_rows(&s, &uri, &known).await;
             let _ = tx.send(Msg::Rows { uri, title, rows });
@@ -563,6 +606,11 @@ impl App {
     }
 
     fn show(&mut self, uri: String, title: String, rows: Rows) {
+        // another list still loading mustn't replace this one when it arrives
+        if self.pending.as_deref() != Some(uri.as_str()) {
+            self.pending = None;
+            self.loading = false;
+        }
         let (all, sort) = sorted(self.sort_for(&uri), &uri, rows);
         // a fresh copy of the list on screen keeps what it's narrowed to
         let find = if self.view.uri == uri { std::mem::take(&mut self.view.find) } else { String::new() };
@@ -669,7 +717,7 @@ impl App {
                 let rows = self.search_rows.clone();
                 self.show("trill:search".into(), self.search_title.clone(), rows);
             }
-            SideKind::Liked | SideKind::Playlist => self.open(uri, name, false, false),
+            SideKind::Liked | SideKind::Playlist | SideKind::ForYou => self.open(uri, name, false, false),
         }
         // Picking "Search" means "I want to search": open the search box right away.
         self.focus = if kind == SideKind::Search { Focus::Input } else { Focus::Main };
@@ -737,7 +785,7 @@ impl App {
                             crate::trim_heap();
                         }
                         if is_current {
-                            self.status = format!("{title}: {}", count(&rows));
+                            self.status = if uri == FOR_YOU { for_you_status(rows.len()) } else { format!("{title}: {}", count(&rows)) };
                             self.show(uri, title, rows);
                         } else if changed && self.view.uri == uri {
                             // The copy on screen came from disk; this is the fresh one.
@@ -1008,6 +1056,20 @@ impl App {
     /// Seek again while Soloist plays well before the resume point (see `pending_seek`).
     /// Runs on each position report and each second: after a restart Soloist first sends
     /// the old session's snapshot, then starts our track from 0 and may report nothing more.
+    /// Log the song playing once it has played 30 s (again after it starts over), for For You.
+    pub fn note_play(&mut self) {
+        let Some(now) = self.now.as_ref() else { return };
+        let pos = self.position_ms();
+        if pos >= 30_000 && self.logged.as_deref() != Some(now.uri.as_str()) {
+            if let Some(dir) = self.data_dir.as_deref() {
+                discover::log_play(dir, now);
+            }
+            self.logged = Some(now.uri.clone());
+        } else if pos < 5_000 && self.logged.as_deref() == Some(now.uri.as_str()) {
+            self.logged = None; // repeat one, or played again: counts again after 30 s
+        }
+    }
+
     pub fn check_resume(&mut self) {
         let Some((want, until, last)) = self.pending_seek else { return };
         if Instant::now() > until {
@@ -1772,6 +1834,7 @@ impl App {
                 self.input = self.view.find.clone();
             }
             KeyCode::Char('z') => self.cycle_sleep(),
+            KeyCode::Char('X') => self.mark_not_interested(),
             KeyCode::Char(' ') => self.toggle(),
             KeyCode::Char('n') => self.next(false),
             KeyCode::Char('p') => self.prev(),
@@ -1820,7 +1883,7 @@ impl App {
                 if self.focus == Focus::Side || self.view.uri.is_empty() {
                     self.status = "Reloading playlists…".into();
                     self.load_playlists();
-                } else if !self.view.uri.starts_with("trill:") || self.view.uri.starts_with("trill:collection:") {
+                } else if !self.view.uri.starts_with("trill:") || self.view.uri.starts_with("trill:collection:") || self.view.uri == FOR_YOU {
                     let (u, t) = (self.view.uri.clone(), self.view.title.clone());
                     self.open(u, t, false, true);
                 }
