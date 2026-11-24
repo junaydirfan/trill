@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="assets/readme/hero.svg" width="880" alt="trill: Spotify in your terminal. It plays through Spotify's own player, Soloist. About 15.8 MB of memory at start, 0% CPU while idle, the library on screen in about 50 ms, one 6.5 MB program.">
+  <img src="assets/readme/hero.svg" width="880" alt="trill: Spotify in your terminal. It plays through Spotify's own player, Soloist. About 17 MB of memory at start, 0% CPU while idle, the library on screen in about 50 ms, one 6.6 MB program.">
 </p>
 
 <p align="center">
@@ -27,7 +27,7 @@
 trill is Spotify for the terminal. Audio comes from **Soloist**, Spotify's own headless player, so it plays on accounts where librespot gets refused. Your library comes through librespot's connection, the same private API the official apps use, so the Web API's limits don't get in the way. It stays out of your way too: a small program that sleeps when there's nothing to do.
 
 <p align="center">
-  <img src="assets/readme/different.svg" width="880" alt="What's different about trill. Plays where librespot can't: audio comes from Soloist, Spotify's own player. Small and quiet: about 15.8 MB of memory, and no CPU or timers while idle. For You, worked out here: suggestions from what you play, ranked on your computer; your play history stays on it. Your whole library: playlists, folders, pins, albums, artists and lyrics, through Spotify's own API, with no Web API limits.">
+  <img src="assets/readme/different.svg" width="880" alt="What's different about trill. Plays where librespot can't: audio comes from Soloist, Spotify's own player. Small and quiet: about 17.4 MB of memory, and no CPU or timers while idle. For You, worked out here: suggestions from what you play, ranked on your computer; your play history stays on it. Your whole library: playlists, folders, pins, albums, artists and lyrics, through Spotify's own API, with no Web API limits.">
 </p>
 
 ## Get started
@@ -164,30 +164,31 @@ To update a build: `cargo install --git https://github.com/junaydirfan/trill --f
 ## Numbers
 
 <p align="center">
-  <img src="assets/readme/numbers.svg" width="880" alt="Footprint, measured on an i9-14900HX, memory as PSS. trill at start: 15.8 MB; playing from Liked Songs, 3,953 songs: 19.2 MB; with For You open: 19.6 MB; Soloist, Spotify's player, while playing: about 50 MB. CPU: 0% idle and paused, about 0.2% playing. The library on screen about 50 ms after launch; For You worked out in about 2 s and reopened in 5 ms.">
+  <img src="assets/readme/numbers.svg" width="880" alt="Footprint, measured on an i9-14900HX, memory as PSS. trill at start: 17.4 MB; playing from Liked Songs, 3,953 songs: 20.6 MB; with For You open: 20.2 MB; Soloist, Spotify's player, while playing: about 49 MB. CPU: 0% idle and paused, about 0.2% playing. The library on screen about 50 ms after launch; For You worked out in about 1.5 s and reopened in 7 ms.">
 </p>
 
 <details>
 <summary><strong>Every measurement</strong></summary>
 
-Measured on v0.6.0 on an i9-14900HX laptop (CachyOS), with the Soloist backend, a library of 3,953 liked songs and 110 playlists, and a network round trip to Spotify of about 150 ms. trill ran in tmux at 140×42 on a copy of a real config and cache. Memory is PSS from `/proc/<pid>/smaps_rollup`; wakeups are voluntary context switches over all of trill's threads.
+Measured on the v0.6.0 release download on an i9-14900HX laptop (CachyOS), with the Soloist backend, a library of 3,953 liked songs and 110 playlists, and a network round trip to Spotify of about 150 ms. trill ran in tmux at 140×42 on a copy of a real config and cache. Memory is PSS from `/proc/<pid>/smaps_rollup`; wakeups are voluntary context switches over all of trill's threads.
 
 | | |
 |---|---|
-| Launch to library on screen | ~50 ms (from disk; usable after login, ~0.45 s) |
-| trill at start | 15.8 MB (peak 25 MB) |
-| Liked Songs open and playing | 19.2 MB |
-| After a few song changes | 18.6 MB |
-| For You open | 19.6 MB |
+| Launch to library on screen | ~50 ms (from disk; usable after login, ~0.45–0.55 s) |
+| trill at start | 17.4 MB (peak 26 MB) |
+| Liked Songs open and playing | 20.6 MB |
+| After a few song changes | 19.9 MB (peak 30 MB) |
+| For You open | 20.2 MB |
 | CPU idle, and paused | 0 |
-| Wakeups idle | ~3 a minute: Spotify's keepalive ping and its reply |
+| Wakeups idle | ~3 a minute: Spotify's keepalive ping and its reply; paused, the same |
 | CPU playing | ~0.2% of one core |
-| Key press to frame | 10–20 ms in tmux, most of it tmux itself |
-| Re-sort or find in 3,953 songs | the same as any other key |
-| For You, worked out | ~2 s; reopened from disk, 5 ms |
-| Soloist while playing | ~50 MB, ~2.5% of one core (not re-measured for v0.6.0) |
+| Key press to frame | ~2.6 ms moving in 3,953 songs; ~5.6 ms re-sorting them; ~4.4 ms per key in find (timed inside trill with a timing build of this code) |
+| For You, worked out | ~1.4–2.2 s; reopened from disk, 7 ms |
+| Soloist while playing | ~49 MB, plus ~11 MB for its crash reporter; ~2% of one core |
 | EQ, when not on Flat | ~4 MB, ~1.7% of one core (not re-measured for v0.6.0) |
-| The program | 6.5 MB, nothing to install besides Soloist |
+| The program | 6.6 MB, nothing to install besides Soloist |
+
+The release download links OpenSSL 3. On CachyOS and Arch that's a compatibility library nothing else uses, so about 1.3 MB of its memory counts against trill alone; built from source there, trill uses the system's OpenSSL and starts at about 15.8 MB.
 </details>
 
 <details>

@@ -318,18 +318,18 @@ def screenshot(name, ansi, label, cols=140, rows=42, crop=None):
 
 
 # ---------------------------------------------------------------------------- numbers
-# Measured on v0.6.0, i9-14900HX, CachyOS, Soloist backend, a library of 3,953 liked songs and
-# 110 playlists, in tmux at 140×42 (see the README for how). Memory is PSS.
+# Measured on the v0.6.0 release download, i9-14900HX, CachyOS, Soloist backend, a library of 3,953
+# liked songs and 110 playlists, in tmux at 140×42 (see the README for how). Memory is PSS.
 NUMBERS = {
-    "pss_start": "15.8 MB",
-    "pss_playing": "19.2 MB",
-    "pss_foryou": "19.6 MB",
-    "soloist": "~50 MB",
+    "pss_start": "17.4 MB",
+    "pss_playing": "20.6 MB",
+    "pss_foryou": "20.2 MB",
+    "soloist": "~49 MB",
     "cpu_playing": "0.2%",
     "first_frame": "~50 ms",
-    "binary": "6.5 MB",
-    "foryou_fresh": "~2 s",
-    "foryou_reopen": "5 ms",
+    "binary": "6.6 MB",
+    "foryou_fresh": "~1.5 s",
+    "foryou_reopen": "7 ms",
 }
 N = NUMBERS
 
