@@ -8,6 +8,7 @@
 //!   before it starts (changing it restarts Soloist; trill resumes where you were).
 
 use std::{
+    collections::HashMap,
     fs,
     path::{Path, PathBuf},
     process::{Command, Stdio},
@@ -62,8 +63,15 @@ pub struct AudioSettings {
     pub tint: Option<[u8; 3]>,
     /// When the private session trill turned on ends (unix seconds; 0 = none).
     pub private_until: u64,
+    /// Lists sorted some other way than [`Self::sort`]: uri -> index into [`SORTS`].
+    pub sorts: HashMap<String, u8>,
+    /// Past searches, newest first.
+    pub searches: Vec<String>,
     path: PathBuf,
 }
+
+/// How many past searches are kept.
+pub const SEARCHES: usize = 30;
 
 impl AudioSettings {
     pub fn load(dir: &Path) -> Self {
@@ -79,6 +87,8 @@ impl AudioSettings {
             theme: 0,
             tint: None,
             private_until: 0,
+            sorts: HashMap::new(),
+            searches: Vec::new(),
             path: dir.join("audio_settings"),
         };
         let Ok(text) = fs::read_to_string(&s.path) else { return s };
@@ -105,6 +115,12 @@ impl AudioSettings {
                 "art" => s.art = v.trim() != "off",
                 "theme" => s.theme = crate::theme::by_name(v.trim()),
                 "private" => s.private_until = v.trim().parse().unwrap_or(0),
+                "search" if !v.trim().is_empty() && s.searches.len() < SEARCHES => s.searches.push(v.trim().to_string()),
+                k if k.starts_with("sort ") => {
+                    if let Some(i) = SORTS.iter().position(|n| *n == v.trim()) {
+                        s.sorts.insert(k["sort ".len()..].to_string(), i as u8);
+                    }
+                }
                 "tint" => {
                     let c: Vec<u8> = v.split(',').filter_map(|c| c.trim().parse().ok()).collect();
                     s.tint = <[u8; 3]>::try_from(c).ok();
@@ -134,6 +150,12 @@ impl AudioSettings {
         };
         if self.private_until > crate::app::unix_now() {
             text.push_str(&format!("private={}\n", self.private_until));
+        }
+        for (uri, &i) in &self.sorts {
+            text.push_str(&format!("sort {uri}={}\n", SORTS[(i as usize).min(SORTS.len() - 1)]));
+        }
+        for q in &self.searches {
+            text.push_str(&format!("search={}\n", q.replace('\n', " ")));
         }
         if let Some(d) = self.path.parent() {
             let _ = fs::create_dir_all(d);
@@ -398,5 +420,22 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         assert!(b.shuffle && b.smart && b.repeat == 2 && b.sort == 4 && !b.art && b.crossfade_s == 6);
         assert!(b.theme == crate::theme::COVER && b.tint == Some([224, 135, 99]));
+    }
+
+    #[test]
+    fn per_list_sorts_and_searches_survive_restart() {
+        let dir = std::env::temp_dir().join(format!("trill-test-lists-{}", std::process::id()));
+        let mut a = AudioSettings::load(&dir);
+        a.sorts.insert("spotify:playlist:x".into(), 3);
+        a.searches = vec!["daft punk".into(), "a = b".into()];
+        a.save();
+        let b = AudioSettings::load(&dir);
+        assert_eq!(b.sorts.get("spotify:playlist:x"), Some(&3));
+        assert_eq!(b.searches, ["daft punk", "a = b"]);
+        // a file written by an older trill (no per-list sorts, no searches) still loads
+        fs::write(dir.join("audio_settings"), "preset=Rock\nsort=title\n").unwrap();
+        let c = AudioSettings::load(&dir);
+        let _ = fs::remove_dir_all(&dir);
+        assert!(c.sorts.is_empty() && c.searches.is_empty() && c.sort == 2 && c.preset_name() == "Rock");
     }
 }

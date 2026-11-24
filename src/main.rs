@@ -830,14 +830,14 @@ async fn run(cfg: Config) -> i32 {
             }
             dirty = true;
         }
-        let deadline = [app.end_deadline(), app.restart_at, app.lyrics_deadline()].into_iter().flatten().min();
+        let deadline = [app.end_deadline(), app.restart_at, app.lyrics_deadline(), app.sleep_deadline()].into_iter().flatten().min();
         tokio::select! {
             _ = async {
                 match deadline {
                     Some(d) => tokio::time::sleep_until(d.into()).await,
                     None => std::future::pending().await,
                 }
-            }, if deadline.is_some() => { app.on_end_deadline(); dirty = true; }
+            }, if deadline.is_some() => { app.on_end_deadline(); app.on_sleep_deadline(); dirty = true; }
             Some(why) = quit_rx.recv() => {
                 log::info!("quitting: {why}");
                 app.quit = true;

@@ -77,6 +77,28 @@ pub enum Focus {
     Input,
 }
 
+/// What the bottom-line input box is for.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub enum InputMode {
+    /// `/`: search Spotify.
+    Search,
+    /// `F`: narrow the open list as you type.
+    Find,
+}
+
+/// Sleep timer steps for `z`; after the last comes "end of this song", then off.
+const SLEEP_MINUTES: [u64; 5] = [15, 30, 45, 60, 90];
+/// How long the volume takes to fade out before the sleep timer pauses.
+const SLEEP_FADE: Duration = Duration::from_secs(8);
+
+/// `z`: pause after a while, fading out first.
+pub struct SleepTimer {
+    /// Index into [`SLEEP_MINUTES`], or its length for "end of this song".
+    step: usize,
+    /// When to pause; None: at the end of the song playing.
+    pub until: Option<Instant>,
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum Repeat {
     Off,
@@ -136,11 +158,24 @@ fn count(rows: &[Row]) -> String {
     if parts.is_empty() { "empty".into() } else { parts.join(" · ") }
 }
 
+/// Playlists and the library sets can be re-sorted; albums, artist pages and search keep their order.
+fn sortable(uri: &str) -> bool {
+    uri.starts_with("spotify:playlist:") || uri.contains(":collection")
+}
+
+/// The rows of `all` that match `find` (case-insensitive, in title, artist or album).
+fn found(all: &Rows, find: &str) -> Rows {
+    if find.is_empty() {
+        return all.clone();
+    }
+    let q = find.to_lowercase();
+    Arc::new(all.iter().filter(|r| [&r.title, &r.artist, &r.album].iter().any(|f| f.to_lowercase().contains(&q))).cloned().collect())
+}
+
 fn sorted(sort: Sort, uri: &str, rows: Rows) -> (Rows, Option<&'static str>) {
-    let sortable = uri.starts_with("spotify:playlist:") || uri.contains(":collection");
     let label = Some(sort.label());
     match sort {
-        _ if !sortable => (rows, None),
+        _ if !sortable(uri) => (rows, None),
         Sort::Original => (rows, None),
         Sort::Added if !rows.iter().any(|r| r.added_at > 0) => (rows, None),
         // already newest-first (liked songs): no copy
@@ -189,10 +224,21 @@ enum QSrc {
 pub struct View {
     pub uri: String,
     pub title: String,
+    /// The rows shown: `all`, narrowed by `find`.
     pub rows: Rows,
+    /// Every row of the list, sorted.
+    pub all: Rows,
+    /// `F`: only rows matching this are shown.
+    pub find: String,
     pub state: TableState,
     /// The sort applied to the rows, for the header (None: their own order).
     pub sort: Option<&'static str>,
+}
+
+impl View {
+    fn empty(uri: String, title: String) -> Self {
+        View { uri, title, rows: Arc::default(), all: Arc::default(), find: String::new(), state: TableState::default(), sort: None }
+    }
 }
 
 impl View {
@@ -255,6 +301,10 @@ pub struct App {
     revived_at: Option<Instant>,
     pub focus: Focus,
     pub input: String,
+    pub input_mode: InputMode,
+    /// Which past search ↑/↓ brought back into the search box.
+    history_at: Option<usize>,
+    pub sleep: Option<SleepTimer>,
     pub status: String,
     pub loading: bool,
     pub quit: bool,
@@ -275,6 +325,8 @@ pub struct App {
     pub playing: bool,
     pos_ms: u32,
     pos_at: Instant,
+    /// The last seek (target, when): Soloist's report for an earlier seek can arrive after it.
+    seeked: Option<(u32, Instant)>,
     /// Soloist: the uri we asked for and when; transitional events are ignored until it starts.
     awaiting: Option<(String, Instant)>,
     /// Soloist: the next track we already put in Soloist's own queue (so it switches
@@ -362,7 +414,7 @@ impl App {
             tx,
             side,
             side_state: ListState::default().with_selected(Some(0)),
-            view: View { uri: String::new(), title: "trill".into(), rows: Arc::new(Vec::new()), state: TableState::default(), sort: None },
+            view: View::empty(String::new(), "trill".into()),
             back: Vec::new(),
             queue_src: Vec::new(),
             cache: HashMap::new(),
@@ -389,6 +441,9 @@ impl App {
             revived_at: None,
             focus: Focus::Side,
             input: String::new(),
+            input_mode: InputMode::Search,
+            history_at: None,
+            sleep: None,
             status: "Loading playlists…".into(),
             loading: false,
             quit: false,
@@ -403,6 +458,7 @@ impl App {
             playing: false,
             pos_ms: 0,
             pos_at: Instant::now(),
+            seeked: None,
             awaiting: None,
             ahead: None,
             vol,
@@ -462,10 +518,7 @@ impl App {
     pub(crate) fn open(&mut self, uri: String, title: String, push_back: bool, force: bool) {
         self.lyrics_open = false; // the lyrics view would hide the list being opened
         if push_back && !self.view.uri.is_empty() {
-            let prev = std::mem::replace(
-                &mut self.view,
-                View { uri: String::new(), title: String::new(), rows: Arc::new(Vec::new()), state: TableState::default(), sort: None },
-            );
+            let prev = std::mem::replace(&mut self.view, View::empty(String::new(), String::new()));
             self.back.push(prev);
             if self.back.len() > 20 {
                 self.back.remove(0);
@@ -491,6 +544,8 @@ impl App {
         self.view.uri = uri.clone();
         self.view.title = title.clone();
         self.view.rows = Arc::new(Vec::new());
+        self.view.all = Arc::new(Vec::new());
+        self.view.find = String::new();
         self.view.state = TableState::default();
         self.loading = true;
         self.status = format!("Loading {title}…");
@@ -508,9 +563,12 @@ impl App {
     }
 
     fn show(&mut self, uri: String, title: String, rows: Rows) {
-        let (rows, sort) = sorted(self.sort, &uri, rows);
+        let (all, sort) = sorted(self.sort_for(&uri), &uri, rows);
+        // a fresh copy of the list on screen keeps what it's narrowed to
+        let find = if self.view.uri == uri { std::mem::take(&mut self.view.find) } else { String::new() };
+        let rows = found(&all, &find);
         let sel = if rows.is_empty() { None } else { Some(0) };
-        self.view = View { uri, title, rows, state: TableState::default().with_selected(sel), sort };
+        self.view = View { uri, title, rows, all, find, state: TableState::default().with_selected(sel), sort };
         // `w` opened the list, but the song has since left it
         if std::mem::take(&mut self.jump) && !self.select_now() {
             self.show_now_in_queue();
@@ -566,12 +624,28 @@ impl App {
         true
     }
 
-    /// Step through the sort modes (`back`: the other way round).
+    /// The order list `uri` is shown in: its own, else the default.
+    fn sort_for(&self, uri: &str) -> Sort {
+        self.audio.sorts.get(uri).map_or(self.sort, |&i| Sort::ALL[(i as usize).min(Sort::ALL.len() - 1)])
+    }
+
+    /// Step through the sort modes for the open list (`back`: the other way round); each list
+    /// remembers its own.
     fn cycle_sort(&mut self, back: bool) {
+        let uri = self.view.uri.clone();
+        if !sortable(&uri) {
+            self.status = "This list keeps its own order (playlists and your library can be sorted).".into();
+            return;
+        }
         let n = Sort::ALL.len();
-        self.sort = Sort::ALL[(self.sort as usize + if back { n - 1 } else { 1 }) % n];
+        let sort = Sort::ALL[(self.sort_for(&uri) as usize + if back { n - 1 } else { 1 }) % n];
+        if sort == self.sort {
+            self.audio.sorts.remove(&uri);
+        } else {
+            self.audio.sorts.insert(uri.clone(), sort as u8);
+        }
         self.save_prefs();
-        self.status = format!("Sort: {}", self.sort.label());
+        self.status = format!("Sort: {}", sort.label());
         let Some(orig) = self.cache.get(&self.view.uri).cloned() else { return };
         let keep = self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| r.uri.clone());
         let (uri, title) = (self.view.uri.clone(), self.view.title.clone());
@@ -708,6 +782,10 @@ impl App {
         if q.trim().is_empty() {
             return;
         }
+        self.audio.searches.retain(|s| *s != q);
+        self.audio.searches.insert(0, q.clone());
+        self.audio.searches.truncate(crate::audio::SEARCHES);
+        self.audio.save();
         self.loading = true;
         self.status = format!("Searching “{q}”…");
         let (s, tx, web) = (self.session.clone(), self.tx.clone(), self.web.clone());
@@ -783,6 +861,7 @@ impl App {
 
     fn load(&mut self, row: Row) {
         self.pending_seek = None; // a resume belongs to the track it was set for
+        self.seeked = None;
         if self.engine.is_soloist() && self.ahead.take().is_some() {
             // Burn the pre-queued track so it can't play later; `play` follows immediately.
             self.engine.skip_next();
@@ -855,6 +934,12 @@ impl App {
     }
 
     fn next(&mut self, auto: bool) {
+        if auto && self.sleep.as_ref().is_some_and(|s| s.until.is_none()) {
+            // ended before the timer caught it: stop whatever Soloist moved on to
+            self.stop();
+            self.finish_sleep();
+            return;
+        }
         match self.advance(auto) {
             // Soloist already has it queued: skip to it rather than queue a duplicate.
             Some(r) if self.ahead.as_deref() == Some(r.uri.as_str()) => {
@@ -940,7 +1025,14 @@ impl App {
             self.engine.seek(ms);
             self.pos_ms = ms;
             self.pos_at = Instant::now();
+            self.seeked = Some((ms, self.pos_at));
         }
+    }
+
+    /// A position report that belongs to an earlier seek than the last one (pressing `.`
+    /// quickly would otherwise lose every other seek).
+    fn stale_position(&self, pos_ms: u32) -> bool {
+        self.seeked.is_some_and(|(want, at)| at.elapsed() < Duration::from_secs(1) && pos_ms.abs_diff(want) > 1500)
     }
 
     fn seek_by(&mut self, delta: i64) {
@@ -992,6 +1084,7 @@ impl App {
             || self.awaiting.is_some()
             || self.ahead.is_some()
             || self.repeat == Repeat::One
+            || self.sleep.as_ref().is_some_and(|s| s.until.is_none())
         {
             return None;
         }
@@ -1036,6 +1129,9 @@ impl App {
                         self.skips = 0;
                     }
                     self.playing = p;
+                }
+                if self.stale_position(pos_ms) {
+                    return true;
                 }
                 self.pos_ms = pos_ms;
                 self.pos_at = Instant::now();
@@ -1478,6 +1574,131 @@ impl App {
         double
     }
 
+    /// Keys while the bottom-line box is open: `/` search (↑↓ past searches) or `F` find in
+    /// the list (narrows it as you type; ↑↓ move in it).
+    fn on_input_key(&mut self, k: KeyEvent) {
+        let find = self.input_mode == InputMode::Find;
+        match k.code {
+            KeyCode::Esc => {
+                self.focus = Focus::Main;
+                self.input.clear();
+                if find {
+                    self.set_find(String::new());
+                }
+            }
+            KeyCode::Enter => {
+                let q = std::mem::take(&mut self.input);
+                self.focus = Focus::Main;
+                if !find {
+                    self.search(q);
+                }
+            }
+            KeyCode::Up | KeyCode::Down if find => self.move_sel(if k.code == KeyCode::Up { -1 } else { 1 }),
+            KeyCode::Up | KeyCode::Down => {
+                // ↑ goes back in time, ↓ forward; past the newest is an empty box again
+                let n = self.audio.searches.len();
+                self.history_at = match (k.code, self.history_at) {
+                    (KeyCode::Up, None) if n > 0 => Some(0),
+                    (KeyCode::Up, Some(i)) => Some((i + 1).min(n.saturating_sub(1))),
+                    (KeyCode::Down, Some(0)) | (_, None) => None,
+                    (_, Some(i)) => Some(i - 1),
+                };
+                self.input = self.history_at.and_then(|i| self.audio.searches.get(i)).cloned().unwrap_or_default();
+            }
+            KeyCode::Backspace => {
+                self.input.pop();
+                if find {
+                    self.set_find(self.input.clone());
+                }
+            }
+            KeyCode::Char(c) => {
+                self.input.push(c);
+                if find {
+                    self.set_find(self.input.clone());
+                }
+            }
+            _ => {}
+        }
+    }
+
+    /// Narrow the open list to the rows matching `find` (empty: show it all again).
+    fn set_find(&mut self, find: String) {
+        let keep = self.view.state.selected().and_then(|i| self.view.rows.get(i)).map(|r| r.uri.clone());
+        self.view.rows = found(&self.view.all, &find);
+        self.view.find = find;
+        let i = keep.and_then(|k| self.view.rows.iter().position(|r| r.uri == k)).unwrap_or(0);
+        self.view.state.select((!self.view.rows.is_empty()).then_some(i));
+    }
+
+    /// `z`: sleep timer 15 → 30 → 45 → 60 → 90 min → end of this song → off.
+    fn cycle_sleep(&mut self) {
+        let step = self.sleep.as_ref().map_or(0, |s| s.step + 1);
+        if self.sleep_end().is_some_and(|e| e <= Instant::now() + SLEEP_FADE) {
+            self.engine.set_volume(self.vol); // it was fading
+            self.vol_set_at = Instant::now();
+        }
+        self.sleep = None;
+        self.status = match SLEEP_MINUTES.get(step) {
+            Some(&m) => {
+                self.sleep = Some(SleepTimer { step, until: Some(Instant::now() + Duration::from_secs(m * 60)) });
+                format!("Sleep timer: pausing in {m} min (z for longer)")
+            }
+            None if step == SLEEP_MINUTES.len() => {
+                self.sleep = Some(SleepTimer { step, until: None });
+                "Sleep timer: pausing at the end of this song".into()
+            }
+            None => "Sleep timer off".into(),
+        };
+    }
+
+    /// When the sleep timer pauses (None: off, or "end of song" while nothing plays).
+    fn sleep_end(&self) -> Option<Instant> {
+        let s = self.sleep.as_ref()?;
+        match s.until {
+            Some(t) => Some(t),
+            // a little early: our position runs a moment behind Soloist's, and once the song
+            // ends Soloist starts its own autoplay pick
+            None if self.playing => {
+                let left = self.now.as_ref()?.duration_ms.saturating_sub(self.position_ms()).saturating_sub(1500);
+                Some(Instant::now() + Duration::from_millis(left as u64))
+            }
+            None => None,
+        }
+    }
+
+    /// When the sleep timer next needs to act: start fading, the next fade step, or pause.
+    pub fn sleep_deadline(&self) -> Option<Instant> {
+        let end = self.sleep_end()?;
+        let now = Instant::now();
+        if !self.playing || now + SLEEP_FADE < end {
+            return Some(if self.playing { end - SLEEP_FADE } else { end });
+        }
+        Some(end.min(now + Duration::from_millis(500)))
+    }
+
+    /// Fade the volume over the last seconds, then pause and put the volume back.
+    pub fn on_sleep_deadline(&mut self) {
+        let Some(end) = self.sleep_end() else { return };
+        let now = Instant::now();
+        self.vol_set_at = now; // Soloist echoes the fade; that's not the user changing the volume
+        if now + Duration::from_millis(20) >= end {
+            self.finish_sleep();
+        } else if self.playing && now + SLEEP_FADE >= end {
+            let left = (end - now).as_secs_f32() / SLEEP_FADE.as_secs_f32();
+            self.engine.set_volume((self.vol as f32 * left).round() as u32);
+        }
+    }
+
+    fn finish_sleep(&mut self) {
+        self.sleep = None;
+        if self.playing {
+            self.engine.pause();
+        }
+        self.engine.set_volume(self.vol);
+        self.vol_set_at = Instant::now();
+        self.status = "Sleep timer: paused.".into();
+    }
+
     pub fn on_key(&mut self, k: KeyEvent) {
         if k.kind == KeyEventKind::Release {
             return;
@@ -1502,22 +1723,7 @@ impl App {
             return;
         }
         if self.focus == Focus::Input {
-            match k.code {
-                KeyCode::Esc => {
-                    self.focus = Focus::Main;
-                    self.input.clear();
-                }
-                KeyCode::Enter => {
-                    let q = std::mem::take(&mut self.input);
-                    self.focus = Focus::Main;
-                    self.search(q);
-                }
-                KeyCode::Backspace => {
-                    self.input.pop();
-                }
-                KeyCode::Char(c) => self.input.push(c),
-                _ => {}
-            }
+            self.on_input_key(k);
             return;
         }
         match k.code {
@@ -1540,6 +1746,7 @@ impl App {
                     self.activate()
                 }
             }
+            KeyCode::Esc | KeyCode::Backspace if !self.view.find.is_empty() && self.focus == Focus::Main => self.set_find(String::new()),
             KeyCode::Esc | KeyCode::Backspace => {
                 if let Some(v) = self.back.pop() {
                     self.view = v;
@@ -1551,8 +1758,20 @@ impl App {
             }
             KeyCode::Char('/') => {
                 self.focus = Focus::Input;
+                self.input_mode = InputMode::Search;
                 self.input.clear();
+                self.history_at = None;
             }
+            KeyCode::Char('F') if self.view.uri == "trill:queue" || self.view.uri.is_empty() => {
+                self.status = "Open a list to find songs in it.".into();
+            }
+            KeyCode::Char('F') => {
+                self.lyrics_open = false;
+                self.focus = Focus::Input;
+                self.input_mode = InputMode::Find;
+                self.input = self.view.find.clone();
+            }
+            KeyCode::Char('z') => self.cycle_sleep(),
             KeyCode::Char(' ') => self.toggle(),
             KeyCode::Char('n') => self.next(false),
             KeyCode::Char('p') => self.prev(),
