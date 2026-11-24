@@ -444,6 +444,19 @@ impl App {
     }
 
     pub(super) fn remove_from_playlist(&mut self) {
+        if self.view.uri == "trill:queue" {
+            // the songs you queued with `a`; the rest of the queue is just the list playing
+            match self.view.state.selected().and_then(|i| self.queue_src.get(i)).copied() {
+                Some(super::QSrc::Manual(q)) => {
+                    if let Some(r) = self.queue.remove(q) {
+                        self.status = format!("Removed “{}” from the queue", r.title);
+                    }
+                    self.refresh_queue_view();
+                }
+                _ => self.status = "Only songs you queued (a) can be removed here.".into(),
+            }
+            return;
+        }
         let Some(side) = self.side.iter().find(|s| s.uri == self.view.uri && s.kind == SideKind::Playlist) else {
             self.status = "Open one of your playlists to remove songs from it.".into();
             return;

@@ -13,7 +13,7 @@ use ratatui_image::Image;
 
 use crate::{
     api::{self, Kind},
-    app::{App, Focus, LyricsState, Repeat},
+    app::{App, Focus, InputMode, LyricsState, Repeat},
     theme::{self, accent, grad, on_accent},
     audio::{BANDS, MAX_DB},
 };
@@ -154,7 +154,10 @@ pub fn draw(f: &mut Frame, app: &mut App) {
 
     // bottom line: search input or status
     if app.focus == Focus::Input {
-        let text = format!(" Search: {}", app.input);
+        let text = match app.input_mode {
+            InputMode::Search => format!(" Search: {}", app.input),
+            InputMode::Find => format!(" Find in {}: {}", app.view.title, app.input),
+        };
         let x = bottom.x + text.chars().count() as u16;
         f.render_widget(Paragraph::new(text).fg(accent()), bottom);
         f.set_cursor_position((x.min(bottom.right().saturating_sub(1)), bottom.y));
@@ -303,6 +306,9 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
         title.push_str(" · ");
         title.push_str(s);
     }
+    if !app.view.find.is_empty() {
+        title.push_str(&format!(" · “{}” {} of {}", app.view.find, app.view.rows.len(), app.view.all.len()));
+    }
     if app.loading {
         title.push_str(" (loading…)");
     }
@@ -338,6 +344,13 @@ fn now_flags(app: &App) -> Line<'static> {
     let mut s = Vec::new();
     if app.eq.is_some() && !app.audio.is_flat() {
         s.push(Span::styled(format!("eq {}  ", app.audio.preset_name().to_lowercase()), info));
+    }
+    if let Some(t) = &app.sleep {
+        let left = match t.until {
+            Some(u) => format!("{}m", u.saturating_duration_since(std::time::Instant::now()).as_secs().div_ceil(60)),
+            None => "end".into(),
+        };
+        s.push(Span::styled(format!("sleep {left}  "), Style::new().fg(accent())));
     }
     if app.audio.crossfade_s > 0 {
         s.push(Span::styled(format!("xfade {}s  ", app.audio.crossfade_s), info));
@@ -515,13 +528,14 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("s", "shuffle ⇄: off → on → smart ⇄✦"),
         ("r", "repeat ↻: off → all → one ↻1"),
         ("x", "crossfade off / 3 / 5 / 8 / 12 s"),
+        ("z", "sleep timer: 15…90 min, song end"),
         ("P", "play everything in the list"),
     ]),
     ("Library", &[
         ("f", "like · save album · follow artist"),
         ("a", "add to queue"),
         ("A", "add to / remove from a playlist"),
-        ("D D", "remove from the open playlist"),
+        ("D D", "remove from the playlist · queue"),
         ("y  Y", "copy link: highlighted · open list"),
         ("I", "private session ⊘ on / off (6 h)"),
     ]),
@@ -530,17 +544,16 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
         ("Tab  h  l", "switch pane"),
         ("Enter", "play / open"),
         ("Esc  ⌫", "back"),
-        ("/", "search"),
-        ("o  O", "next / previous sort order"),
-        ("c", "show the queue"),
-        ("w", "jump to the playing song"),
+        ("/", "search (↑↓ past searches)"),
+        ("F", "find in this list"),
+        ("o  O", "sort this list: next / previous"),
+        ("c  w", "show the queue · the playing song"),
         ("u  U", "open the song's album · artist"),
         ("R", "reload the current list"),
     ]),
     ("View", &[
         ("L", "lyrics"),
-        ("i", "album art on / off"),
-        ("t", "next colour theme"),
+        ("i  t", "album art on / off · next theme"),
         ("e  E", "next EQ preset / EQ panel"),
         ("?  q", "this help · quit (also Ctrl-C)"),
     ]),
