@@ -250,7 +250,7 @@ When a song ends, Soloist would play its own autoplay pick. To prevent that, tri
 | `y` / `Y` | copy the link of the highlighted item / the open list | | `?` | every key |
 | `q` `Ctrl-C` | quit (pauses first, so Spotify and Discord stop showing the song) | | | |
 
-**Mouse:** click a sidebar entry to open it, a song to select it, double-click to play, click the progress bar to seek, and scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle them. In the playlist picker and the EQ panel, click to pick; a click outside closes them. To select text, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in Apple's Terminal), or set `mouse = off`.
+**Mouse:** click a sidebar entry to open it, a song to select it, double-click to play, click the progress bar or a line of synced lyrics to seek, and scroll the pane under the pointer. Click ⇄, ↻ or ⊘ to toggle them. In the playlist picker and the EQ panel, click to pick; a click outside closes them. To select text, hold `Shift` while dragging (`Option` in iTerm2, `Fn` in Apple's Terminal), or set `mouse = off`.
 </details>
 
 ## Details

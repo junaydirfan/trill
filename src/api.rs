@@ -676,6 +676,83 @@ fn overview_of(a: &Value) -> (Vec<(String, String)>, Vec<String>) {
     (related, top)
 }
 
+/// The header over an open album or artist: a picture, a line of facts and, for an artist,
+/// the biography Spotify shows on their page (copyright lines for an album).
+#[derive(Clone, Default, PartialEq, Debug)]
+pub struct Info {
+    pub image: Option<String>,
+    pub facts: String,
+    pub about: String,
+}
+
+pub async fn info(session: &Session, uri: &str) -> Res<Info> {
+    if uri.starts_with("spotify:artist:") {
+        let v = gql(session, GQL_ARTIST, serde_json::json!({ "uri": uri, "locale": "", "includePrerelease": false })).await?;
+        return Ok(artist_info(&v["data"]["artistUnion"]));
+    }
+    let (_, a) = entities::<PAlbum>(session, &[uri.to_string()], ExtensionKind::ALBUM_V4).await?.pop().ok_or("album not found")?;
+    Ok(album_info(&a))
+}
+
+fn album_info(a: &PAlbum) -> Info {
+    const MONTHS: [&str; 12] = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    let kind = album_row(String::new(), a).album; // "2001 · single"
+    let date = a.date.as_ref().filter(|d| d.year() > 0).map(|d| match (d.day(), MONTHS.get((d.month() - 1).max(0) as usize)) {
+        (day, Some(m)) if d.month() > 0 && day > 0 => format!("{day} {m} {}", d.year()),
+        (_, Some(m)) if d.month() > 0 => format!("{m} {}", d.year()),
+        _ => d.year().to_string(),
+    });
+    // "2001 · album" → "album · 12 Mar 2001": the full date replaces the bare year
+    let kind = kind.rsplit(" · ").next().unwrap_or_default().to_string();
+    let facts = [Some(kind), date, Some(a.label().to_string()).filter(|l| !l.is_empty())].into_iter().flatten().collect::<Vec<_>>().join(" · ");
+    let about = a.copyright.iter().map(|c| c.text().trim()).filter(|t| !t.is_empty()).collect::<Vec<_>>().join("  ");
+    Info { image: cover_url(a), facts, about }
+}
+
+fn artist_info(a: &Value) -> Info {
+    let num = |v: &Value| v.as_u64().filter(|&n| n > 0);
+    let s = &a["stats"];
+    let facts = [
+        num(&s["monthlyListeners"]).map(|n| format!("{} monthly listeners", short_count(n))),
+        num(&s["followers"]).map(|n| format!("{} followers", short_count(n))),
+        num(&s["worldRank"]).map(|n| format!("#{n} in the world")),
+    ]
+    .into_iter()
+    .flatten()
+    .collect::<Vec<_>>()
+    .join(" · ");
+    let image = a["visuals"]["avatarImage"]["sources"]
+        .as_array()
+        .and_then(|v| v.iter().max_by_key(|i| i["width"].as_u64().unwrap_or(0)))
+        .and_then(|i| i["url"].as_str())
+        .map(String::from);
+    Info { image, facts, about: strip_html(a["profile"]["biography"]["text"].as_str().unwrap_or_default()) }
+}
+
+/// 1234567 → "1.2M", 45300 → "45.3K".
+fn short_count(n: u64) -> String {
+    match n {
+        1_000_000.. => format!("{:.1}M", n as f64 / 1e6),
+        1_000.. => format!("{:.1}K", n as f64 / 1e3),
+        _ => n.to_string(),
+    }
+}
+
+/// Biographies link names (`<a href="spotify:artist:…">Name</a>`) and escape a few characters.
+fn strip_html(s: &str) -> String {
+    let mut out = String::new();
+    let mut in_tag = false;
+    for c in s.chars() {
+        match c {
+            '<' => in_tag = true,
+            '>' => in_tag = false,
+            c if !in_tag => out.push(c),
+            _ => {}
+        }
+    }
+    out.replace("&amp;", "&").replace("&quot;", "\"").replace("&#39;", "'").replace("&lt;", "<").replace("&gt;", ">").replace("&nbsp;", " ")
+}
+
 fn station_uris(v: &Value) -> Vec<String> {
     v["tracks"].as_array().into_iter().flatten().filter_map(|t| t["uri"].as_str()).filter(|u| u.starts_with("spotify:track:")).map(String::from).collect()
 }
@@ -1046,6 +1123,39 @@ mod tests {
         assert_eq!(related, [("spotify:artist:a".to_string(), "Nile Rodgers".to_string())]);
         assert_eq!(top, ["spotify:track:1"]);
         assert_eq!(overview_of(&Value::Null), (Vec::new(), Vec::new()));
+    }
+
+    #[test]
+    fn reads_artist_info() {
+        let v: Value = serde_json::from_str(r#"{
+          "profile": {"biography": {"text": "Led by <a href=\"spotify:artist:x\">Julian</a> &amp; co."}},
+          "stats": {"followers": 4567000, "monthlyListeners": 12345, "worldRank": 0},
+          "visuals": {"avatarImage": {"sources": [{"url": "s", "width": 160}, {"url": "l", "width": 640}]}}
+        }"#).unwrap();
+        let i = artist_info(&v);
+        assert_eq!(i.about, "Led by Julian & co.");
+        assert_eq!(i.facts, "12.3K monthly listeners · 4.6M followers");
+        assert_eq!(i.image.as_deref(), Some("l"));
+        assert_eq!(artist_info(&Value::Null), Info::default());
+    }
+
+    #[test]
+    fn album_info_has_date_label_and_copyright() {
+        use librespot_protocol::metadata::{Copyright, Date};
+        let mut a = PAlbum::new();
+        a.set_label("RCA".into());
+        let mut d = Date::new();
+        d.set_year(2001);
+        d.set_month(7);
+        d.set_day(30);
+        a.date = protobuf::MessageField::some(d);
+        let mut c = Copyright::new();
+        c.set_text("(P) 2001 RCA".into());
+        a.copyright.push(c);
+        let i = album_info(&a);
+        assert_eq!((i.facts.as_str(), i.about.as_str()), ("album · 30 Jul 2001 · RCA", "(P) 2001 RCA"));
+        a.date.as_mut().unwrap().set_day(0);
+        assert_eq!(album_info(&a).facts, "album · Jul 2001 · RCA");
     }
 
     #[test]
