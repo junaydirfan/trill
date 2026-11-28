@@ -299,8 +299,11 @@ fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
                 Kind::Artist => ("artist ", Color::Yellow),
             };
             let heart = if app.liked.contains(&r.uri) { "♥ " } else { "" };
+            // ≡ like the sidebar's Queue: added with `a` and still waiting (the queue is short)
+            let queued = if !in_queue && r.kind == Kind::Track && app.queue.iter().any(|q| q.uri == r.uri) { "≡ " } else { "" };
             Line::from(vec![
                 Span::styled(heart, Style::new().fg(accent())),
+                Span::styled(queued, Style::new().fg(accent())),
                 Span::styled(tag, Style::new().fg(tag_color)),
                 Span::raw(r.title.as_str()),
                 Span::styled(if show_artist || r.artist.is_empty() { String::new() } else { format!(" · {}", r.artist) }, Style::new().dim()),
@@ -580,7 +583,7 @@ const HELP: [(&str, &[(&str, &str)]); 4] = [
     ]),
     ("Library", &[
         ("f", "like · save album · follow artist"),
-        ("a", "add to queue"),
+        ("a", "add to queue (≡ marks queued songs)"),
         ("A", "add to / remove from a playlist"),
         ("D D", "remove from the playlist · queue"),
         ("y  Y", "copy link: highlighted · open list"),

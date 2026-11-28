@@ -132,7 +132,7 @@ To update a build: `cargo install --git https://github.com/junaydirfan/trill --f
 - **Sort** (`o`): newest first, playlist order, title, artist, album or length. Each list remembers its own.
 - **Search** (`/`): songs, albums, artists and playlists; `↑` brings back past searches.
 - **Edit as you listen:** like, save and follow (`f`), add to and remove from playlists (`A`, ✓ shows where it already is), remove from the open playlist (`D D`). Safe against edits made on your phone meanwhile.
-- **Queue** (`a`, `c`): songs you add play next; `D D` in the queue takes one out.
+- **Queue** (`a`, `c`): songs you add play next and show `≡` in every list until they play; `D D` in the queue takes one out.
 - **Private session** (`I`): Spotify's own, for your whole account. On Linux it also hides the song from Discord.
 - **Desktop:** MPRIS on Linux (KDE's media widget, the lock screen, media keys, `playerctl`, KDE Connect), Now Playing on macOS, and your phone through Spotify Connect.
 - **Themes** (`t`), including `cover`, which takes its colour from the album art. **The mouse** works too.
