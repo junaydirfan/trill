@@ -129,6 +129,7 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let hl = if app.focus == Focus::Side { Style::new().fg(on_accent()).bg(accent()) } else { Style::new().add_modifier(Modifier::REVERSED) };
     let list = List::new(items).block(block("Library", app.focus == Focus::Side)).highlight_style(hl);
     f.render_stateful_widget(list, side, &mut app.side_state);
+    let (main, info_img) = if app.lyrics_open { (main, None) } else { draw_info(f, app, main) };
     (app.side_area, app.main_area) = (side, main);
     if app.lyrics_open {
         draw_lyrics(f, app, main);
@@ -144,12 +145,14 @@ pub fn draw(f: &mut Frame, app: &mut App) {
     let popups = [eq, chooser, app.help_open.then(|| draw_help(f))];
     // Terminal graphics (kitty placeholders in Ghostty at least) drop every image row that
     // anything else is drawn across, so a popup over the cover hides it whole instead.
-    if let (Some(area), Some(proto)) = (art_area, app.art.as_ref().and_then(|a| a.proto.as_ref()))
-        && !popups.iter().flatten().any(|p| p.intersects(area))
-    {
-        let sz = proto.size();
-        let x = area.x + area.width.saturating_sub(sz.width) / 2;
-        f.render_widget(Image::new(proto), Rect { x, y: area.y, width: sz.width.min(area.width), height: sz.height.min(area.height) });
+    for (area, art) in [(art_area, &app.art), (info_img, &app.info_art)] {
+        if let (Some(area), Some(proto)) = (area, art.as_ref().and_then(|a| a.proto.as_ref()))
+            && !popups.iter().flatten().any(|p| p.intersects(area))
+        {
+            let sz = proto.size();
+            let x = area.x + area.width.saturating_sub(sz.width) / 2;
+            f.render_widget(Image::new(proto), Rect { x, y: area.y, width: sz.width.min(area.width), height: sz.height.min(area.height) });
+        }
     }
 
     // bottom line: search input or status
@@ -205,6 +208,48 @@ fn art_rows(app: &App, side: Rect) -> Option<u16> {
     let (w, fh) = ((side.width - 2) as u32 * fs.width as u32, fs.height.max(1) as u32);
     let rows = ((w + fh / 2) / fh) as u16;
     (rows >= 4 && side.height >= rows + 12).then_some(rows)
+}
+
+/// Rows the album/artist header takes, borders included.
+const INFO_H: u16 = 9;
+
+/// The header over an open album or artist (picture, facts, biography) when it has loaded and
+/// the pane is tall enough. Returns the room left for the table and where the picture goes.
+fn draw_info(f: &mut Frame, app: &mut App, main: Rect) -> (Rect, Option<Rect>) {
+    app.info_want = None;
+    let Some(info) = app.infos.get(&app.view.uri).filter(|i| !i.facts.is_empty() || i.image.is_some()) else { return (main, None) };
+    if main.height < INFO_H + 10 {
+        return (main, None);
+    }
+    let [head, rest] = Layout::vertical([Constraint::Length(INFO_H), Constraint::Min(5)]).areas(main);
+    let blk = Block::bordered().border_type(BorderType::Rounded).border_style(Style::new().dim());
+    let inner = blk.inner(head);
+    f.render_widget(blk, head);
+    // a square picture on the left, as wide as the rows it fills
+    let pic_w = match (app.img_picker.as_ref(), &info.image, app.art_on) {
+        (Some(p), Some(_), true) => {
+            let fs = p.font_size();
+            (inner.height as u32 * fs.height as u32 / fs.width.max(1) as u32) as u16
+        }
+        _ => 0,
+    };
+    let pic_w = if pic_w * 3 > inner.width { 0 } else { pic_w };
+    let [pic, text] = Layout::horizontal([Constraint::Length(pic_w), Constraint::Min(10)]).spacing(u16::from(pic_w > 0)).areas(inner);
+    let mut facts = info.facts.clone();
+    if app.view.uri.starts_with("spotify:album:") {
+        let ms: u64 = app.view.all.iter().map(|r| r.duration_ms as u64).sum();
+        if !app.view.all.is_empty() {
+            facts.push_str(&format!(" · {} songs, {} min", app.view.all.len(), (ms + 30_000) / 60_000));
+        }
+    }
+    let mut lines = vec![Line::styled(app.view.title.clone(), Style::new().fg(accent()).bold()), Line::styled(facts, Style::new().dim()), Line::default()];
+    lines.push(Line::raw(info.about.clone()));
+    f.render_widget(Paragraph::new(lines).wrap(ratatui::widgets::Wrap { trim: true }), text);
+    if pic_w > 0 {
+        app.info_want = Some((pic.width, pic.height));
+        return (rest, Some(pic));
+    }
+    (rest, None)
 }
 
 fn draw_table(f: &mut Frame, app: &mut App, main: Rect) {
@@ -440,7 +485,8 @@ fn draw_now(f: &mut Frame, app: &mut App, now: Rect) {
     }
 }
 
-fn draw_lyrics(f: &mut Frame, app: &App, area: Rect) {
+fn draw_lyrics(f: &mut Frame, app: &mut App, area: Rect) {
+    app.lyrics_rows = (Rect::default(), 0);
     let Some(now) = app.now.as_ref() else {
         let p = Paragraph::new("\n Play something to see its lyrics.  (L or Esc to close)").dim();
         f.render_widget(p.block(block("Lyrics", true)), area);
@@ -489,6 +535,7 @@ fn draw_lyrics(f: &mut Frame, app: &App, area: Rect) {
         })
         .collect();
     f.render_widget(Paragraph::new(lines), inner);
+    app.lyrics_rows = (inner, start);
 }
 
 fn draw_chooser(f: &mut Frame, app: &mut App) -> Option<Rect> {

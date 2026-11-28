@@ -550,6 +550,14 @@ impl App {
         true
     }
 
+    /// A click on a synced lyrics line: when that line starts.
+    pub(super) fn lyric_at(&self, pos: (u16, u16)) -> Option<u32> {
+        let slot = self.lyrics.as_ref().filter(|l| self.now.as_ref().is_some_and(|n| n.uri == l.uri))?;
+        let LyricsState::Ready(l) = &slot.state else { return None };
+        let i = super::popup_row(self.lyrics_rows, l.lines.len(), pos).filter(|_| l.synced)?;
+        Some(l.lines[i].0)
+    }
+
     /// When the highlighted lyric line next changes (so we redraw exactly then).
     pub fn lyrics_deadline(&self) -> Option<Instant> {
         if !self.lyrics_open || !self.playing {
@@ -576,6 +584,7 @@ impl App {
         self.save_prefs();
         if !self.art_on {
             self.art = None; // free the encoded image
+            self.info_art = None;
         }
     }
 
@@ -597,7 +606,7 @@ impl App {
         let mut np = Picker::from_fontsize(ratatui_image::FontSize::new(w, h));
         np.set_protocol_type(p.protocol_type());
         self.img_picker = Some(np);
-        if let Some(a) = self.art.as_mut() {
+        for a in [&mut self.art, &mut self.info_art].into_iter().flatten() {
             a.size = (0, 0); // no longer matches art_want, so refresh_media re-encodes
             // The old picture is sized in old pixels: it would spill over the borders (zoom out) or
             // sit small in the corner (zoom in) and leave bits behind, so show none until the new one.
@@ -607,6 +616,7 @@ impl App {
 
     /// Start whatever lyrics / art fetches the current state needs. Cheap when nothing changed.
     pub fn refresh_media(&mut self) {
+        self.refresh_info();
         let Some(now) = self.now.as_ref() else {
             self.art = None;
             return;
@@ -652,7 +662,38 @@ impl App {
         // check in on_extra_msg drops results that arrive after another change.
         let keep = self.art.take().and_then(|a| a.proto);
         self.art = Some(Art { url: url.clone(), size, proto: keep, bytes: bytes.clone(), busy: true });
-        let (s, tx, picker, url) = (self.session.clone(), self.tx.clone(), picker.clone(), url.clone());
+        self.spawn_art(picker.clone(), url, size, bytes, false);
+    }
+
+    /// The open album's or artist's header details, then its picture once there's room for it.
+    fn refresh_info(&mut self) {
+        let uri = &self.view.uri;
+        if !uri.starts_with("spotify:album:") && !uri.starts_with("spotify:artist:") {
+            return;
+        }
+        if !self.infos.contains_key(uri) {
+            self.infos.insert(uri.clone(), api::Info::default());
+            let (s, tx, uri) = (self.session.clone(), self.tx.clone(), uri.clone());
+            tokio::spawn(async move {
+                let res = api::info(&s, &uri).await;
+                let _ = tx.send(Msg::Info { uri, res });
+            });
+            return;
+        }
+        let url = self.infos.get(uri).and_then(|i| i.image.clone());
+        let (Some(picker), Some(size), Some(url), true) = (self.img_picker.as_ref(), self.info_want, url, self.art_on) else { return };
+        let same = self.info_art.as_ref().filter(|a| a.url == url);
+        if same.is_some_and(|a| a.busy || a.size == size) {
+            return;
+        }
+        let bytes = same.and_then(|a| a.bytes.clone());
+        self.info_art = Some(Art { url: url.clone(), size, proto: None, bytes: bytes.clone(), busy: true });
+        self.spawn_art(picker.clone(), url, size, bytes, true);
+    }
+
+    /// Fetch (unless `bytes` are known) and encode a picture; comes back as `Msg::Art`.
+    fn spawn_art(&self, picker: Picker, url: String, size: (u16, u16), bytes: Option<bytes::Bytes>, header: bool) {
+        let (s, tx) = (self.session.clone(), self.tx.clone());
         tokio::spawn(async move {
             let bytes = match bytes {
                 Some(b) => Ok(b),
@@ -665,10 +706,12 @@ impl App {
                 Err(e) => Err(e),
             };
             let res = res.map(|((proto, tint), bytes)| {
-                let _ = tx.send(Msg::Tint { url: url.clone(), tint });
+                if !header {
+                    let _ = tx.send(Msg::Tint { url: url.clone(), tint });
+                }
                 (proto, bytes)
             });
-            let _ = tx.send(Msg::Art { url, size, res });
+            let _ = tx.send(Msg::Art { url, size, header, res });
         });
     }
 
@@ -752,8 +795,15 @@ impl App {
                 }
                 self.status = format!("Couldn't turn the private session {}: {e}", if on { "on" } else { "off" });
             }
-            Msg::Art { url, size, res } => {
-                if let Some(a) = self.art.as_mut()
+            Msg::Info { uri, res } => {
+                let info = res.unwrap_or_else(|e| {
+                    log::warn!("info for {uri}: {e}");
+                    api::Info::default()
+                });
+                self.infos.insert(uri, info);
+            }
+            Msg::Art { url, size, header, res } => {
+                if let Some(a) = if header { self.info_art.as_mut() } else { self.art.as_mut() }
                     && a.url == url
                 {
                     a.busy = false;

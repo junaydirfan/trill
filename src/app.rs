@@ -37,7 +37,10 @@ pub enum Msg {
     PlayAll(Result<Vec<Row>, String>),
     LikeDone { row: Row, liked: bool, res: Result<(), String> },
     Lyrics { uri: String, res: Result<Option<crate::library::Lyrics>, String> },
-    Art { url: String, size: (u16, u16), res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
+    /// `header`: the picture over an album or artist (else the now-playing cover).
+    Art { url: String, size: (u16, u16), header: bool, res: Result<(ratatui_image::protocol::Protocol, bytes::Bytes), String> },
+    /// The header details of an album or artist page.
+    Info { uri: String, res: Result<api::Info, String> },
     NextArt { url: String, bytes: bytes::Bytes },
     Private { on: bool, was: u64, res: Result<(), String> },
     /// `u` / `U`: the album or artist to open (uri, title).
@@ -366,6 +369,13 @@ pub struct App {
     next_art: Option<(String, bytes::Bytes)>,
     /// Cell size the UI has room for (set while drawing).
     pub art_want: Option<(u16, u16)>,
+    /// Album and artist page headers, by uri (an empty one while it loads).
+    pub infos: HashMap<String, api::Info>,
+    /// The header's picture, and the cell size the UI has room for it.
+    pub info_art: Option<Art>,
+    pub info_want: Option<(u16, u16)>,
+    /// The lyrics lines last drawn and the first one's index (for clicks).
+    pub lyrics_rows: (Rect, usize),
     /// Where the last frame drew the sidebar list, the track table and the progress bar (for clicks).
     pub side_area: Rect,
     pub main_area: Rect,
@@ -496,6 +506,10 @@ impl App {
             art: None,
             next_art: None,
             art_want: None,
+            infos: HashMap::new(),
+            info_art: None,
+            info_want: None,
+            lyrics_rows: (Rect::default(), 0),
             side_area: Rect::default(),
             main_area: Rect::default(),
             bar_area: Rect::default(),
@@ -1605,6 +1619,8 @@ impl App {
                 } else if let Some(i) = row_at(self.side_area, 1, self.side_state.offset(), self.side.len(), pos) {
                     self.side_state.select(Some(i));
                     self.open_side();
+                } else if self.lyrics_open && let Some(ms) = self.lyric_at(pos) {
+                    self.seek_to(ms);
                 } else if let Some(i) = row_at(self.main_area, 2, self.view.state.offset(), self.view.rows.len(), pos)
                     && !self.lyrics_open
                 {
